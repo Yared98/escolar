@@ -1,0 +1,10 @@
+{
+  "name": "Escolar ERP - Gestão Integrada",
+  "short_name": "Escolar ERP",
+  "description": "Sistema de Gestão Escolar com suporte Offline-First PWA para Diário de Classe e Secretaria",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#6366f1",
+  "orientation": "portrait-primary"
+}

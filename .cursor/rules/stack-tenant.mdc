@@ -1,0 +1,12 @@
+---
+description: Stack fixa e TenantDb — sem drift arquitetural
+alwaysApply: true
+---
+
+# Stack e multi-tenant
+
+- Backend: Rust, Axum, SQLx, Postgres. Frontend: Next.js App Router PWA + Tailwind.
+- Não trocar stack sem pedido explícito do usuário.
+- Rotas de negócio: extractor `TenantDb` + RBAC. Proibido usar pool global de `AppState` em handler tenant.
+- Falha de API: UI vazia + erro. Sem CPF/aluno/fatura inventados.
+- Erros: `Result<T, AppError>`; evitar `unwrap`/`expect` em caminho de produção.

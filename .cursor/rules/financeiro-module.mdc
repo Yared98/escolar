@@ -1,0 +1,12 @@
+---
+description: Ao editar financeiro — abrir OpenSpec e respeitar limites MVP
+globs: backend/src/handlers/financeiro.rs,backend/src/models/financeiro.rs,backend/src/services/faturamento.rs,frontend/src/components/FinanceiroSection.tsx,frontend/src/components/BankingIntegrations.tsx,openspec/modules/financeiro.md
+alwaysApply: false
+---
+
+# Financeiro
+
+1. Ler `openspec/modules/financeiro.md` (seção Estado real / Limitações MVP).
+2. Pix/boleto locais ≠ PSP. NFS-e atual = simulada. Régua = log interno, sem omnicanal real.
+3. Ao mudar comportamento: atualizar `financeiro.md` no mesmo PR/tarefa.
+4. Não remover honestidade da UI (avisos de stub) para “parecer pronto”.

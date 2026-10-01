@@ -1,0 +1,12 @@
+pub mod academico;
+pub mod agenda_admin;
+pub mod auth;
+pub mod crm_lms;
+pub mod financeiro;
+pub mod notificacoes;
+pub mod nutricao;
+pub mod opensec;
+pub mod regulatorio_ia;
+pub mod secretaria;
+pub mod webhooks_cora;
+pub mod tenant_settings;

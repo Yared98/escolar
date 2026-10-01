@@ -1,0 +1,10 @@
+pub mod academico;
+pub mod agenda_admin;
+pub mod crm_lms;
+pub mod financeiro;
+pub mod notificacoes;
+pub mod opensec;
+pub mod regulatorio_ia;
+pub mod secretaria;
+pub mod tenant;
+pub mod user;
