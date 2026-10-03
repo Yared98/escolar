@@ -47,7 +47,7 @@
 ## Git
 
 - Commit/push só quando o usuário pedir. Um assunto por commit. Rode `git status` antes e não inclua mudanças pendentes que não sejam suas. Não pule hooks.
-- **Exceção autorizada: execução orquestrada de cards da Onda B.** O orquestrador cria uma branch `onda-b/<Bn>` a partir de `onda-b/base` e o worker pode commitar nela ao fim do card. Nunca commitar direto em `main` nem em `onda-b/base`; nunca fazer push. Se a tentativa falhar, a branch é descartada. Fora desse fluxo vale a regra acima.
+- **Exceção autorizada: execução orquestrada de cards da Onda B.** O orquestrador cria uma branch `onda-b/<Bn>` e o worker pode commitar nela ao fim do card. As branches são **empilhadas**: a do primeiro card nasce de `onda-b/base` e cada seguinte nasce da branch do último card aprovado, para que quem depende de outro card enxergue o código dele. Nunca commitar direto em `main` nem em `onda-b/base`; nunca fazer push. Se a tentativa falhar, a branch é descartada. Fora desse fluxo vale a regra acima.
 
 ## Kanban
 
