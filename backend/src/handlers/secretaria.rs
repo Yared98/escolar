@@ -2130,7 +2130,7 @@ pub async fn assinar_contrato(
     .unwrap_or(0.0);
 
     let parcelas_geradas = match crate::services::faturamento::gerar_parcelas_contrato(
-        &mut *db,
+        &mut db,
         tenant_id,
         contrato.aluno_id,
         contrato.id,

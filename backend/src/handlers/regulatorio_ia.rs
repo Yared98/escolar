@@ -104,6 +104,7 @@ pub fn validar_consistencia_educacenso(
     inconsistencias
 }
 
+#[allow(clippy::too_many_arguments)] // API publica mantida para integracao com educacenso
 pub fn gerar_arquivo_posicional_educacenso(
     escola_nome: &str,
     codigo_inep: &str,
@@ -446,6 +447,7 @@ pub fn verificar_inviolabilidade_diploma(
     hash_recalculado == hash_esperado
 }
 
+#[allow(clippy::too_many_arguments)] // API publica mantida para integracao com certificado digital MEC
 pub fn gerar_xml_diplomado(
     escola_nome: &str,
     escola_cnpj: &str,
@@ -539,6 +541,7 @@ pub fn gerar_xml_diplomado(
     )
 }
 
+#[allow(clippy::too_many_arguments)] // API publica mantida para integracao de historico escolar MEC
 pub fn gerar_xml_historico(
     escola_nome: &str,
     codigo_mec: &str,
@@ -719,7 +722,7 @@ pub async fn emitir_diploma_digital(
     let agora = chrono::Utc::now();
     let carimbo_tempo_iso = agora.to_rfc3339();
     let data_conclusao = agora.format("%Y-%m-%d").to_string();
-    let registro_num = format!("REG-{}", &Uuid::new_v4().to_string()[..8].to_uppercase());
+    let registro_num = format!("REG-{}", Uuid::new_v4().to_string()[..8].to_uppercase());
 
     let notas_digest = calcular_digest_historico(&notas);
     let hash_xades = calcular_hash_xades_diploma(

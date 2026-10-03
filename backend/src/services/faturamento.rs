@@ -43,7 +43,7 @@ pub fn montar_cobranca(
     let txid = format!("ESC{}", &Uuid::new_v4().to_string().replace('-', "")[..16]);
     let pix_key = format!(
         "financeiro@{}.edu.br",
-        tenant_nome.to_lowercase().replace(' ', "").replace('-', "")
+        tenant_nome.to_lowercase().replace([' ', '-'], "")
     );
     let qr = gerar_pix_emvco(
         &pix_key,
@@ -124,6 +124,7 @@ pub fn valor_atualizado_com_encargos(
     (total, multa, juros)
 }
 
+#[allow(clippy::too_many_arguments)] // API publica mantida para geracao de parcelas de contrato escolar
 pub async fn gerar_parcelas_contrato(
     db: &mut PgConnection,
     tenant_id: Uuid,
@@ -138,7 +139,7 @@ pub async fn gerar_parcelas_contrato(
     multa_percentual: f64,
     juros_mora_mes_percentual: f64,
 ) -> Result<Vec<Fatura>, AppError> {
-    if numero_parcelas < 1 || numero_parcelas > 24 {
+    if !(1..=24).contains(&numero_parcelas) {
         return Err(AppError::BadRequest(
             "Número de parcelas deve estar entre 1 e 24.".to_string(),
         ));

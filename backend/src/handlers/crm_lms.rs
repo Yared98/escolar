@@ -725,7 +725,7 @@ pub async fn whatsapp_webhook(
             )
         }
         IntencaoChatbot::HumanoTransbordo => {
-            let proto = format!("ATD-2026-{}", &Uuid::new_v4().to_string()[..8].to_uppercase());
+            let proto = format!("ATD-2026-{}", Uuid::new_v4().to_string()[..8].to_uppercase());
 
             let tenant_id = maybe_aluno.as_ref().map(|a| a.tenant_id);
             let aluno_id = maybe_aluno.as_ref().map(|a| a.id);
@@ -1006,7 +1006,7 @@ pub fn normalizar_nota_lti(raw: f64) -> f64 {
     } else {
         raw
     };
-    (nota.max(0.0).min(10.0) * 100.0).round() / 100.0
+    (nota.clamp(0.0, 10.0) * 100.0).round() / 100.0
 }
 
 pub async fn lti_grade_sync(

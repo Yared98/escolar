@@ -606,7 +606,7 @@ pub async fn enviar_mensagem_agenda(
     if is_responsavel {
         if let Some(dest) = destinatario_id {
             if resposta_a_id.is_none()
-                && !responsavel_pode_falar_com(&mut *db, tenant_id, auth_user.id, dest).await?
+                && !responsavel_pode_falar_com(&mut db, tenant_id, auth_user.id, dest).await?
             {
                 return Err(AppError::Forbidden(
                     "Você só pode iniciar conversa com gestão, financeiro ou professores das turmas dos seus filhos.".into(),
@@ -1180,7 +1180,7 @@ pub async fn registrar_rotina_diaria(
     let data_rotina = dto.data.unwrap_or_else(|| chrono::Utc::now().date_naive());
 
     let (status_presenca, _) =
-        presenca_do_dia(&mut *db, tenant_id, dto.aluno_id, data_rotina).await?;
+        presenca_do_dia(&mut db, tenant_id, dto.aluno_id, data_rotina).await?;
     if status_presenca == "falta" || status_presenca == "justificada" {
         return Err(AppError::BadRequest(
             "Aluno ausente nesta data. Corrija a presença antes de registrar a rotina.".to_string(),
@@ -1377,7 +1377,7 @@ pub async fn consultar_diario_infantil(
     });
 
     let (presenca, justificativa) =
-        presenca_do_dia(&mut *db, tenant_id, aluno_id, query.data).await?;
+        presenca_do_dia(&mut db, tenant_id, aluno_id, query.data).await?;
 
     let rotina = sqlx::query_as::<_, RotinaDiariaInfantil>(
         "SELECT * FROM rotina_diaria_infantil WHERE tenant_id = $1 AND aluno_id = $2 AND data = $3 ORDER BY created_at DESC LIMIT 1",

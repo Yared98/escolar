@@ -130,10 +130,10 @@ pub async fn gerar_fatura(
     let desconto = dto.desconto_percentual.unwrap_or(0.0).clamp(0.0, 100.0);
     let fator = 1.0 - desconto / 100.0;
     let valor_liquido = ((dto.valor * fator) * 100.0).round() / 100.0;
-    let nome = tenant_nome(&mut *db, tenant_id).await?;
+    let nome = tenant_nome(&mut db, tenant_id).await?;
 
     let fatura = inserir_fatura(
-        &mut *db,
+        &mut db,
         NovaFaturaParams {
             tenant_id,
             aluno_id: dto.aluno_id,
@@ -217,7 +217,7 @@ pub async fn gerar_parcelas_de_contrato(
 
     let mut tx = (&mut *db).begin().await?;
     let faturas = gerar_parcelas_contrato(
-        &mut *tx,
+        &mut tx,
         tenant_id,
         contrato.1,
         contrato.0,

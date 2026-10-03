@@ -390,10 +390,9 @@ pub async fn consultar_boletim(
         _ => 100.0,
     };
 
-    let mut disciplinas_map: std::collections::BTreeMap<
-        String,
-        (Option<f64>, Option<f64>, Option<f64>, Option<f64>),
-    > = std::collections::BTreeMap::new();
+    type BimestresNotas = (Option<f64>, Option<f64>, Option<f64>, Option<f64>);
+    let mut disciplinas_map: std::collections::BTreeMap<String, BimestresNotas> =
+        std::collections::BTreeMap::new();
     for n in notas {
         let entry = disciplinas_map
             .entry(n.disciplina_nome)

@@ -29,9 +29,7 @@ pub async fn auth_middleware(mut req: Request, next: Next) -> Result<Response, A
 
     let query_token = req.uri().query().and_then(|q| {
         q.split('&').find_map(|pair| {
-            let mut parts = pair.splitn(2, '=');
-            let key = parts.next()?;
-            let val = parts.next()?;
+            let (key, val) = pair.split_once('=')?;
             if key == "access_token" || key == "token" {
                 Some(val.to_string())
             } else {

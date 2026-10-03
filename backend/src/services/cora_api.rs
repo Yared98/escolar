@@ -71,6 +71,12 @@ pub struct CoraClient {
     base_url: String,
 }
 
+impl Default for CoraClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CoraClient {
     pub fn new() -> Self {
         Self {

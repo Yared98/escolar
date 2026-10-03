@@ -175,11 +175,7 @@ fn classificar(
             let feriado = coberturas
                 .iter()
                 .find(|evento| evento.data_inicio <= *data && evento.data_fim >= *data);
-            let motivo = if let Some(item) = conflito {
-                Some(format!("Já existe {} nesta data.", item.titulo_menu))
-            } else {
-                None
-            };
+            let motivo = conflito.map(|item| format!("Já existe {} nesta data.", item.titulo_menu));
             PreviaDia {
                 data: *data,
                 conflito: conflito.is_some(),

@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::info!("Inicializando o servidor Escolar ERP Backend...");
 
-    let config = Config::from_env().map_err(|e| e)?;
+    let config = Config::from_env()?;
 
     tracing::info!("Conectando ao PostgreSQL em: {}", config.database_url);
     let pool = match init_admin_pool(&config.database_url).await {
