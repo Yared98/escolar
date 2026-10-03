@@ -73,6 +73,68 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
         .await
         .map_err(|e| format!("migrations: {e}"))?;
 
+    // 1. Verificação automatizada de cobertura total RLS (pg_class e pg_attribute)
+    let missing_rls: Vec<String> = sqlx::query_scalar(
+        r#"
+        SELECT c.relname::text
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public'
+          AND c.relkind = 'r'
+          AND EXISTS (
+              SELECT 1 FROM pg_attribute a
+              WHERE a.attrelid = c.oid
+                AND a.attname = 'tenant_id'
+                AND NOT a.attisdropped
+          )
+          AND (c.relrowsecurity = false OR c.relforcerowsecurity = false)
+        ORDER BY c.relname ASC
+        "#,
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    if !missing_rls.is_empty() {
+        return Err(format!(
+            "As seguintes tabelas com tenant_id não possuem RLS habilitado e forçado (relrowsecurity e relforcerowsecurity): {:?}",
+            missing_rls
+        ));
+    }
+
+    let missing_policy: Vec<String> = sqlx::query_scalar(
+        r#"
+        SELECT c.relname::text
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public'
+          AND c.relkind = 'r'
+          AND EXISTS (
+              SELECT 1 FROM pg_attribute a
+              WHERE a.attrelid = c.oid
+                AND a.attname = 'tenant_id'
+                AND NOT a.attisdropped
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM pg_policies p
+              WHERE p.schemaname = 'public'
+                AND p.tablename = c.relname
+                AND p.roles @> ARRAY['escolar_runtime']::name[]
+          )
+        ORDER BY c.relname ASC
+        "#,
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    if !missing_policy.is_empty() {
+        return Err(format!(
+            "As seguintes tabelas com tenant_id não possuem política RLS para escolar_runtime: {:?}",
+            missing_policy
+        ));
+    }
+
     let tenant_a = Uuid::new_v4();
     let tenant_b = Uuid::new_v4();
     let user_a = Uuid::new_v4();
@@ -140,6 +202,60 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
         if without_tenant != 0 {
             return Err(format!("RLS sem tenant retornou {without_tenant} linhas"));
+        }
+
+        sqlx::query("RESET ROLE")
+            .execute(&mut *conn)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+
+    // 2. Teste dinâmico de isolamento multi-tenant em todas as tabelas com tenant_id
+    {
+        let tables_with_tenant: Vec<String> = sqlx::query_scalar(
+            r#"
+            SELECT c.relname::text
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = 'public'
+              AND c.relkind = 'r'
+              AND EXISTS (
+                  SELECT 1 FROM pg_attribute a
+                  WHERE a.attrelid = c.oid
+                    AND a.attname = 'tenant_id'
+                    AND NOT a.attisdropped
+              )
+            ORDER BY c.relname ASC
+            "#,
+        )
+        .fetch_all(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        let mut conn = pool.acquire().await.map_err(|e| e.to_string())?;
+        sqlx::query("SET ROLE escolar_runtime")
+            .execute(&mut *conn)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        for tbl in &tables_with_tenant {
+            // Com tenant_a ativo, consulta de dados do tenant_b deve retornar 0 linhas
+            sqlx::query("SELECT set_config('app.current_tenant', $1, false)")
+                .bind(tenant_a.to_string())
+                .execute(&mut *conn)
+                .await
+                .map_err(|e| e.to_string())?;
+
+            let query = format!("SELECT COUNT(*)::bigint FROM {tbl} WHERE tenant_id = $1");
+            let leaked: i64 = sqlx::query_scalar(&query)
+                .bind(tenant_b)
+                .fetch_one(&mut *conn)
+                .await
+                .map_err(|e| format!("Falha ao consultar {tbl} sob tenant A: {e}"))?;
+
+            if leaked != 0 {
+                return Err(format!("Vazamento RLS na tabela '{tbl}': tenant A enxergou {leaked} linhas do tenant B"));
+            }
         }
 
         sqlx::query("RESET ROLE")

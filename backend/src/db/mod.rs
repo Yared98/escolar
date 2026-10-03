@@ -197,6 +197,14 @@ mod tests {
     }
 
     #[test]
+    fn total_rls_migration_fails_closed_without_null_bypass() {
+        let sql = include_str!("../../migrations/20261003000000_rls_cobertura_total.sql");
+        assert!(!sql.contains("get_current_tenant() IS NULL"));
+        assert!(sql.contains("FORCE ROW LEVEL SECURITY"));
+        assert!(sql.contains("tenant_id = get_current_tenant()"));
+    }
+
+    #[test]
     fn production_migrator_excludes_demo_seeds() {
         let migrator = sqlx::migrate!("./migrations");
         let dev_versions: Vec<i64> = migrator.migrations.iter().map(|m| m.version).collect();

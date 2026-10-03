@@ -36,6 +36,21 @@ O ecossistema é construído como um SaaS Educacional Multi-Tenant com Backend e
   - O valor permanece na conexão durante as várias consultas autocontidas do SQLx. `SET LOCAL` não serviria, porque cada comando confirma a própria transação. Antes de a conexão voltar ao pool, `after_release` limpa `app.current_tenant`.
   - As políticas RLS são fail-closed: `tenant_id = get_current_tenant()`, com `FORCE ROW LEVEL SECURITY`. O pool de execução usa `SET ROLE escolar_runtime`, papel sem superusuário e sem `BYPASSRLS`.
   - É expressamente proibido injetar `State<AppState>` para acessar o pool global diretamente em rotas restritas a um tenant. Rotas públicas que já resolveram o tenant usam o helper `acquire_tenant`.
+- **Cobertura Total de RLS (61 Tabelas de Negócio)**:
+  - Todas as 61 tabelas com a coluna `tenant_id` possuem `ENABLE ROW LEVEL SECURITY` e `FORCE ROW LEVEL SECURITY` ativados com a política fail-closed `tenant_id = get_current_tenant()` estritamente associada ao papel `escolar_runtime`:
+    - *Núcleo & Auth*: `users`, `refresh_tokens`, `revoked_tokens`, `oauth_authorization_codes`, `audit_logs`, `tenant_feature_flags`, `tenant_cora_config`, `tenant_bank_integrations`.
+    - *Secretaria & Acadêmico*: `alunos`, `prontuarios`, `turmas`, `turma_alunos`, `turma_disciplinas`, `turma_professores`, `horarios_turma`, `disciplinas`, `salas`, `diarios_classe`, `notas`, `presencas`, `contratos`, `diplomas_digitais`, `projetos_educacionais`, `ocorrencias_aluno`, `responsaveis_alunos`, `autorizados_retirada`, `autorizacoes_medicamento`, `portfolio_infantil`, `rotina_diaria_infantil`, `grupos_familiares`, `funcionarios`.
+    - *Financeiro & Nutrição*: `faturas`, `despesas`, `regua_cobranca_logs`, `nfse_emissoes`, `conciliacao_bancaria`, `plano_contas`, `fornecedores`, `cardapios`, `pratos`, `cardapio_recorrencias`, `restricoes_alimentares_aluno`.
+    - *CRM, LMS, Agenda & Regulatório*: `leads`, `lead_interacoes`, `lms_configs`, `lms_grade_sync_logs`, `scorm_tracking`, `eventos_calendario`, `eventos_rsvps`, `mensagens_agenda`, `notificacoes_sistema`, `notificacoes_disparos_logs`, `push_subscriptions`, `lgpd_termos`, `analise_evasao_logs`, `perimetro_credenciais`, `perimetro_acessos_logs`, `atendimento_protocolos`, `simulados_tri`, `simulados_itens`, `simulados_respostas`.
+- **Tabelas Globais (Sem `tenant_id`)**:
+  - `tenants`: Cadastro e resolução global de escolas por slug/subdomínio.
+  - `opensec_security_rules`: Regras perimetrais globais de segurança/WAF da infraestrutura SaaS.
+  - `whatsapp_webhook_logs`: Registros de entrada de webhooks brutos do WhatsApp antes do roteamento por tenant.
+- **Funções `SECURITY DEFINER` para Operações Pré-Autenticação**:
+  - Para fluxos pré-sessão onde a conexão ainda não conhece o `tenant_id` (e portanto `get_current_tenant()` retornaria nulo), a consulta segura ao banco é realizada através de funções `SECURITY DEFINER` restritas:
+    - `validar_refresh_token_publico(p_hash)`: Utilizada em `POST /api/v1/auth/refresh` para obter `user_id` e `tenant_id` a partir do hash do refresh token.
+    - `validar_oauth_code_publico(p_code, p_client_id)`: Utilizada em `POST /api/v1/auth/oauth/token` para validação prévia de código de autorização SSO.
+    - `validar_diploma_publico(p_codigo)`: Utilizada para validação pública de código/hash de diploma digital MEC.
 
 ---
 

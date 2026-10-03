@@ -168,6 +168,11 @@ pub async fn register_tenant(
         Err(e) => return Err(AppError::DatabaseError(e)),
     };
 
+    sqlx::query("SELECT set_config('app.current_tenant', $1, false)")
+        .bind(tenant.id.to_string())
+        .execute(&mut *tx)
+        .await?;
+
     let salt = SaltString::generate(&mut OsRng);
     let argon2 = Argon2::default();
     let password_hash = argon2
@@ -199,9 +204,11 @@ pub async fn register_tenant(
 
     tx.commit().await?;
 
+    let mut db = crate::db::acquire_tenant(&state.pool, tenant.id).await?;
+
     // Registro indelével de auditoria
     log_audit(
-        &state.pool,
+        &mut *db,
         tenant.id,
         Some(user.id),
         "TENANT_REGISTER",
@@ -215,8 +222,14 @@ pub async fn register_tenant(
     )
     .await;
 
-    let (token, refresh_token, expires_in) =
-        issue_session(&state, user.id, tenant.id, &user.role).await?;
+    let (token, refresh_token, expires_in) = issue_session_conn(
+        &mut db,
+        user.id,
+        tenant.id,
+        &user.role,
+        &state.config.jwt_private_pem,
+    )
+    .await?;
 
     Ok(Json(AuthResponseDto {
         token,
@@ -241,11 +254,13 @@ pub async fn login(
             .await?
             .ok_or(AppError::TenantNotFound)?;
 
+    let mut db = crate::db::acquire_tenant(&state.pool, tenant.id).await?;
+
     let user_opt =
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE tenant_id = $1 AND email = $2")
             .bind(tenant.id)
             .bind(&clean_email)
-            .fetch_optional(&state.pool)
+            .fetch_optional(&mut *db)
             .await?;
 
     let user = match user_opt {
@@ -253,7 +268,7 @@ pub async fn login(
         None => {
             // Auditoria contra ataques de força bruta / credential stuffing (NITPICK-01)
             log_audit(
-                &state.pool,
+                &mut *db,
                 tenant.id,
                 None,
                 "AUTH_LOGIN_FAILED",
@@ -278,7 +293,7 @@ pub async fn login(
     if verify_res.is_err() {
         // Auditoria contra senha incorreta (NITPICK-01)
         log_audit(
-            &state.pool,
+            &mut *db,
             tenant.id,
             Some(user.id),
             "AUTH_LOGIN_FAILED",
@@ -295,7 +310,7 @@ pub async fn login(
 
     // Registro indelével de auditoria para login bem-sucedido
     log_audit(
-        &state.pool,
+        &mut *db,
         tenant.id,
         Some(user.id),
         "AUTH_LOGIN",
@@ -308,8 +323,14 @@ pub async fn login(
     )
     .await;
 
-    let (token, refresh_token, expires_in) =
-        issue_session(&state, user.id, tenant.id, &user.role).await?;
+    let (token, refresh_token, expires_in) = issue_session_conn(
+        &mut db,
+        user.id,
+        tenant.id,
+        &user.role,
+        &state.config.jwt_private_pem,
+    )
+    .await?;
 
     Ok(Json(AuthResponseDto {
         token,
@@ -438,16 +459,35 @@ async fn store_refresh_token(
     Ok(())
 }
 
+pub async fn issue_session_conn(
+    db: &mut sqlx::pool::PoolConnection<sqlx::Postgres>,
+    user_id: Uuid,
+    tenant_id: Uuid,
+    role: &str,
+    jwt_private_pem: &str,
+) -> Result<(String, String, usize), AppError> {
+    let token = generate_jwt(user_id, tenant_id, role, jwt_private_pem)?;
+    let (refresh_token, refresh_hash) = new_refresh_token();
+    store_refresh_token(&mut **db, tenant_id, user_id, &refresh_hash).await?;
+    Ok((token, refresh_token, ACCESS_TOKEN_SECONDS))
+}
+
+#[allow(dead_code)]
 async fn issue_session(
     state: &AppState,
     user_id: Uuid,
     tenant_id: Uuid,
     role: &str,
 ) -> Result<(String, String, usize), AppError> {
-    let token = generate_jwt(user_id, tenant_id, role, &state.config.jwt_private_pem)?;
-    let (refresh_token, refresh_hash) = new_refresh_token();
-    store_refresh_token(&state.pool, tenant_id, user_id, &refresh_hash).await?;
-    Ok((token, refresh_token, ACCESS_TOKEN_SECONDS))
+    let mut db = crate::db::acquire_tenant(&state.pool, tenant_id).await?;
+    issue_session_conn(
+        &mut db,
+        user_id,
+        tenant_id,
+        role,
+        &state.config.jwt_private_pem,
+    )
+    .await
 }
 
 pub async fn refresh_session(
@@ -455,22 +495,8 @@ pub async fn refresh_session(
     Json(dto): Json<RefreshDto>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let hash = hash_refresh_token(&dto.refresh_token);
-    let row = sqlx::query_as::<
-        _,
-        (
-            Uuid,
-            Uuid,
-            String,
-            chrono::DateTime<Utc>,
-            Option<chrono::DateTime<Utc>>,
-        ),
-    >(
-        r#"
-        SELECT rt.user_id, rt.tenant_id, u.role, rt.expires_at, rt.revoked_at
-        FROM refresh_tokens rt
-        JOIN users u ON u.id = rt.user_id AND u.tenant_id = rt.tenant_id
-        WHERE rt.token_hash = $1
-        "#,
+    let row = sqlx::query_as::<_, (Uuid, Uuid, String, chrono::DateTime<Utc>, Option<chrono::DateTime<Utc>>)>(
+        "SELECT user_id, tenant_id, role, expires_at, revoked_at FROM validar_refresh_token_publico($1)",
     )
     .bind(&hash)
     .fetch_optional(&state.pool)
@@ -484,15 +510,23 @@ pub async fn refresh_session(
         ));
     }
 
+    let mut db = crate::db::acquire_tenant(&state.pool, tenant_id).await?;
+
     sqlx::query(
         "UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_hash = $1 AND revoked_at IS NULL",
     )
     .bind(&hash)
-    .execute(&state.pool)
+    .execute(&mut *db)
     .await?;
 
-    let (token, refresh_token, expires_in) =
-        issue_session(&state, user_id, tenant_id, &role).await?;
+    let (token, refresh_token, expires_in) = issue_session_conn(
+        &mut db,
+        user_id,
+        tenant_id,
+        &role,
+        &state.config.jwt_private_pem,
+    )
+    .await?;
     Ok(Json(serde_json::json!({
         "token": token,
         "refresh_token": refresh_token,
@@ -705,24 +739,8 @@ pub async fn oauth_token(
         return Err(AppError::InvalidCredentials);
     }
 
-    let code_record = sqlx::query_as::<
-        _,
-        (
-            Uuid,
-            Uuid,
-            Uuid,
-            String,
-            String,
-            String,
-            bool,
-            chrono::DateTime<Utc>,
-        ),
-    >(
-        r#"
-        SELECT id, tenant_id, user_id, client_id, redirect_uri, code_challenge, used, expires_at
-        FROM oauth_authorization_codes
-        WHERE code = $1 AND client_id = $2
-        "#,
+    let code_record = sqlx::query_as::<_, (Uuid, Uuid, Uuid, String, String, String, bool, chrono::DateTime<Utc>)>(
+        "SELECT id, tenant_id, user_id, client_id, redirect_uri, code_challenge, used, expires_at FROM validar_oauth_code_publico($1, $2)",
     )
     .bind(&dto.code)
     .bind(&dto.client_id)
@@ -740,15 +758,17 @@ pub async fn oauth_token(
         return Err(AppError::InvalidCredentials);
     }
 
+    let mut db = crate::db::acquire_tenant(&state.pool, tenant_id).await?;
+
     sqlx::query("UPDATE oauth_authorization_codes SET used = true WHERE id = $1")
         .bind(id)
-        .execute(&state.pool)
+        .execute(&mut *db)
         .await?;
 
     let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1 AND tenant_id = $2")
         .bind(user_id)
         .bind(tenant_id)
-        .fetch_optional(&state.pool)
+        .fetch_optional(&mut *db)
         .await?
         .ok_or(AppError::NotFound)?;
 
@@ -784,7 +804,7 @@ pub async fn oauth_token(
     )?;
 
     log_audit(
-        &state.pool,
+        &mut *db,
         tenant_id,
         Some(user.id),
         "OAUTH_TOKEN_EXCHANGED",
