@@ -32,7 +32,7 @@
 | Backend testes | `cd backend && cargo test` (os de integração, `tests/tenant_isolation.rs`, exigem `ESCOLAR_TEST_DATABASE_URL`: URL admin de um Postgres; o teste cria e derruba bancos próprios) |
 | Frontend | `cd frontend && npm run typecheck`, `npm run lint`, `npm test`, `npm run build` |
 | Worker | `cd worker && npm test` |
-| Contrato de API | `node scripts/check-api-contract.mjs` |
+| Contrato de API | `node scripts/check-api-contract.mjs --compare-snapshot --strict-allowlist` (usar `--snapshot` para atualizar o snapshot) |
 | Testes do contrato | `node --test scripts/check-api-contract.test.mjs` |
 | Gate de spec | `node scripts/check-agent-gates.mjs` (modo diff local) ou `--base origin/main` (CI/PR) |
 | Testes do gate | `node --test scripts/check-agent-gates.test.mjs` |

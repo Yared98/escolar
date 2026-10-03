@@ -291,14 +291,116 @@ export function normalizeFrontendPath(arg1Text) {
 }
 
 /**
- * Extracts HTTP method from rest options argument
+ * Extracts HTTP method information from rest arguments (options parameter).
+ * Returns { isDynamic: boolean, method?: string }
+ */
+export function extractMethodInfo(restText) {
+  let text = restText.trim();
+  if (!text) {
+    return { isDynamic: false, method: 'GET' };
+  }
+
+  if (text.startsWith(',')) {
+    text = text.substring(1).trim();
+  }
+
+  if (!text) {
+    return { isDynamic: false, method: 'GET' };
+  }
+
+  // Extract first argument after comma (the options argument)
+  let optionsArg = text;
+  let depthParen = 0, depthBrace = 0, depthBracket = 0, inStr = null;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inStr) {
+      if (ch === inStr && text[i - 1] !== '\\') inStr = null;
+    } else {
+      if (ch === '"' || ch === "'" || ch === '`') inStr = ch;
+      else if (ch === '(') depthParen++;
+      else if (ch === ')') depthParen--;
+      else if (ch === '{') depthBrace++;
+      else if (ch === '}') depthBrace--;
+      else if (ch === '[') depthBracket++;
+      else if (ch === ']') depthBracket--;
+      else if (ch === ',' && depthParen === 0 && depthBrace === 0 && depthBracket === 0) {
+        optionsArg = text.substring(0, i).trim();
+        break;
+      }
+    }
+  }
+
+  if (!optionsArg.startsWith('{') || !optionsArg.endsWith('}')) {
+    return { isDynamic: true };
+  }
+
+  const inner = optionsArg.slice(1, -1).trim();
+  if (!inner) {
+    return { isDynamic: false, method: 'GET' };
+  }
+
+  let hasTopLevelSpread = false;
+  let methodValStr = null;
+
+  const props = [];
+  let propStart = 0;
+  depthParen = 0; depthBrace = 0; depthBracket = 0; inStr = null;
+
+  for (let i = 0; i < inner.length; i++) {
+    const ch = inner[i];
+    if (inStr) {
+      if (ch === inStr && inner[i - 1] !== '\\') inStr = null;
+    } else {
+      if (ch === '"' || ch === "'" || ch === '`') inStr = ch;
+      else if (ch === '(') depthParen++;
+      else if (ch === ')') depthParen--;
+      else if (ch === '{') depthBrace++;
+      else if (ch === '}') depthBrace--;
+      else if (ch === '[') depthBracket++;
+      else if (ch === ']') depthBracket--;
+      else if (ch === ',' && depthParen === 0 && depthBrace === 0 && depthBracket === 0) {
+        props.push(inner.substring(propStart, i).trim());
+        propStart = i + 1;
+      }
+    }
+  }
+  const lastProp = inner.substring(propStart).trim();
+  if (lastProp) props.push(lastProp);
+
+  for (const prop of props) {
+    if (prop.startsWith('...')) {
+      hasTopLevelSpread = true;
+    } else {
+      const m = prop.match(/^method\s*:\s*([\s\S]*)$/i);
+      if (m) {
+        methodValStr = m[1].trim();
+      }
+    }
+  }
+
+  if (hasTopLevelSpread) {
+    return { isDynamic: true };
+  }
+
+  if (methodValStr === null) {
+    return { isDynamic: false, method: 'GET' };
+  }
+
+  const stringLiteralMatch = methodValStr.match(/^(['"`])(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\1$/i);
+  if (stringLiteralMatch) {
+    return { isDynamic: false, method: stringLiteralMatch[2].toUpperCase() };
+  }
+
+  return { isDynamic: true };
+}
+
+/**
+ * Legacy extractMethod for backwards compatibility.
+ * Returns method string if literal, or 'GET' otherwise.
  */
 export function extractMethod(restText) {
-  const methodMatch = restText.match(/method\s*:\s*['"`](GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)['"`]/i);
-  if (methodMatch) {
-    return methodMatch[1].toUpperCase();
-  }
-  return 'GET';
+  const info = extractMethodInfo(restText);
+  return info.isDynamic ? 'GET' : info.method;
 }
 
 function walkDir(dir) {
@@ -328,6 +430,7 @@ export function checkApiContract(options = {}) {
   const routesFile = options.routesFile || path.join(rootDir, 'backend', 'src', 'routes.rs');
   const frontendDir = options.frontendDir || path.join(rootDir, 'frontend', 'src');
   const allowlistFile = options.allowlistFile || path.join(rootDir, 'scripts', 'api-contract-allowlist.json');
+  const snapshotFile = options.snapshotFile || path.join(rootDir, 'scripts', 'api-calls.snapshot.json');
 
   let backendRoutes;
   if (options.routesCode) {
@@ -372,35 +475,51 @@ export function checkApiContract(options = {}) {
 
   const errors = [];
   const dynamics = [];
+  const usedAllowlistIndexes = new Set();
+  const currentSnapshotMap = new Map();
   let totalCalls = 0;
 
   for (const call of allCalls) {
     // Ignore internal fetch implementation in lib/api.ts line 64: fetch(`${API_BASE}${endpoint}`)
-    if (call.file === 'frontend/src/lib/api.ts' && call.line === 64) {
+    if ((call.file === 'frontend/src/lib/api.ts' || call.file.endsWith('lib/api.ts')) && call.arg1.includes('API_BASE')) {
       continue;
     }
 
     totalCalls++;
     const norm = normalizeFrontendPath(call.arg1);
-    const method = extractMethod(call.rest);
+    const methodInfo = extractMethodInfo(call.rest);
 
-    if (norm.isDynamic) {
-      // Check allowlist
-      const allowed = allowlist.find(item => {
+    const isDynamic = norm.isDynamic || methodInfo.isDynamic;
+
+    if (isDynamic) {
+      // Check allowlist using file + expressao (or legacy line)
+      let matchedIndex = -1;
+      const allowed = allowlist.find((item, idx) => {
         const itemFile = item.file.replace(/\\/g, '/');
         const fileMatches = call.file === itemFile || call.file.endsWith(itemFile);
+        const exprMatches = item.expressao === undefined || item.expressao === call.arg1;
         const lineMatches = item.line === undefined || item.line === call.line;
-        return fileMatches && lineMatches && !!item.motivo;
+        const matched = fileMatches && exprMatches && lineMatches && !!item.motivo;
+        if (matched) matchedIndex = idx;
+        return matched;
       });
 
       if (!allowed) {
-        const errMsg = `${call.file}:${call.line} -> Chamada dinâmica de API sem entrada na allowlist (arg: "${call.arg1}")`;
+        const reasonDetail = norm.isDynamic
+          ? `(arg: "${call.arg1}")`
+          : `(método não literal: "${call.arg1}")`;
+        const errMsg = `${call.file}:${call.line} -> Chamada dinâmica de API sem entrada na allowlist ${reasonDetail}`;
         console.error(`[ERRO] ${errMsg}`);
         errors.push(errMsg);
       } else {
+        usedAllowlistIndexes.add(matchedIndex);
         dynamics.push({ file: call.file, line: call.line, arg1: call.arg1, motivo: allowed.motivo });
       }
     } else {
+      const method = methodInfo.method;
+      const key = `${method} ${norm.path}`;
+      currentSnapshotMap.set(key, (currentSnapshotMap.get(key) || 0) + 1);
+
       const allowedMethods = backendRoutes.get(norm.path);
       if (!allowedMethods) {
         const closest = findClosestRoute(norm.path, backendRoutes);
@@ -412,6 +531,66 @@ export function checkApiContract(options = {}) {
         const errMsg = `${call.file}:${call.line} -> Método ${method} não permitido para rota ${norm.path}. Métodos registrados: [${Array.from(allowedMethods).join(', ')}]`;
         console.error(`[ERRO] ${errMsg}`);
         errors.push(errMsg);
+      }
+    }
+  }
+
+  // Check obsolete allowlist entries
+  for (let i = 0; i < allowlist.length; i++) {
+    if (!usedAllowlistIndexes.has(i)) {
+      const item = allowlist[i];
+      const detail = item.expressao ? `expressao: "${item.expressao}"` : `linha: ${item.line}`;
+      const msg = `Entrada obsoleta na allowlist: ${item.file} (${detail})`;
+      console.warn(`[AVISO] ${msg}`);
+      if (options.strictAllowlist) {
+        errors.push(msg);
+        console.error(`[ERRO] ${msg}`);
+      }
+    }
+  }
+
+  // Snapshot generation
+  if (options.snapshot) {
+    const snapshotObj = {};
+    const sortedKeys = Array.from(currentSnapshotMap.keys()).sort();
+    for (const key of sortedKeys) {
+      snapshotObj[key] = currentSnapshotMap.get(key);
+    }
+    fs.writeFileSync(snapshotFile, JSON.stringify(snapshotObj, null, 2) + '\n', 'utf8');
+    console.log(`[OK] Snapshot de chamadas de API salvo em: ${snapshotFile}`);
+  }
+
+  // Snapshot comparison
+  if (options.compareSnapshot) {
+    if (!fs.existsSync(snapshotFile)) {
+      const errMsg = `Arquivo de snapshot não encontrado: ${snapshotFile}. Execute com --snapshot para gerar.`;
+      console.error(`[ERRO] ${errMsg}`);
+      errors.push(errMsg);
+    } else {
+      let snapshotCounts = {};
+      try {
+        snapshotCounts = JSON.parse(fs.readFileSync(snapshotFile, 'utf8'));
+      } catch (e) {
+        const errMsg = `Falha ao ler snapshot file (${snapshotFile}): ${e.message}`;
+        console.error(`[ERRO] ${errMsg}`);
+        errors.push(errMsg);
+      }
+
+      const allKeys = new Set([...Object.keys(snapshotCounts), ...currentSnapshotMap.keys()]);
+      const sortedKeys = Array.from(allKeys).sort();
+
+      for (const key of sortedKeys) {
+        const expected = snapshotCounts[key] || 0;
+        const actual = currentSnapshotMap.get(key) || 0;
+        if (expected > actual) {
+          const errMsg = `Snapshot mismatch: chamada AUSENTE [${key}] (esperado: ${expected}, encontrado: ${actual})`;
+          console.error(`[ERRO] ${errMsg}`);
+          errors.push(errMsg);
+        } else if (actual > expected) {
+          const errMsg = `Snapshot mismatch: chamada NOVA [${key}] (esperado: ${expected}, encontrado: ${actual})`;
+          console.error(`[ERRO] ${errMsg}`);
+          errors.push(errMsg);
+        }
       }
     }
   }
@@ -431,7 +610,12 @@ export function checkApiContract(options = {}) {
 
 // Execute if run directly
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
-  const result = checkApiContract();
+  const args = process.argv.slice(2);
+  const snapshot = args.includes('--snapshot');
+  const compareSnapshot = args.includes('--compare-snapshot');
+  const strictAllowlist = args.includes('--strict-allowlist');
+
+  const result = checkApiContract({ snapshot, compareSnapshot, strictAllowlist });
   if (!result.success) {
     process.exit(1);
   }
