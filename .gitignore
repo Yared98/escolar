@@ -30,12 +30,22 @@ pnpm-debug.log*
 *.pem
 *.key
 
+# TypeScript build cache
+*.tsbuildinfo
+
 # Python
 __pycache__/
 **/__pycache__/
+*.pyc
 *.py[cod]
 *$py.class
 .pytest_cache/
+
+# Scripts descartaveis de patch/geracao
+backend/patch_*.py
+backend/append_*.py
+backend/fix_*.py
+frontend/patch_*.py
 
 # OS & Editor
 .DS_Store
