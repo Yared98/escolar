@@ -294,4 +294,128 @@ export interface TurmaOpcao {
     }
   });
 
+  await t.test('(h) extração realista com props multilinha + interface de props + desestruturação multilinha = 0 linhas novas e 0 divergências', () => {
+    const dir = createTempGitRepo();
+    try {
+      const compPath = path.join(dir, 'frontend', 'src', 'components', 'AgendaDigitalSection.tsx');
+      fs.writeFileSync(compPath, `
+export function AgendaDigitalSection() {
+  const busca = '';
+  return (
+    <div>
+      <p>Resultado da busca: {busca}</p>
+    </div>
+  );
+}
+      `.trim());
+
+      execSync('git add . && git commit -m "initial"', { cwd: dir });
+      execSync('git branch base-ref', { cwd: dir });
+
+      const subCompPath = path.join(dir, 'frontend', 'src', 'components', 'BuscaPanel.tsx');
+      fs.writeFileSync(subCompPath, `
+export interface BuscaPanelProps {
+  busca: string;
+}
+
+export function BuscaPanel({
+  busca,
+}: BuscaPanelProps) {
+  return (
+    <div>
+      <p>Resultado da busca: {busca}</p>
+    </div>
+  );
+}
+      `.trim());
+
+      fs.writeFileSync(compPath, `
+import { BuscaPanel } from './BuscaPanel';
+
+export function AgendaDigitalSection() {
+  const busca = '';
+  return (
+    <div>
+      <BuscaPanel
+        busca={busca}
+      />
+    </div>
+  );
+}
+      `.trim());
+
+      const res = analyzeRefactorMove(dir, 'base-ref', 0);
+      assert.equal(res.newLines.length, 0, 'Deveria ter 0 linhas novas em extracao realista');
+      assert.equal(res.typeDivergences.length, 0, 'Deveria ter 0 divergencias de tipos');
+    } finally {
+      cleanupTempGitRepo(dir);
+    }
+  });
+
+  await t.test('(i) tipo-objeto type X = { a: string; b: number } com b alterado = divergência', () => {
+    const dir = createTempGitRepo();
+    try {
+      const typesPath = path.join(dir, 'frontend', 'src', 'types.ts');
+      fs.writeFileSync(typesPath, `
+export type ConfigObj = {
+  a: string;
+  b: number;
+};
+      `.trim());
+
+      execSync('git add . && git commit -m "initial"', { cwd: dir });
+      execSync('git branch base-ref', { cwd: dir });
+
+      fs.writeFileSync(typesPath, `
+export type ConfigObj = {
+  a: string;
+  b: string;
+};
+      `.trim());
+
+      const res = analyzeRefactorMove(dir, 'base-ref', 0);
+      assert.equal(res.typeDivergences.length, 1, 'Deveria acusar 1 tipo divergente');
+      assert.equal(res.typeDivergences[0].name, 'ConfigObj');
+    } finally {
+      cleanupTempGitRepo(dir);
+    }
+  });
+
+  await t.test('(j) Sidebar com tabKey: \'x\' e nenhuma tela tratando \'x\' = acusa ausência', () => {
+    const dir = createTempGitRepo();
+    try {
+      const sidebarPath = path.join(dir, 'frontend', 'src', 'components', 'Sidebar.tsx');
+      const mainPath = path.join(dir, 'frontend', 'src', 'components', 'Main.tsx');
+
+      fs.writeFileSync(sidebarPath, `
+const menu = [
+  { tabKey: 'portal_rotina' }
+];
+      `.trim());
+
+      fs.writeFileSync(mainPath, `
+export function Main({ activeTab }) {
+  if (activeTab === 'portal_rotina') return <div>Rotina</div>;
+  return null;
+}
+      `.trim());
+
+      execSync('git add . && git commit -m "initial"', { cwd: dir });
+      execSync('git branch base-ref', { cwd: dir });
+
+      // Remover o tratamento na tela
+      fs.writeFileSync(mainPath, `
+export function Main({ activeTab }) {
+  return null;
+}
+      `.trim());
+
+      const res = analyzeRefactorMove(dir, 'base-ref', 0);
+      assert.equal(res.tabIds.missing.some(id => id.includes('portal_rotina')), true, 'Deveria acusar portal_rotina sem tela');
+    } finally {
+      cleanupTempGitRepo(dir);
+    }
+  });
+
 });
+

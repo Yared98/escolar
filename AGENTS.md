@@ -34,6 +34,8 @@
 | Worker | `cd worker && npm test` |
 | Contrato de API | `node scripts/check-api-contract.mjs --compare-snapshot --strict-allowlist` (usar `--snapshot` para atualizar o snapshot) |
 | Testes do contrato | `node --test scripts/check-api-contract.test.mjs` |
+| Verificador de Refactor | `node scripts/check-refactor-move.mjs --base <ref>` (compara `<ref>` com a branch/working tree) |
+| Testes do verificador | `node --test scripts/check-refactor-move.test.mjs` |
 | Gate de spec | `node scripts/check-agent-gates.mjs` (modo diff local) ou `--base origin/main` (CI/PR) |
 | Testes do gate | `node --test scripts/check-agent-gates.test.mjs` |
 | Execução manual de seeds demo | `node scripts/seed-demo.mjs` (aplica as migrations de seed demo no DB) |
