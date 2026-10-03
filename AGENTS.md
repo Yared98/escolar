@@ -70,9 +70,9 @@ Board: `https://kanban.yared.com.br/boards/n8ig1mf0v4u9` (workspace Escolar, MCP
 
 ## Docs que NÃO são fonte de verdade
 
-A fonte de verdade é `openspec/`. Estes arquivos da raiz são histórico ou referência genérica:
-- `PROJECT.md`, `TEST_INFRA.md`, `TEST_READY.md`: sobre o refactor antigo de navegação e sua suíte de testes.
-- `Funcoes_De_Gestao_Escolar.md` (~90 KB): pesquisa de mercado genérica sobre ERPs escolares. Não carregue inteiro; busque por trecho se precisar.
+A fonte de verdade é `openspec/`. Estes arquivos são histórico ou referência genérica:
+- `docs/archive/navegacao-refactor/` (`PROJECT.md`, `TEST_INFRA.md`, `TEST_READY.md`): sobre o refactor antigo de navegação e sua suíte de testes.
+- `docs/reference/Funcoes_De_Gestao_Escolar.md` (~90 KB): pesquisa de mercado genérica sobre ERPs escolares. Não carregue inteiro; busque por trecho se precisar.
 
 ## Mapa rápido módulo → código
 

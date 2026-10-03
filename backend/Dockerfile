@@ -28,7 +28,6 @@ COPY --from=builder /usr/src/app/migrations /app/migrations
 
 ENV PORT=8000
 ENV DATABASE_URL=postgres://escolar_app:escolar_password@postgres:5432/escolar_db
-ENV JWT_SECRET=super_secret_escolar_jwt_key_2026_change_in_production
 
 EXPOSE 8000
 

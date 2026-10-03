@@ -2,7 +2,7 @@
 """
 Navigation Engine & State Machine Simulator
 Faithfully simulates Next.js 14 App Router, URL searchParams, Sidebar hierarchical submenus,
-and Section component reactive URL parameter bindings according to PROJECT.md specifications.
+and Section component reactive URL parameter bindings according to docs/archive/navegacao-refactor/PROJECT.md specifications.
 """
 
 from typing import Dict, List, Optional, Any, Tuple
@@ -35,7 +35,7 @@ class NavItem:
     def has_sub_items(self) -> bool:
         return len(self.sub_items) > 0
 
-# Authoritative Canonical Menu Hierarchy defined in PROJECT.md and survey findings
+# Authoritative Canonical Menu Hierarchy defined in docs/archive/navegacao-refactor/PROJECT.md and survey findings
 CANONICAL_MENU_ITEMS: List[NavItem] = [
     NavItem(id="overview", label="Visão Geral", icon="LayoutDashboard"),
     NavItem(
@@ -230,7 +230,7 @@ class AppNavigationRouter:
     def on_parent_click(self, route_id: str, is_mobile: bool = False):
         """
         Simulates clicking a main item in the Sidebar.
-        Follows interface contract in PROJECT.md:
+        Follows interface contract in docs/archive/navegacao-refactor/PROJECT.md:
         - If activeRoute !== route_id: switches activeRoute, auto-expands, appends defaultTab if sub-items exist.
         - If activeRoute === route_id and has sub-items: toggles collapse.
         """
@@ -280,7 +280,7 @@ class AppNavigationRouter:
 
     def is_sub_item_active(self, parent_route_id: str, tab_key: str) -> bool:
         """
-        Predicate according to PROJECT.md § Interface Contracts:
+        Predicate according to docs/archive/navegacao-refactor/PROJECT.md § Interface Contracts:
         isSubActive = activeRoute === parentRoute && (searchParams.get('tab') === subItem.tabKey || (!searchParams.get('tab') && subItem.tabKey === item.defaultTab))
         """
         if self.active_route != parent_route_id:
