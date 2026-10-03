@@ -187,6 +187,82 @@ export function getGitDiffFiles({ base, cwd = defaultRoot } = {}) {
   }
 }
 
+export const VALID_MODULE_KEYS = {
+  secretaria: 'openspec/modules/secretaria.md',
+  financeiro: 'openspec/modules/financeiro.md',
+  academico: 'openspec/modules/academico.md',
+  nutricao: 'openspec/modules/nutricao.md',
+  agenda_calendario: 'openspec/modules/agenda_calendario.md',
+  crm_atendimento: 'openspec/modules/crm_atendimento.md',
+  ia_preditiva: 'openspec/modules/ia_preditiva.md',
+  regulatorio_lgpd: 'openspec/modules/regulatorio_lgpd.md',
+  lms_integracao: 'openspec/modules/lms_integracao.md',
+  core: 'openspec/CORE_SPEC.md',
+};
+
+export function parseEscapeLine(line) {
+  const trimmed = (line || '').trim();
+  if (!trimmed) return null;
+
+  let rawContent = trimmed;
+  if (/^Spec-Sync:/i.test(trimmed)) {
+    rawContent = trimmed.replace(/^Spec-Sync:\s*/i, '');
+  } else if (/^SPEC_SYNC_SKIP=/i.test(trimmed)) {
+    rawContent = trimmed.replace(/^SPEC_SYNC_SKIP=\s*/i, '');
+  }
+
+  rawContent = rawContent.replace(/^["']|["']$/g, '').trim();
+  const body = rawContent.replace(/^n\/a\s*[:\-]?\s*/i, '').trim();
+
+  const expectedFormatMsg =
+    'Formato esperado: Spec-Sync: n/a <módulo>: <motivo> (onde <módulo> é uma chave da área do AGENTS.md e <motivo> tem pelo menos 10 caracteres)';
+
+  if (!body) {
+    return {
+      valid: false,
+      raw: trimmed,
+      error: `Formato de escape inválido em "${trimmed}". ${expectedFormatMsg}`,
+    };
+  }
+
+  const colonIdx = body.indexOf(':');
+  if (colonIdx === -1) {
+    return {
+      valid: false,
+      raw: trimmed,
+      error: `Formato de escape inválido (faltou ":" separando módulo e motivo) em "${trimmed}". ${expectedFormatMsg}`,
+    };
+  }
+
+  const moduleKey = body.slice(0, colonIdx).trim().toLowerCase();
+  const reason = body.slice(colonIdx + 1).trim();
+
+  if (!Object.prototype.hasOwnProperty.call(VALID_MODULE_KEYS, moduleKey)) {
+    const validKeys = Object.keys(VALID_MODULE_KEYS).join(', ');
+    return {
+      valid: false,
+      raw: trimmed,
+      error: `Formato de escape inválido: módulo "${moduleKey}" é desconhecido. Módulos válidos: ${validKeys}. ${expectedFormatMsg}`,
+    };
+  }
+
+  if (reason.length < 10) {
+    return {
+      valid: false,
+      raw: trimmed,
+      error: `Formato de escape inválido: motivo para módulo "${moduleKey}" deve ter pelo menos 10 caracteres (recebido ${reason.length} caracteres: "${reason}"). ${expectedFormatMsg}`,
+    };
+  }
+
+  return {
+    valid: true,
+    raw: trimmed,
+    module: moduleKey,
+    specPath: VALID_MODULE_KEYS[moduleKey],
+    reason,
+  };
+}
+
 export function getCommitMessages({ base, cwd = defaultRoot } = {}) {
   const messages = [];
   if (process.env.SPEC_SYNC_OVERRIDE) {
@@ -202,19 +278,10 @@ export function getCommitMessages({ base, cwd = defaultRoot } = {}) {
         });
         if (out) messages.push(out);
       } catch {
-        // fallback para git log -1
+        // fallback ignore
       }
     }
-    try {
-      const headMsg = execSync('git log -1 --pretty=%B', {
-        cwd,
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-      });
-      if (headMsg) messages.push(headMsg);
-    } catch {
-      // ignore
-    }
+    // No modo local (sem --base), NÃO lemos mensagens de commit nem HEAD.
   } catch {
     // ignore
   }
@@ -224,20 +291,55 @@ export function getCommitMessages({ base, cwd = defaultRoot } = {}) {
 export function checkSpecSync({
   changedFiles = [],
   commitMessages = [],
+  specSyncSkip = process.env.SPEC_SYNC_SKIP,
   codeToSpecRules = DEFAULT_CODE_TO_SPEC_RULES,
 }) {
-  const allMessages = commitMessages.join('\n');
-  const escapeMatch = allMessages.match(/Spec-Sync:\s*n\/a\b(?:\s*[:\-]?\s*(.*))?/i);
+  const escapeLines = [];
 
-  if (escapeMatch) {
-    const reason = (escapeMatch[1] || '').trim();
+  for (const msg of commitMessages) {
+    const lines = msg.split(/\r?\n/);
+    for (const l of lines) {
+      if (/^Spec-Sync:/i.test(l.trim())) {
+        escapeLines.push(l.trim());
+      }
+    }
+  }
+
+  if (specSyncSkip) {
+    const lines = specSyncSkip.split(/\r?\n/);
+    for (const l of lines) {
+      if (l.trim()) {
+        escapeLines.push(l.trim());
+      }
+    }
+  }
+
+  const validEscapes = [];
+  const invalidEscapes = [];
+
+  for (const line of escapeLines) {
+    const parsed = parseEscapeLine(line);
+    if (parsed) {
+      if (parsed.valid) {
+        validEscapes.push(parsed);
+      } else {
+        invalidEscapes.push(parsed);
+      }
+    }
+  }
+
+  if (invalidEscapes.length > 0) {
     return {
-      passed: true,
-      escaped: true,
-      reason,
+      passed: false,
+      escaped: false,
+      validEscapes: [],
+      invalidEscapes,
       violations: [],
     };
   }
+
+  const escapedSpecPaths = new Set(validEscapes.map((e) => e.specPath));
+  const escapedModuleKeys = new Set(validEscapes.map((e) => e.module));
 
   const normalizedChanges = new Set(
     changedFiles.map((f) => f.replace(/\\/g, '/').replace(/^\.\//, ''))
@@ -249,9 +351,11 @@ export function checkSpecSync({
     for (const rule of codeToSpecRules) {
       if (rule.pattern.test(changedFile)) {
         const requiredSpecs = Array.isArray(rule.spec) ? rule.spec : [rule.spec];
-        const satisfied = requiredSpecs.some((spec) =>
-          normalizedChanges.has(spec.replace(/\\/g, '/'))
-        );
+        const satisfied = requiredSpecs.some((spec) => {
+          const normSpec = spec.replace(/\\/g, '/');
+          return normalizedChanges.has(normSpec) || escapedSpecPaths.has(normSpec);
+        });
+
         if (!satisfied) {
           violations.push({
             codeFile: changedFile,
@@ -265,7 +369,9 @@ export function checkSpecSync({
 
   return {
     passed: violations.length === 0,
-    escaped: false,
+    escaped: validEscapes.length > 0,
+    validEscapes,
+    invalidEscapes: [],
     violations,
   };
 }
@@ -460,19 +566,29 @@ export function runGates(options = {}) {
     codeToSpecRules: options.codeToSpecRules || DEFAULT_CODE_TO_SPEC_RULES,
   });
 
-  if (syncResult.escaped) {
-    warn(
-      `Spec-Sync: n/a detectado no commit ("${syncResult.reason || 'sem motivo'}"). Pares código ↔ spec liberados.`
-    );
-    ok('Spec-Sync: liberação auditável ativa por mensagem de commit');
-  } else if (!syncResult.passed) {
-    for (const violation of syncResult.violations) {
-      fail(
-        `diff contém ${violation.codeFile} (${violation.label}) mas ${violation.expectedSpec} não foi alterado`
-      );
+  if (syncResult.invalidEscapes && syncResult.invalidEscapes.length > 0) {
+    for (const inv of syncResult.invalidEscapes) {
+      fail(inv.error);
     }
   } else {
-    ok(`Spec-Sync: ${changedFiles.length} arquivos alterados no diff conferidos com sucesso`);
+    if (syncResult.escaped) {
+      for (const esc of syncResult.validEscapes) {
+        warn(
+          `Spec-Sync: n/a detectado para o módulo "${esc.module}" ("${esc.reason}"). Par de código ↔ spec liberado.`
+        );
+      }
+      ok('Spec-Sync: liberação auditável ativa por mensagem de commit ou env');
+    }
+
+    if (!syncResult.passed) {
+      for (const violation of syncResult.violations) {
+        fail(
+          `diff contém ${violation.codeFile} (${violation.label}) mas ${violation.expectedSpec} não foi alterado`
+        );
+      }
+    } else {
+      ok(`Spec-Sync: ${changedFiles.length} arquivos alterados no diff conferidos com sucesso`);
+    }
   }
 
   return { success: !failed, logs };

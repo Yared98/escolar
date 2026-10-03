@@ -5,6 +5,8 @@ import {
   checkModuleLimitations,
   checkOverclaimsInFile,
   runGates,
+  getCommitMessages,
+  VALID_MODULE_KEYS,
   DEFAULT_CODE_TO_SPEC_RULES,
 } from './check-agent-gates.mjs';
 
@@ -112,20 +114,21 @@ test('Regra 1 (Extensões canônicas): worker/** exige agenda_calendario.md e mi
 });
 
 // -----------------------------------------------------------------------------
-// Regra 2: Escape Spec-Sync: n/a <motivo>
+// Regra 2: Escape Spec-Sync: n/a <módulo>: <motivo>
 // -----------------------------------------------------------------------------
-test('Regra 2 (Verde): Spec-Sync: n/a no commit libera o par e imprime aviso', () => {
+test('Regra 2 (Verde): Spec-Sync: n/a <módulo>: <motivo> no commit libera o par e imprime aviso', () => {
   const result = checkSpecSync({
     changedFiles: ['backend/src/handlers/financeiro.rs'],
     commitMessages: [
-      'refactor(financeiro): formatacao e tipos\n\nSpec-Sync: n/a refatoracao sem mudanca de regra',
+      'refactor(financeiro): formatacao e tipos\n\nSpec-Sync: n/a financeiro: refatoracao sem mudanca de regra',
     ],
     codeToSpecRules: DEFAULT_CODE_TO_SPEC_RULES,
   });
 
   assert.equal(result.passed, true, 'Deveria passar pois o escape está ativo');
   assert.equal(result.escaped, true);
-  assert.equal(result.reason, 'refatoracao sem mudanca de regra');
+  assert.equal(result.validEscapes[0].module, 'financeiro');
+  assert.equal(result.validEscapes[0].reason, 'refatoracao sem mudanca de regra');
   assert.equal(result.violations.length, 0);
 });
 
@@ -139,6 +142,126 @@ test('Regra 2 (Vermelho): commit sem Spec-Sync não libera a pendência', () => 
   assert.equal(result.passed, false);
   assert.equal(result.escaped, false);
   assert.equal(result.violations.length, 1);
+});
+
+test('Regra 2 (Vermelho): escape sem motivo, ou sem módulo, falha com mensagem explicando o formato', () => {
+  // Sem módulo e sem motivo
+  const resNoModNoReason = checkSpecSync({
+    changedFiles: ['backend/src/handlers/financeiro.rs'],
+    commitMessages: ['Spec-Sync: n/a'],
+    codeToSpecRules: DEFAULT_CODE_TO_SPEC_RULES,
+  });
+  assert.equal(resNoModNoReason.passed, false);
+  assert.equal(resNoModNoReason.invalidEscapes.length, 1);
+  assert.match(resNoModNoReason.invalidEscapes[0].error, /Formato esperado/i);
+
+  // Sem motivo (só módulo)
+  const resNoReason = checkSpecSync({
+    changedFiles: ['backend/src/handlers/financeiro.rs'],
+    commitMessages: ['Spec-Sync: n/a financeiro'],
+    codeToSpecRules: DEFAULT_CODE_TO_SPEC_RULES,
+  });
+  assert.equal(resNoReason.passed, false);
+  assert.equal(resNoReason.invalidEscapes.length, 1);
+  assert.match(resNoReason.invalidEscapes[0].error, /Formato esperado/i);
+
+  // Motivo com menos de 10 caracteres
+  const resShortReason = checkSpecSync({
+    changedFiles: ['backend/src/handlers/financeiro.rs'],
+    commitMessages: ['Spec-Sync: n/a financeiro: curto'],
+    codeToSpecRules: DEFAULT_CODE_TO_SPEC_RULES,
+  });
+  assert.equal(resShortReason.passed, false);
+  assert.equal(resShortReason.invalidEscapes.length, 1);
+  assert.match(resShortReason.invalidEscapes[0].error, /pelo menos 10 caracteres/i);
+
+  // Módulo inválido/desconhecido
+  const resUnknownMod = checkSpecSync({
+    changedFiles: ['backend/src/handlers/financeiro.rs'],
+    commitMessages: ['Spec-Sync: n/a modulo_invalido: motivo com mais de dez caracteres'],
+    codeToSpecRules: DEFAULT_CODE_TO_SPEC_RULES,
+  });
+  assert.equal(resUnknownMod.passed, false);
+  assert.equal(resUnknownMod.invalidEscapes.length, 1);
+  assert.match(resUnknownMod.invalidEscapes[0].error, /desconhecido/i);
+});
+
+test('Regra 2 (Módulo isolado): escape do módulo X NÃO libera mudança no módulo Y', () => {
+  const result = checkSpecSync({
+    changedFiles: [
+      'backend/src/handlers/financeiro.rs',
+      'backend/src/handlers/secretaria.rs',
+    ],
+    commitMessages: [
+      'Spec-Sync: n/a financeiro: refatoracao de tipos e formatacao no handler',
+    ],
+    codeToSpecRules: DEFAULT_CODE_TO_SPEC_RULES,
+  });
+
+  assert.equal(result.passed, false, 'Deveria falhar pois secretaria não foi liberado');
+  assert.equal(result.violations.length, 1);
+  assert.equal(result.violations[0].codeFile, 'backend/src/handlers/secretaria.rs');
+  assert.equal(result.validEscapes.length, 1);
+  assert.equal(result.validEscapes[0].module, 'financeiro');
+});
+
+test('Regra 2 (Modo local sem herança): escape em commit anterior NÃO libera mudança nova não commitada (modo local)', () => {
+  const messages = getCommitMessages({ base: null });
+  assert.deepEqual(messages, []);
+
+  const result = checkSpecSync({
+    changedFiles: ['backend/src/handlers/financeiro.rs'],
+    commitMessages: messages,
+    specSyncSkip: undefined,
+    codeToSpecRules: DEFAULT_CODE_TO_SPEC_RULES,
+  });
+
+  assert.equal(result.passed, false, 'Modo local sem SPEC_SYNC_SKIP deve falhar mesmo se commit anterior tinha escape');
+});
+
+test('Regra 2 (SPEC_SYNC_SKIP): SPEC_SYNC_SKIP válido libera só o módulo citado, com aviso', () => {
+  const passRes = checkSpecSync({
+    changedFiles: ['backend/src/handlers/financeiro.rs'],
+    commitMessages: [],
+    specSyncSkip: 'financeiro: refatoracao de tipos no handler local',
+    codeToSpecRules: DEFAULT_CODE_TO_SPEC_RULES,
+  });
+
+  assert.equal(passRes.passed, true);
+  assert.equal(passRes.escaped, true);
+  assert.equal(passRes.validEscapes[0].module, 'financeiro');
+
+  const failRes = checkSpecSync({
+    changedFiles: [
+      'backend/src/handlers/financeiro.rs',
+      'backend/src/handlers/secretaria.rs',
+    ],
+    commitMessages: [],
+    specSyncSkip: 'financeiro: refatoracao de tipos no handler local',
+    codeToSpecRules: DEFAULT_CODE_TO_SPEC_RULES,
+  });
+
+  assert.equal(failRes.passed, false, 'SPEC_SYNC_SKIP de financeiro não libera secretaria');
+  assert.equal(failRes.violations.length, 1);
+  assert.equal(failRes.violations[0].codeFile, 'backend/src/handlers/secretaria.rs');
+});
+
+test('Regra 2 (Múltiplos escapes): aceita múltiplas linhas Spec-Sync no mesmo commit', () => {
+  const result = checkSpecSync({
+    changedFiles: [
+      'backend/src/handlers/financeiro.rs',
+      'backend/migrations/20261003000000_teste.sql',
+    ],
+    commitMessages: [
+      'feat: ajuste em financeiro e migration\n\nSpec-Sync: n/a financeiro: refatoracao sem regra nova\nSpec-Sync: n/a core: migration sem alteracao de schema',
+    ],
+    codeToSpecRules: DEFAULT_CODE_TO_SPEC_RULES,
+  });
+
+  assert.equal(result.passed, true);
+  assert.equal(result.escaped, true);
+  assert.equal(result.validEscapes.length, 2);
+  assert.equal(result.violations.length, 0);
 });
 
 // -----------------------------------------------------------------------------
@@ -286,7 +409,7 @@ test('Integração runGates: executa com parâmetros customizados e reflete falh
   const passRun = runGates({
     root: process.cwd(),
     changedFiles: ['backend/src/handlers/financeiro.rs'],
-    commitMessages: ['feat: juros\n\nSpec-Sync: n/a refatoracao sem regra nova'],
+    commitMessages: ['feat: juros\n\nSpec-Sync: n/a financeiro: refatoracao sem regra nova'],
     silent: true,
   });
   assert.equal(passRun.success, true, 'runGates deve passar quando há escape');

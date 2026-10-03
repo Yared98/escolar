@@ -6,7 +6,7 @@ Use antes de declarar a tarefa concluída. Se algum item aplicável falhar → *
 
 - [ ] Li o módulo OpenSpec da área tocada
 - [ ] Atualizei `openspec/modules/<área>.md` (e índice/`CORE_SPEC` se necessário) em conjunto com o código tocado (Sync Mandate)
-- [ ] Caso a alteração de código não toque regras de negócio nem exija alteração de spec, incluído escape explícito `Spec-Sync: n/a <motivo>` no commit
+- [ ] Caso a alteração de código não toque regras de negócio nem exija alteração de spec, incluído escape explícito `Spec-Sync: n/a <módulo>: <motivo>` (onde `<módulo>` é a chave da área e `<motivo>` tem >= 10 caracteres; ou `SPEC_SYNC_SKIP` no modo local)
 - [ ] Limitações MVP estão honestas (seção `## Estado real / Limitações MVP` preenchida com tabela de status ou >= 3 linhas, sem copy de produto pronto para stubs)
 
 ## Código

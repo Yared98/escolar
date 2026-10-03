@@ -66,7 +66,7 @@ Board: `https://kanban.yared.com.br/boards/n8ig1mf0v4u9` (workspace Escolar, MCP
 1. Atualizar OpenSpec do módulo tocado (`openspec/modules/*.md` e, se preciso, `CORE_SPEC.md` / `BUSINESS_RULES.md`).
 2. Se a feature for parcial, escrever **Limitações MVP** honestas (não marketing).
 3. Compilar/typecheck o que mudou (`cargo check` e/ou `npx tsc --noEmit`).
-4. Rodar gate local: `node scripts/check-agent-gates.mjs` (ou `node scripts/check-agent-gates.mjs --base <ref>` para modo diff contra uma branch). Se alterar código mapeado na tabela sem alterar a respectiva spec, o gate falhará em modo diff. Escape auditável: adicione `Spec-Sync: n/a <motivo>` no commit para liberar o par quando a alteração não tocar regras de negócio.
+4. Rodar gate local: `node scripts/check-agent-gates.mjs` (ou `node scripts/check-agent-gates.mjs --base <ref>` para modo diff contra uma branch). Se alterar código mapeado na tabela sem alterar a respectiva spec, o gate falhará em modo diff. Escape auditável: no commit (modo `--base`) adicione `Spec-Sync: n/a <módulo>: <motivo>` (onde `<módulo>` é uma chave da tabela abaixo, ex: `financeiro`, e `<motivo>` tem >= 10 caracteres) para liberar apenas aquele módulo quando a alteração não tocar regras de negócio. No modo local (sem `--base`), use a variável de ambiente `SPEC_SYNC_SKIP="<módulo>: <motivo>"`.
 5. Garantir que os passos do CI (`.github/workflows/ci.yml`: backend, frontend, worker, navegação e `.github/workflows/agent-gates.yml`) continuam válidos e verdes.
 6. Percorrer `openspec/DELIVERY_CHECKLIST.md` mentalmente — se algum item falhar, a tarefa **não** está concluída.
 
