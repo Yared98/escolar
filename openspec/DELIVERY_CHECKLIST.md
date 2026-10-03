@@ -20,6 +20,8 @@ Use antes de declarar a tarefa concluída. Se algum item aplicável falhar → *
 - [ ] `cargo check` (se backend mudou)
 - [ ] `npx tsc --noEmit` (se frontend mudou)
 - [ ] `npm test` no frontend (se alterou `lib/` ou hooks)
+- [ ] `node scripts/check-api-contract.mjs` passou
+- [ ] `node --test scripts/check-api-contract.test.mjs` passou
 - [ ] `node --test scripts/check-agent-gates.test.mjs` passou
 - [ ] `node scripts/check-agent-gates.mjs` passou (modo diff local ou `--base <ref>`)
 - [ ] CI (`.github/workflows/ci.yml` e `agent-gates.yml`): todos os jobs aplicáveis (backend, frontend, worker, navigation e gates) devem passar em push/PR

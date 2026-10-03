@@ -97,6 +97,12 @@ jobs:
       - name: Run unit & component tests
         run: npm test
 
+      - name: Check API contract (Frontend <-> Backend)
+        working-directory: .
+        run: |
+          node scripts/check-api-contract.mjs
+          node --test scripts/check-api-contract.test.mjs
+
       - name: Build Next.js application
         run: npm run build
 

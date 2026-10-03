@@ -30,11 +30,13 @@
 |---|---|
 | Backend compila | `cd backend && cargo check` |
 | Backend testes | `cd backend && cargo test` (os de integração, `tests/tenant_isolation.rs`, exigem `ESCOLAR_TEST_DATABASE_URL`: URL admin de um Postgres; o teste cria e derruba bancos próprios) |
-| Frontend | `cd frontend && npm run typecheck`, `npm run lint`, `npm run build` |
+| Frontend | `cd frontend && npm run typecheck`, `npm run lint`, `npm test`, `npm run build` |
 | Worker | `cd worker && npm test` |
+| Contrato de API | `node scripts/check-api-contract.mjs` |
+| Testes do contrato | `node --test scripts/check-api-contract.test.mjs` |
 | Gate de spec | `node scripts/check-agent-gates.mjs` (modo diff local) ou `--base origin/main` (CI/PR) |
 | Testes do gate | `node --test scripts/check-agent-gates.test.mjs` |
-| CI (GitHub Actions) | `.github/workflows/ci.yml` — replica backend (clippy/test com postgres), frontend (typecheck/lint/test/build), worker e navegação em push/PR |
+| CI (GitHub Actions) | `.github/workflows/ci.yml` — replica backend (clippy/test com postgres), frontend (typecheck/lint/test/contrato de api/build), worker e navegação em push/PR |
 | Stack local | `docker compose up -d postgres` (5432); backend na 8000; frontend na 3000 |
 | `tests/e2e/` | `node tests/e2e/run_all.mjs` — é Python e analisa estaticamente a **navegação do frontend**; **não** exercita API nem banco |
 

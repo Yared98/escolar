@@ -1,0 +1,17 @@
+[
+  {
+    "file": "frontend/src/components/academico/useOfflineSyncQueue.ts",
+    "line": 109,
+    "motivo": "Fila offline de sincronização PWA que processa requisições pendentes com endpoints dinâmicos"
+  },
+  {
+    "file": "frontend/src/components/SecretariaSection.tsx",
+    "line": 265,
+    "motivo": "Carregamento da lista de turmas usando endpoint configurável"
+  },
+  {
+    "file": "frontend/src/lib/api.ts",
+    "line": 88,
+    "motivo": "Re-tentativa interna da biblioteca de API após renovação de token JWT (status 401)"
+  }
+]
