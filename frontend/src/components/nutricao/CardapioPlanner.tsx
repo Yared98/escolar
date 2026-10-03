@@ -65,7 +65,7 @@ interface PreviaDia {
   motivo: string | null;
 }
 
-type Visao = 'vigencias' | 'semana' | 'avulsos';
+type Visao = 'vigencias' | 'semana' | 'avulsos' | 'pratos';
 
 type Confirmacao =
   | { tipo: 'dia'; cardapio: Cardapio }
@@ -160,6 +160,17 @@ export function CardapioPlanner() {
   const [filtroStatus, setFiltroStatus] = useState('');
   const [confirmacao, setConfirmacao] = useState<Confirmacao | null>(null);
   const [excluindo, setExcluindo] = useState(false);
+  const [modalPratoAberto, setModalPratoAberto] = useState(false);
+  const [editandoPrato, setEditandoPrato] = useState<Prato | null>(null);
+  const [pratoTitulo, setPratoTitulo] = useState('');
+  const [pratoIngredientes, setPratoIngredientes] = useState('');
+  const [pratoAlergicos, setPratoAlergicos] = useState('');
+  const [pratoTipo, setPratoTipo] = useState('');
+  const [salvandoPrato, setSalvandoPrato] = useState(false);
+  const [confirmacaoPrato, setConfirmacaoPrato] = useState<Prato | null>(null);
+  const [excluindoPrato, setExcluindoPrato] = useState(false);
+  const [filtroPratoBusca, setFiltroPratoBusca] = useState('');
+  const [filtroPratoTipo, setFiltroPratoTipo] = useState('');
 
   const carregar = useCallback(async () => {
     try {
@@ -209,13 +220,34 @@ export function CardapioPlanner() {
     [filtroRefeicao],
   );
 
-  const filtrosAtivos = Boolean(filtroTurma || filtroRefeicao || (visao === 'vigencias' && filtroStatus));
+  const filtrosAtivos = Boolean(
+    visao === 'pratos'
+      ? filtroPratoBusca || filtroPratoTipo
+      : filtroTurma || filtroRefeicao || (visao === 'vigencias' && filtroStatus)
+  );
 
   const limparFiltros = () => {
     setFiltroTurma('');
     setFiltroRefeicao('');
     setFiltroStatus('');
+    setFiltroPratoBusca('');
+    setFiltroPratoTipo('');
   };
+
+  const pratosFiltrados = useMemo(() => {
+    return pratos.filter((p) => {
+      const termo = filtroPratoBusca.trim().toLowerCase();
+      const matchBusca =
+        !termo ||
+        p.titulo.toLowerCase().includes(termo) ||
+        p.descricao_ingredientes.toLowerCase().includes(termo) ||
+        (p.alergicos_atencao && p.alergicos_atencao.toLowerCase().includes(termo));
+
+      const matchTipo = !filtroPratoTipo || p.tipo_refeicao === filtroPratoTipo;
+
+      return matchBusca && matchTipo;
+    });
+  }, [pratos, filtroPratoBusca, filtroPratoTipo]);
 
   const recorrenciasFiltradas = useMemo(
     () =>
@@ -459,31 +491,127 @@ export function CardapioPlanner() {
     setPrevia(null);
   };
 
+  const abrirNovoPrato = () => {
+    setEditandoPrato(null);
+    setPratoTitulo('');
+    setPratoIngredientes('');
+    setPratoAlergicos('');
+    setPratoTipo('');
+    setErro(null);
+    setModalPratoAberto(true);
+  };
+
+  const abrirEditarPrato = (p: Prato) => {
+    setEditandoPrato(p);
+    setPratoTitulo(p.titulo);
+    setPratoIngredientes(p.descricao_ingredientes);
+    setPratoAlergicos(p.alergicos_atencao || '');
+    setPratoTipo(p.tipo_refeicao || '');
+    setErro(null);
+    setModalPratoAberto(true);
+  };
+
+  const salvarPrato = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pratoTitulo.trim() || !pratoIngredientes.trim()) {
+      setErro('Informe o nome e os ingredientes do prato.');
+      return;
+    }
+    setSalvandoPrato(true);
+    setErro(null);
+    try {
+      const payload = {
+        titulo: pratoTitulo.trim(),
+        descricao_ingredientes: pratoIngredientes.trim(),
+        tipo_refeicao: pratoTipo.trim() || null,
+        alergicos_atencao: pratoAlergicos.trim() || null,
+      };
+
+      if (editandoPrato) {
+        await apiFetch<Prato>(`/nutricao/pratos/${editandoPrato.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        });
+        setAviso(`Prato "${pratoTitulo}" atualizado com sucesso.`);
+      } else {
+        await apiFetch<Prato>('/nutricao/pratos', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        setAviso(`Prato "${pratoTitulo}" cadastrado com sucesso.`);
+      }
+      setModalPratoAberto(false);
+      await carregar();
+    } catch (err: unknown) {
+      setErro(err instanceof Error ? err.message : 'Falha ao salvar prato.');
+    } finally {
+      setSalvandoPrato(false);
+    }
+  };
+
+  const confirmarExclusaoPrato = async () => {
+    if (!confirmacaoPrato) return;
+    setExcluindoPrato(true);
+    setErro(null);
+    try {
+      const res = await apiFetch<{
+        excluido: boolean;
+        id: string;
+        soft_delete: boolean;
+        cardapios_vinculados?: number;
+        recorrencias_vinculadas?: number;
+        mensagem: string;
+      }>(`/nutricao/pratos/${confirmacaoPrato.id}`, {
+        method: 'DELETE',
+      });
+      setAviso(res.mensagem || 'Prato removido com sucesso.');
+      setConfirmacaoPrato(null);
+      await carregar();
+    } catch (err: unknown) {
+      setErro(err instanceof Error ? err.message : 'Falha ao excluir prato.');
+    } finally {
+      setExcluindoPrato(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap justify-between items-start gap-3">
         <div>
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-            Gestão de cardápios
+            {visao === 'pratos' ? 'Catálogo de pratos' : 'Gestão de cardápios'}
           </h3>
           <p className="text-[11px] text-slate-500 mt-1 max-w-xl">
-            Cadastre a vigência uma vez. Use a semana para conferir o que o Diário publica e marque só as exceções.
+            {visao === 'pratos'
+              ? 'Gerencie pratos reutilizáveis com ingredientes, tipo de refeição e alertas de alérgenos.'
+              : 'Cadastre a vigência uma vez. Use a semana para conferir o que o Diário publica e marque só as exceções.'}
           </p>
         </div>
-        <button
-          onClick={() => { setAberto(true); setPrevia(null); setEditando(null); setModo(visao === 'avulsos' ? 'dia' : 'vigencia'); }}
-          className="bg-salvia-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-salvia-800 flex items-center space-x-1 shadow-sm"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Novo cardápio</span>
-        </button>
+        {visao === 'pratos' ? (
+          <button
+            onClick={abrirNovoPrato}
+            className="bg-salvia-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-salvia-800 flex items-center space-x-1 shadow-sm"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Novo prato</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => { setAberto(true); setPrevia(null); setEditando(null); setModo(visao === 'avulsos' ? 'dia' : 'vigencia'); }}
+            className="bg-salvia-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-salvia-800 flex items-center space-x-1 shadow-sm"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Novo cardápio</span>
+          </button>
+        )}
       </div>
 
-      <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-full max-w-md">
+      <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-full max-w-lg">
         {([
           ['vigencias', 'Vigências'],
           ['semana', 'Semana'],
           ['avulsos', 'Avulsos'],
+          ['pratos', 'Pratos'],
         ] as const).map(([id, rotulo]) => (
           <button
             key={id}
@@ -496,46 +624,85 @@ export function CardapioPlanner() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 items-end">
-        <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300">Turma
-          <select value={filtroTurma} onChange={(e) => setFiltroTurma(e.target.value)} className={`${campo} mt-1`}>
-            <option value="">Todas</option>
-            <option value="__geral__">Geral (toda a escola)</option>
-            {turmas.map((turma) => (
-              <option key={turma.id} value={turma.id}>{turma.nome}</option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300">Refeição
-          <select value={filtroRefeicao} onChange={(e) => setFiltroRefeicao(e.target.value)} className={`${campo} mt-1`}>
-            <option value="">Todas</option>
-            {REFEICOES.map((item) => <option key={item} value={item}>{item}</option>)}
-          </select>
-        </label>
-        {visao === 'vigencias' ? (
-          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300">Status
-            <select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} className={`${campo} mt-1`}>
-              <option value="">Todos</option>
-              <option value="ativa">Ativa</option>
-              <option value="futura">Futura</option>
-              <option value="encerrada">Encerrada</option>
+      {visao === 'pratos' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 items-end">
+          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300">
+            Buscar prato ou ingrediente
+            <input
+              type="text"
+              value={filtroPratoBusca}
+              onChange={(e) => setFiltroPratoBusca(e.target.value)}
+              placeholder="Ex.: Frango, arroz integral, glúten..."
+              className={`${campo} mt-1`}
+            />
+          </label>
+          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300">
+            Tipo de refeição
+            <select
+              value={filtroPratoTipo}
+              onChange={(e) => setFiltroPratoTipo(e.target.value)}
+              className={`${campo} mt-1`}
+            >
+              <option value="">Todas as refeições</option>
+              {REFEICOES.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
             </select>
           </label>
-        ) : (
-          <div className="hidden lg:block" />
-        )}
-        <div className="flex items-center gap-2 pb-0.5">
-          {filtrosAtivos && (
-            <button
-              type="button"
-              onClick={limparFiltros}
-              className="px-3 py-1.5 rounded-xl text-[11px] font-bold border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"
-            >
-              Limpar filtros
-            </button>
-          )}
+          <div className="flex items-center gap-2 pb-0.5">
+            {filtrosAtivos && (
+              <button
+                type="button"
+                onClick={limparFiltros}
+                className="px-3 py-1.5 rounded-xl text-[11px] font-bold border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"
+              >
+                Limpar filtros
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 items-end">
+          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300">Turma
+            <select value={filtroTurma} onChange={(e) => setFiltroTurma(e.target.value)} className={`${campo} mt-1`}>
+              <option value="">Todas</option>
+              <option value="__geral__">Geral (toda a escola)</option>
+              {turmas.map((turma) => (
+                <option key={turma.id} value={turma.id}>{turma.nome}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300">Refeição
+            <select value={filtroRefeicao} onChange={(e) => setFiltroRefeicao(e.target.value)} className={`${campo} mt-1`}>
+              <option value="">Todas</option>
+              {REFEICOES.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+          </label>
+          {visao === 'vigencias' ? (
+            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300">Status
+              <select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} className={`${campo} mt-1`}>
+                <option value="">Todos</option>
+                <option value="ativa">Ativa</option>
+                <option value="futura">Futura</option>
+                <option value="encerrada">Encerrada</option>
+              </select>
+            </label>
+          ) : (
+            <div className="hidden lg:block" />
+          )}
+          <div className="flex items-center gap-2 pb-0.5">
+            {filtrosAtivos && (
+              <button
+                type="button"
+                onClick={limparFiltros}
+                className="px-3 py-1.5 rounded-xl text-[11px] font-bold border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"
+              >
+                Limpar filtros
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {erro && <p className="text-xs font-semibold text-rose-700 dark:text-rose-300">{erro}</p>}
       {aviso && <p className="text-xs font-semibold text-salvia-800 dark:text-salvia-200">{aviso}</p>}
@@ -797,6 +964,69 @@ export function CardapioPlanner() {
         </div>
       )}
 
+      {visao === 'pratos' && (
+        <div className="space-y-3">
+          {pratos.length === 0 && (
+            <p className="text-xs text-slate-500">
+              Nenhum prato cadastrado ainda. Clique em &quot;Novo prato&quot; para cadastrar itens no catálogo reutilizável.
+            </p>
+          )}
+          {pratos.length > 0 && pratosFiltrados.length === 0 && (
+            <p className="text-xs text-slate-500">
+              Nenhum prato encontrado com os filtros selecionados.
+            </p>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {pratosFiltrados.map((prato) => (
+              <article
+                key={prato.id}
+                className="bg-white dark:bg-salvia-900 border border-slate-200 dark:border-salvia-800 rounded-xl p-4 flex flex-col justify-between space-y-3 shadow-sm"
+              >
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-1.5">
+                    <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100 line-clamp-1">
+                      {prato.titulo}
+                    </h4>
+                    {prato.tipo_refeicao && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-salvia-100 text-salvia-800 dark:bg-salvia-900/60 dark:text-salvia-200 font-mono">
+                        {prato.tipo_refeicao}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-3 whitespace-pre-line">
+                    {prato.descricao_ingredientes}
+                  </p>
+                  {prato.alergicos_atencao && (
+                    <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-lg px-2.5 py-1.5 text-[11px] text-amber-900 dark:text-amber-200">
+                      <span className="font-bold">Alérgenos / Atenção: </span>
+                      {prato.alergicos_atencao}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => abrirEditarPrato(prato)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmacaoPrato(prato)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Excluir
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      )}
+
       {aberto && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3">
           <div className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 max-w-lg w-full shadow-2xl space-y-3 max-h-[90vh] overflow-y-auto">
@@ -808,12 +1038,28 @@ export function CardapioPlanner() {
               <button type="button" onClick={() => { setModo('vigencia'); setPrevia(null); }} className={`flex-1 py-1.5 text-xs font-bold rounded-lg ${modo === 'vigencia' ? 'bg-salvia-700 text-white' : ''}`}>Repetir na vigência</button>
               <button type="button" onClick={() => { setModo('dia'); setPrevia(null); }} className={`flex-1 py-1.5 text-xs font-bold rounded-lg ${modo === 'dia' ? 'bg-salvia-700 text-white' : ''}`}>Um dia</button>
             </div>
-            <label className="block text-[11px] font-bold">Prato já cadastrado
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="block text-[11px] font-bold">Prato já cadastrado</label>
+                {pratoId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const p = pratos.find((item) => item.id === pratoId);
+                      if (p) abrirEditarPrato(p);
+                    }}
+                    className="text-[10px] font-bold text-salvia-700 dark:text-salvia-300 hover:underline flex items-center gap-1"
+                  >
+                    <Pencil className="w-3 h-3" />
+                    Editar prato
+                  </button>
+                )}
+              </div>
               <select value={pratoId} onChange={(e) => aplicarPrato(e.target.value)} className={`${campo} mt-1`}>
                 <option value="">Novo prato</option>
                 {pratos.map((prato) => <option key={prato.id} value={prato.id}>{prato.titulo}</option>)}
               </select>
-            </label>
+            </div>
             <label className="block text-[11px] font-bold">Título
               <input required value={titulo} onChange={(e) => { setTitulo(e.target.value); setPratoId(''); }} className={`${campo} mt-1`} />
             </label>
@@ -1037,6 +1283,155 @@ export function CardapioPlanner() {
                 className="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-700 text-white disabled:opacity-50"
               >
                 {excluindo ? 'Excluindo…' : confirmacao.tipo === 'serie' ? 'Encerrar e remover futuros' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalPratoAberto && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-3">
+          <form
+            onSubmit={salvarPrato}
+            className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                {editandoPrato ? 'Editar prato do catálogo' : 'Novo prato do catálogo'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setModalPratoAberto(false)}
+                disabled={salvandoPrato}
+                aria-label="Fechar"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                  Nome do prato *
+                  <input
+                    type="text"
+                    required
+                    value={pratoTitulo}
+                    onChange={(e) => setPratoTitulo(e.target.value)}
+                    placeholder="Ex.: Risoto de frango com legumes"
+                    className={`${campo} mt-1`}
+                  />
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                  Tipo de refeição sugerido
+                  <select
+                    value={pratoTipo}
+                    onChange={(e) => setPratoTipo(e.target.value)}
+                    className={`${campo} mt-1`}
+                  >
+                    <option value="">Geral / Qualquer refeição</option>
+                    {REFEICOES.map((r) => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                  Ingredientes e descrição *
+                  <textarea
+                    required
+                    rows={3}
+                    value={pratoIngredientes}
+                    onChange={(e) => setPratoIngredientes(e.target.value)}
+                    placeholder="Ex.: Peito de frango desfiado, arroz integral, cenoura ralada, abobrinha, azeite de oliva e cheiro verde."
+                    className={`${campo} mt-1`}
+                  />
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                  Alérgenos e atenção (opcional)
+                  <input
+                    type="text"
+                    value={pratoAlergicos}
+                    onChange={(e) => setPratoAlergicos(e.target.value)}
+                    placeholder="Ex.: Glúten, lactose, traços de nozes"
+                    className={`${campo} mt-1`}
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                disabled={salvandoPrato}
+                onClick={() => setModalPratoAberto(false)}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={salvandoPrato}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-salvia-700 text-white hover:bg-salvia-800 disabled:opacity-50"
+              >
+                {salvandoPrato ? 'Salvando...' : editandoPrato ? 'Salvar alterações' : 'Cadastrar prato'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {confirmacaoPrato && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-3">
+          <div className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 max-w-md w-full shadow-2xl space-y-3">
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                Excluir prato do catálogo
+              </h3>
+              <button
+                type="button"
+                onClick={() => setConfirmacaoPrato(null)}
+                aria-label="Fechar"
+                disabled={excluindoPrato}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-600 dark:text-slate-300">
+              Deseja remover <strong>{confirmacaoPrato.titulo}</strong> do catálogo de pratos?
+            </p>
+            <div className="text-[11px] text-slate-500 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1">
+              <p className="font-semibold text-slate-700 dark:text-slate-300">Política de exclusão segura:</p>
+              <p>
+                Se o prato estiver em uso por cardápios ou séries de vigência, ele será desativado (soft-delete) para preservar o histórico alimentar das turmas. Caso não esteja em uso, será excluído permanentemente.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                disabled={excluindoPrato}
+                onClick={() => setConfirmacaoPrato(null)}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={excluindoPrato}
+                onClick={confirmarExclusaoPrato}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-700 text-white disabled:opacity-50"
+              >
+                {excluindoPrato ? 'Excluindo…' : 'Excluir prato'}
               </button>
             </div>
           </div>

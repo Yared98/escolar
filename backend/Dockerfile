@@ -1,5 +1,7 @@
 # Stage 1: Build Rust binary
-FROM rust:latest AS builder
+# Pin to bookworm so the linked glibc matches the runtime image (rust:latest
+# currently builds against newer glibc than debian:bookworm-slim).
+FROM rust:bookworm AS builder
 
 WORKDIR /usr/src/app
 
@@ -14,7 +16,7 @@ COPY migrations ./migrations
 # Build release binary with locked dependencies
 RUN cargo build --release --locked
 
-# Stage 2: Runtime image
+# Stage 2: Runtime image (same Debian major as the builder)
 FROM debian:bookworm-slim
 
 WORKDIR /app

@@ -21,8 +21,8 @@ use crate::{
             remover_atribuicao_docente, remover_disciplina_turma, sincronizar_diario_pwa, registrar_portfolio_infantil, listar_portfolio_infantil,
         },
         nutricao::{
-            confirmar_recorrencia_cardapio, criar_prato, editar_cardapio_escopo,
-            encerrar_recorrencia_cardapio, excluir_cardapio_dia, listar_pratos,
+            atualizar_prato, confirmar_recorrencia_cardapio, criar_prato, editar_cardapio_escopo,
+            encerrar_recorrencia_cardapio, excluir_cardapio_dia, excluir_prato, listar_pratos,
             listar_recorrencias_cardapio, prever_recorrencia_cardapio,
         },
         agenda_admin::{
@@ -63,7 +63,7 @@ use crate::{
         secretaria::{
             assinar_contrato, atualizar_aluno, atualizar_turma, criar_contrato, criar_matricula,
             criar_sala, criar_turma, deletar_aluno, deletar_sala, deletar_turma,
-            desenturmar_aluno_turma, listar_alunos, listar_alunos_turma, listar_meus_alunos,
+            desenturmar_aluno_turma, listar_alunos, listar_alunos_turma, listar_contratos, listar_meus_alunos,
             listar_salas, listar_turmas, matricular_aluno_turma, obter_contrato, obter_prontuario,
             obter_turma, renumerar_chamada_turma, salvar_prontuario, transferir_aluno_turma,
             vincular_responsavel_aluno, criar_autorizado_retirada, listar_autorizados_retirada, atualizar_autorizado_retirada, deletar_autorizado_retirada, criar_grupo_familiar, listar_grupos_familiares,
@@ -128,7 +128,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/secretaria/salas", post(criar_sala).get(listar_salas))
         .route("/secretaria/salas/:sala_id", delete(deletar_sala))
 
-        .route("/secretaria/contratos", post(criar_contrato))
+        .route("/secretaria/contratos", post(criar_contrato).get(listar_contratos))
         .route("/secretaria/contratos/:contrato_id", get(obter_contrato))
         .route("/secretaria/contratos/:contrato_id/assinar", post(assinar_contrato))
         
@@ -175,6 +175,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/academico/turmas/:turma_id/horarios", get(listar_horarios_turma).post(criar_horario_turma))
         .route("/nutricao/cardapios", post(criar_cardapio_nutricao).get(listar_cardapios_nutricao))
         .route("/nutricao/pratos", post(criar_prato).get(listar_pratos))
+        .route("/nutricao/pratos/:id", put(atualizar_prato).delete(excluir_prato))
         .route("/nutricao/cardapios/recorrencias/previa", post(prever_recorrencia_cardapio))
         .route(
             "/nutricao/cardapios/recorrencias",

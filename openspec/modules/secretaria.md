@@ -8,9 +8,10 @@ O módulo cobre o **ciclo de vida completo do estudante** (matrícula com duplo 
 |---|---|
 | Matrícula Online atômica com transação PostgreSQL | Implementado |
 | Duplo Responsável (Legal e Financeiro) | Implementado |
+| Integração com CRM (pré-preenchimento de matrícula via deep-link) | Implementado |
 | Validação estrita de CPF (Módulo 11) e telefone | Implementado |
 | Prontuário Médico e Clínico com log LGPD Art. 11/14 | Implementado |
-| Contrato com assinatura digital por hash SHA-256 | Implementado |
+| Contrato (minuta, listagem, assinatura digital SHA-256 e parcelamento 12x) | Implementado |
 | Gestão de Turmas, Salas e Controle de Lotação | Implementado |
 | Renumeração Alfabética do Livro de Chamada (1..N) | Implementado |
 | Transferência Atômica entre turmas com vaga | Implementado |
@@ -23,13 +24,14 @@ O módulo cobre o **ciclo de vida completo do estudante** (matrícula com duplo 
 - **Navegação Modular Interna**:
   - `Alunos & Matrículas`: Visualização em tabela responsiva de alunos ativos, responsáveis (legal e financeiro), endereços, contatos de emergência e ações rápidas.
   - `Turmas & Ensalamento`: Visualização analítica da taxa de ocupação das salas (`Vagas: X / Y`), barra de progresso visual de lotação e modal de ensalamento interativo.
+  - `Contratos & Parcelas`: Gestão integral de contratos educacionais, geração de minutas, assinatura eletrônica com digest SHA-256 (MP 2.200-2) e visualização das 12 parcelas Pix geradas no faturamento.
 - **Barra de Ferramentas, Filtros e Ciclo de Vida**:
   - Busca server-side por nome, CPF, responsável legal/financeiro ou cidade (`GET /secretaria/alunos?q=`).
   - Filtros por status do ciclo de vida (`pre_matricula`, `ativo`, `trancado`, `transferido`, `inativo`), turma, ano letivo e “somente sem turma”.
   - Paginação (`page`/`limit`) com envelope `{ items, total, page, page_size, contagem_status }` e coluna de turma atual.
   - Ações de ciclo de vida na UI (ativar, trancar, transferir, inativar/reativar) via `PUT /secretaria/alunos/:id` com status validado.
   - Criação com situação inicial `ativo` ou `pre_matricula`.
-  - Filtros locais na aba Turmas (texto, ano letivo, turno).
+  - Filtros server-side e UX reativa na aba Turmas: endpoint `GET /secretaria/turmas?q=&ano_letivo=&turno=&status=` suporta busca textual (`q` ou `busca` cobrindo nome, código, série e etapa de ensino), filtro por ano letivo (`ano_letivo`), filtro por turno (`turno`) e status, com ordenação por ano letivo decrescente e nome alfabético. No frontend, interface padrão Sálvia com busca debounced (350ms), dropdowns de ano letivo e turno, indicador de status de busca no servidor, contador de turmas encontradas, botão para redefinir filtros e estados de lista vazia diferenciados (com ou sem filtros ativos).
 
 ## 2. Nova Matrícula Online & Cadastro Integral do Estudante
 - **Validações Documentais & Anti-Fraude**:
@@ -42,6 +44,10 @@ O módulo cobre o **ciclo de vida completo do estudante** (matrícula com duplo 
   - **Flag `responsavel_financeiro_igual_legal`**:
     - Quando ativa (`true`), espelha automaticamente os dados do responsável legal no financeiro (cenário de pai solo, mãe solo ou responsável único).
     - Quando desativada (`false`), permite cadastro e gestão segregada para pais separados, tutores ou patrocinadores terceiros.
+- **Integração CRM → Matrícula (Deep-link & Pré-preenchimento)**:
+  - Detecção automática de query parameters (`route=secretaria&tab=alunos&nova_matricula=1`).
+  - Pré-população imediata dos campos de identificação do Aluno (`lead_aluno` ou `lead_nome`) e Responsável Legal (`lead_nome`, `lead_telefone`, `lead_email`), espelhando para o financeiro quando a unificação estiver ativa.
+  - Exibição de banner contextual informando a importação direta a partir do pipeline comercial de captação.
 - **Endereço Residencial Completo**:
   - Armazenamento estruturado de CEP, logradouro, número, complemento, bairro, cidade e UF do estudante.
 - **Contatos Adicionais & Emergência**:
@@ -65,12 +71,27 @@ O módulo cobre o **ciclo de vida completo do estudante** (matrícula com duplo 
   - Endpoint `PUT /api/v1/secretaria/prontuarios/:aluno_id`: permite à secretaria, equipe médica e nutricionistas atualizar o prontuário em tempo real via UPSERT idempotente com log de auditoria `ATUALIZAR_PRONTUARIO`.
   - No frontend: interface visual modal acolhedora com modo visualização e modo edição inline (`Save`/`Edit3`), exibindo cartões de alerta destacado (`AlertTriangle`) em caso de riscos clínicos.
 
-## 4. Contratos com Assinatura Eletrônica (MP 2.200-2/2001)
-- **Geração e Assinatura Digital**:
-  - Geração de minuta (`POST /api/v1/secretaria/contratos`) vinculada a tenant, aluno, ano letivo e anuidade total com status inicial `pendente_assinatura`.
-  - Assinatura digital com aceite formal dos termos (`POST /api/v1/secretaria/contratos/:contrato_id/assinar`), gerando digest SHA-256 inalterável combinando identificadores, carimbo de tempo UTC e termos de prestação de serviços, transitando para status `assinado` com valor executivo extrajudicial.
+## 4. Contratos com Assinatura Eletrônica (MP 2.200-2/2001) & Automação Financeira
+- **Geração, Consulta e Assinatura Digital**:
+  - Geração de minuta (`POST /secretaria/contratos` ou `/api/v1/secretaria/contratos`) vinculada a tenant, aluno, ano letivo e anuidade total com status inicial `pendente_assinatura`.
+  - Listagem de contratos (`GET /secretaria/contratos?aluno_id=`): lista contratos ordenados por data decrescente com dados do estudante (`aluno_nome`, `aluno_cpf`) e contagem de faturas associadas (`total_parcelas`).
+  - Consulta detalhada (`GET /secretaria/contratos/:contrato_id`): retorna os dados completos do contrato acompanhados do conjunto de parcelas/faturas geradas.
+  - Assinatura digital com aceite formal dos termos (`POST /secretaria/contratos/:contrato_id/assinar`), gerando digest SHA-256 inalterável combinando identificadores, carimbo de tempo UTC e termos de prestação de serviços, transitando para status `assinado` com valor executivo extrajudicial.
+  - Automação de parcelamento: ao assinar, emite automaticamente até 12 faturas Pix mensais com vencimento dia 10 (aplicando desconto de grupo familiar se houver).
+- **Interface na Secretaria (`ContratosPanel.tsx`)**:
+  - Aba dedicada `Contratos & Parcelas` com busca textual (aluno, CPF, ID), filtros por status (`pendente_assinatura`, `assinado`, `cancelado`) e ano letivo.
+  - Modal de criação de minuta com seleção de aluno e simulação do valor mensal das 12 parcelas.
+  - Modal de assinatura eletrônica com termos contratuais e **copy honesta** esclarecendo a conformidade com a MP 2.200-2/2001 e SHA-256 (com declaração explícita de ausência de certificado ICP-Brasil no MVP).
+  - Modal de detalhes com conferência das 12 parcelas geradas, data de vencimento, valores líquidos e botão de cópia de chave Pix EMVCo local.
 
 ## 5. Gestão de Turmas e Motor de Ensalamento
+- **Listagem e Filtros Server-Side (`GET /secretaria/turmas`)**:
+  - Parâmetros opcionais de consulta:
+    - `q` / `busca`: Busca textual flexível via `ILIKE` combinando `nome`, `codigo`, `serie` e `etapa_ensino`.
+    - `ano_letivo`: Filtro exato por ano letivo (`t.ano_letivo = $ano`).
+    - `turno`: Filtro por turno letivo via case-insensitive `ILIKE` (`Matutino`, `Vespertino`, `Noturno`, `Integral`).
+    - `status`: Filtro por status (`ativo`, etc.).
+  - Retorna `Vec<TurmaDetalhada>` com contagem de alunos matriculados ativos e vagas restantes em tempo real.
 - **Controle de Lotação e Sobrecarga**:
   - Verificação in-process de capacidade máxima por turma física/virtual (`validar_capacidade_turma`): bloqueia ensalamento caso o total de alunos ativos seja igual ou superior à `capacidade_maxima`.
   - Ensalamento atômico (`POST /api/v1/secretaria/turmas/matricular`) com cláusula `ON CONFLICT (turma_id, aluno_id) DO UPDATE SET status = 'ativo'` garantindo idempotência e preservação do histórico de matrícula.
@@ -88,16 +109,22 @@ O módulo cobre o **ciclo de vida completo do estudante** (matrícula com duplo 
   - `sala_id`: Vínculo com a sala física da instituição de ensino (`salas`), com capacidade e nome do espaço.
   - `professor_regente_id`: Professor conselheiro ou regente titular da turma (`users`).
   - `capacidade_maxima` e `ano_letivo`: Governança quantitativa de ocupação por período.
+- **Entidade canônica do estudante**:
+  - Uma única tabela `alunos` + vínculo `turma_alunos` alimenta Diário, Pedagogia (roster), Secretaria e Prontuário.
+  - Roster operacional (`GET /secretaria/turmas/:turma_id/alunos`) devolve **apenas** `turma_alunos.status = 'ativo'` **e** `alunos.status = 'ativo'` — mesma regra da lotação (`COUNT … FILTER ativo`) e da chamada do Diário.
+  - Ao ensalar (`POST …/turmas/matricular`) ou transferir para destino, aluno em `pre_matricula` (e `transferido` na transferência) é promovido para `ativo`, alinhando o filtro padrão da lista da Secretaria.
+  - Leitura do livro de chamada também repara `pre_matricula` com vínculo ativo residual → `ativo` (consistência de ciclo de vida).
+  - Prontuário permanece na ficha do aluno (`GET/PUT /secretaria/prontuarios/:aluno_id`); não há cadastro paralelo de estudante no Pedagógico.
 - **Livro de Chamada & Renumeração Alfabética (A-Z, 1..N)**:
-  - Consulta do livro de chamada (`GET /api/v1/secretaria/turmas/:turma_id/alunos`): retorna alunos com número de chamada, data de nascimento, CPF, responsável legal e status.
+  - Consulta do livro de chamada (`GET /api/v1/secretaria/turmas/:turma_id/alunos`): retorna alunos operacionais com número de chamada, data de nascimento, CPF, responsável legal e status do vínculo.
   - Renumeração automática (`POST /api/v1/secretaria/turmas/:turma_id/renumerar-chamada`): executa transação no banco reordenando os estudantes ativos em ordem alfabética (`ORDER BY a.nome ASC`) e atualizando `numero_chamada = 1..N`.
 - **Desenturmação e Transferência Atômica entre Turmas**:
   - Desenturmação (`DELETE /api/v1/secretaria/turmas/:turma_id/alunos/:aluno_id`): remove vínculo ativo do estudante da turma, liberando vaga imediatamente.
   - Transferência Atômica (`POST /api/v1/secretaria/turmas/transferir`):
     - Executa sob `sqlx::Transaction`:
     - Verifica se a turma de destino possui vaga disponível (`alunos_matriculados < capacidade_maxima`).
-    - Marca o registro na turma de origem como `'transferido'`.
-    - Insere ou reativa o registro na turma de destino com o próximo `numero_chamada` disponível.
+    - Marca o registro na turma de origem como `'transferido'` (some da chamada/Diário da origem).
+    - Insere ou reativa o registro na turma de destino com o próximo `numero_chamada` disponível e promove o aluno a `ativo`.
     - Grava evento de auditoria `TRANSFERIR_ALUNO_TURMA`.
 - **Gestão de Salas Físicas (`salas`)**:
   - Endpoints `GET /api/v1/secretaria/salas`, `POST /api/v1/secretaria/salas`, `DELETE /api/v1/secretaria/salas/:sala_id` para catalogação e controle dos espaços escolares com capacidade nominal.

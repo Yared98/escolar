@@ -17,8 +17,8 @@ use crate::{
     },
     models::secretaria::{
         Aluno, AlunoListItem, AlunoStatusContagem, AlunoTurmaDetalhado, AlunosPage, AssinarContratoDto,
-        Contrato, CreateAlunoDto, CreateContratoDto, CreateSalaDto, CreateTurmaDto, ListAlunosQuery,
-        MatricularTurmaDto, Prontuario, Sala, SalvarProntuarioDto, STATUS_ALUNO_VALIDOS,
+        Contrato, ContratoDetalhado, ContratoListItem, CreateAlunoDto, CreateContratoDto, CreateSalaDto, CreateTurmaDto, ListAlunosQuery,
+        ListContratosQuery, ListTurmasQuery, MatricularTurmaDto, Prontuario, Sala, SalvarProntuarioDto, STATUS_ALUNO_VALIDOS,
         TransferirAlunoTurmaDto, Turma, TurmaAluno, TurmaDetalhada, UpdateAlunoDto, UpdateTurmaDto,
         VincularResponsavelDto,
     },
@@ -972,9 +972,30 @@ pub async fn listar_turmas(
     State(_state): State<AppState>, TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
+    Query(query): Query<ListTurmasQuery>,
 ) -> Result<Json<Vec<TurmaDetalhada>>, AppError> {
     check_roles(&auth_user, &["admin", "gestor", "secretaria", "professor", "responsavel"])?;
     let tenant_id = active_tenant.0;
+
+    let busca = query
+        .q
+        .or(query.busca)
+        .as_ref()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    let busca_like = busca.as_ref().map(|s| format!("%{}%", s));
+
+    let turno_trim = query
+        .turno
+        .as_ref()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+
+    let status_trim = query
+        .status
+        .as_ref()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
 
     let rows = sqlx::query(
         r#"
@@ -1000,11 +1021,25 @@ pub async fn listar_turmas(
         LEFT JOIN users u ON t.professor_regente_id = u.id
         LEFT JOIN turma_alunos ta ON t.id = ta.turma_id
         WHERE t.tenant_id = $1
+          AND (
+            $2::TEXT IS NULL
+            OR t.nome ILIKE $2
+            OR COALESCE(t.codigo, '') ILIKE $2
+            OR COALESCE(t.serie, '') ILIKE $2
+            OR COALESCE(t.etapa_ensino, '') ILIKE $2
+          )
+          AND ($3::INT IS NULL OR t.ano_letivo = $3)
+          AND ($4::TEXT IS NULL OR t.turno ILIKE $4)
+          AND ($5::TEXT IS NULL OR t.status = $5)
         GROUP BY t.id, s.nome, u.name
         ORDER BY t.ano_letivo DESC, t.nome ASC
         "#,
     )
     .bind(tenant_id)
+    .bind(busca_like)
+    .bind(query.ano_letivo)
+    .bind(turno_trim)
+    .bind(status_trim)
     .fetch_all(&mut *db)
     .await?;
 
@@ -1235,9 +1270,31 @@ pub async fn listar_alunos_turma(
     check_roles(&auth_user, &["admin", "gestor", "secretaria", "professor"])?;
     let tenant_id = active_tenant.0;
 
+    // Repara inconsistência de ciclo de vida: vínculo ativo com aluno ainda em pré-matrícula.
+    sqlx::query(
+        r#"
+        UPDATE alunos a
+        SET status = 'ativo', updated_at = NOW()
+        FROM turma_alunos ta
+        WHERE a.id = ta.aluno_id
+          AND a.tenant_id = $2
+          AND ta.turma_id = $1
+          AND ta.tenant_id = $2
+          AND ta.status = 'ativo'
+          AND a.status = 'pre_matricula'
+        "#,
+    )
+    .bind(turma_id)
+    .bind(tenant_id)
+    .execute(&mut *db)
+    .await?;
+
+    // Mesma regra operacional do Diário/Pedagogia/Secretaria:
+    // só vínculos ativos de alunos com status operacional (ativo).
+    // Transferidos/inativos não entram na chamada nem na lotação.
     let rows = sqlx::query(
         r#"
-        SELECT 
+        SELECT
             ta.id,
             ta.aluno_id,
             a.nome,
@@ -1249,8 +1306,11 @@ pub async fn listar_alunos_turma(
             ta.status,
             ta.data_matricula
         FROM turma_alunos ta
-        JOIN alunos a ON ta.aluno_id = a.id
-        WHERE ta.turma_id = $1 AND ta.tenant_id = $2
+        JOIN alunos a ON ta.aluno_id = a.id AND a.tenant_id = ta.tenant_id
+        WHERE ta.turma_id = $1
+          AND ta.tenant_id = $2
+          AND ta.status = 'ativo'
+          AND a.status = 'ativo'
         ORDER BY COALESCE(ta.numero_chamada, 9999) ASC, a.nome ASC
         "#,
     )
@@ -1354,6 +1414,19 @@ pub async fn matricular_aluno_turma(
     .bind(dto.aluno_id)
     .bind(num_chamada)
     .fetch_one(&mut *db)
+    .await?;
+
+    // Ciclo de vida: enturmação ativa promove pré-matrícula → aluno operacional.
+    sqlx::query(
+        r#"
+        UPDATE alunos
+        SET status = 'ativo', updated_at = NOW()
+        WHERE id = $1 AND tenant_id = $2 AND status = 'pre_matricula'
+        "#,
+    )
+    .bind(dto.aluno_id)
+    .bind(tenant_id)
+    .execute(&mut *db)
     .await?;
 
     log_audit(
@@ -1468,6 +1541,18 @@ pub async fn transferir_aluno_turma(
     .bind(dto.turma_destino_id)
     .bind(dto.aluno_id)
     .bind(prox_num)
+    .execute(&mut *tx)
+    .await?;
+
+    sqlx::query(
+        r#"
+        UPDATE alunos
+        SET status = 'ativo', updated_at = NOW()
+        WHERE id = $1 AND tenant_id = $2 AND status IN ('pre_matricula', 'transferido')
+        "#,
+    )
+    .bind(dto.aluno_id)
+    .bind(tenant_id)
     .execute(&mut *tx)
     .await?;
 
@@ -1718,29 +1803,122 @@ pub async fn criar_contrato(
     Ok(Json(contrato))
 }
 
+pub async fn listar_contratos(
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
+    Extension(active_tenant): Extension<ActiveTenant>,
+    Extension(auth_user): Extension<AuthUser>,
+    Query(query): Query<ListContratosQuery>,
+) -> Result<Json<Vec<ContratoListItem>>, AppError> {
+    check_roles(&auth_user, &["admin", "gestor", "secretaria", "financeiro", "responsavel"])?;
+    let tenant_id = active_tenant.0;
+    let is_responsavel = auth_user.role == "responsavel";
+
+    let contratos = sqlx::query_as::<_, ContratoListItem>(
+        r#"
+        SELECT
+            c.id,
+            c.tenant_id,
+            c.aluno_id,
+            c.ano_letivo,
+            c.valor_total,
+            c.status,
+            c.hash_documento,
+            c.assinado_em,
+            c.created_at,
+            a.nome AS aluno_nome,
+            a.cpf AS aluno_cpf,
+            (SELECT COUNT(*) FROM faturas f WHERE f.contrato_id = c.id AND f.tenant_id = c.tenant_id) AS total_parcelas
+        FROM contratos c
+        JOIN alunos a ON a.id = c.aluno_id AND a.tenant_id = c.tenant_id
+        WHERE c.tenant_id = $1
+          AND ($2::uuid IS NULL OR c.aluno_id = $2)
+          AND (
+            NOT $3 OR (
+                a.responsavel_user_id = $4
+                OR EXISTS (
+                    SELECT 1 FROM responsaveis_alunos ra
+                    WHERE ra.aluno_id = a.id AND ra.tenant_id = c.tenant_id AND ra.responsavel_user_id = $4
+                )
+            )
+          )
+        ORDER BY c.created_at DESC
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(query.aluno_id)
+    .bind(is_responsavel)
+    .bind(auth_user.id)
+    .fetch_all(&mut *db)
+    .await?;
+
+    Ok(Json(contratos))
+}
+
 pub async fn obter_contrato(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(contrato_id): Path<Uuid>,
-) -> Result<Json<Contrato>, AppError> {
-    check_roles(&auth_user, &["admin", "gestor", "secretaria", "responsavel"])?;
+) -> Result<Json<ContratoDetalhado>, AppError> {
+    check_roles(&auth_user, &["admin", "gestor", "secretaria", "financeiro", "responsavel"])?;
     let tenant_id = active_tenant.0;
+    let is_responsavel = auth_user.role == "responsavel";
 
-    let contrato = sqlx::query_as::<_, Contrato>(
-        "SELECT * FROM contratos WHERE id = $1 AND tenant_id = $2",
+    let contrato = sqlx::query_as::<_, ContratoListItem>(
+        r#"
+        SELECT
+            c.id,
+            c.tenant_id,
+            c.aluno_id,
+            c.ano_letivo,
+            c.valor_total,
+            c.status,
+            c.hash_documento,
+            c.assinado_em,
+            c.created_at,
+            a.nome AS aluno_nome,
+            a.cpf AS aluno_cpf,
+            (SELECT COUNT(*) FROM faturas f WHERE f.contrato_id = c.id AND f.tenant_id = c.tenant_id) AS total_parcelas
+        FROM contratos c
+        JOIN alunos a ON a.id = c.aluno_id AND a.tenant_id = c.tenant_id
+        WHERE c.id = $1 AND c.tenant_id = $2
+          AND (
+            NOT $3 OR (
+                a.responsavel_user_id = $4
+                OR EXISTS (
+                    SELECT 1 FROM responsaveis_alunos ra
+                    WHERE ra.aluno_id = a.id AND ra.tenant_id = c.tenant_id AND ra.responsavel_user_id = $4
+                )
+            )
+          )
+        "#,
     )
     .bind(contrato_id)
     .bind(tenant_id)
+    .bind(is_responsavel)
+    .bind(auth_user.id)
     .fetch_optional(&mut *db)
     .await?
     .ok_or(AppError::NotFound)?;
 
-    if auth_user.role == "responsavel" {
-        check_aluno_ownership(&mut *db, &auth_user, contrato.aluno_id).await?;
-    }
+    let parcelas = sqlx::query_as::<_, crate::models::financeiro::Fatura>(
+        r#"
+        SELECT * FROM faturas
+        WHERE contrato_id = $1 AND tenant_id = $2
+        ORDER BY parcela_numero ASC NULLS LAST, data_vencimento ASC
+        "#,
+    )
+    .bind(contrato_id)
+    .bind(tenant_id)
+    .fetch_all(&mut *db)
+    .await?;
 
-    Ok(Json(contrato))
+    Ok(Json(ContratoDetalhado {
+        contrato,
+        parcelas,
+    }))
 }
 
 pub async fn assinar_contrato(
@@ -1751,7 +1929,7 @@ pub async fn assinar_contrato(
     Path(contrato_id): Path<Uuid>,
     Json(dto): Json<AssinarContratoDto>,
 ) -> Result<Json<Contrato>, AppError> {
-    check_roles(&auth_user, &["admin", "gestor", "responsavel"])?;
+    check_roles(&auth_user, &["admin", "gestor", "secretaria", "responsavel"])?;
     let tenant_id = active_tenant.0;
 
     if !dto.aceite_termos {

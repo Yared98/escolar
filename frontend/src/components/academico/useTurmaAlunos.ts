@@ -63,15 +63,18 @@ export function useTurmaAlunos() {
     async function carregarAlunos() {
       setLoadingAlunos(true);
       try {
-        const data = await apiFetch<{ aluno_id: string; nome: string }[]>(
-          `/secretaria/turmas/${turmaId}/alunos`
-        );
+        const data = await apiFetch<
+          { aluno_id: string; nome: string; status?: string }[]
+        >(`/secretaria/turmas/${turmaId}/alunos`);
         if (!ativo) return;
-        const mapped = (data || []).map((aluno) => ({
-          id: aluno.aluno_id,
-          nome: aluno.nome,
-          status: 'presente' as const,
-        }));
+        // API já devolve só vínculo ativo + aluno ativo; filtro local é defesa em profundidade.
+        const mapped = (data || [])
+          .filter((aluno) => !aluno.status || aluno.status === 'ativo')
+          .map((aluno) => ({
+            id: aluno.aluno_id,
+            nome: aluno.nome,
+            status: 'presente' as const,
+          }));
         setAlunos(mapped);
         setListaErro(null);
         setSelectedAlunoId(mapped[0]?.id || '');

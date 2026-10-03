@@ -8,6 +8,7 @@ Não há integração oficial ativa com a Meta Cloud API para envio de mensagens
 | Capacidade | Status |
 |---|---|
 | Pipeline e Estágios de Leads (`novo_lead` a `matriculado`) | Implementado |
+| Ação CRM → Matrícula (pré-preenchimento na Secretaria) | Implementado |
 | Rastreabilidade e Timeline de Interações | Implementado |
 | Métricas Analíticas de Conversão e CAC | Implementado |
 | Gestão de Protocolos e Filas de Transbordo Humanizado | Implementado |
@@ -25,6 +26,9 @@ Não há integração oficial ativa com a Meta Cloud API para envio de mensagens
   - `proposta_enviada`: Apresentação da grade curricular e valores de anuidade/mensalidade.
   - `matriculado`: Aluno convertido e integrado à Secretaria Escolar.
   - `perdido`: Lead que optou por outra instituição ou descontinuou a negociação.
+- **Ação Rápida CRM → Matrícula Online**:
+  - No card do lead em estágio `matriculado`, é exibido o CTA **Abrir matrícula**.
+  - O clique navega para `/?route=secretaria&tab=alunos&nova_matricula=1` com parâmetros `lead_nome`, `lead_telefone`, `lead_email` e `lead_aluno` (extraído de observações `Aluno: ...`), acionando a abertura do modal de Nova Matrícula pré-preenchido.
 - **Rastreabilidade e Timeline de Interações**:
   - Tabela `lead_interacoes` registrando registros de contato, visitas presenciais e histórico de mudanças de estágio com identificador do consultor (`usuario_id`).
 - **Endpoints do Funil Comercial**:

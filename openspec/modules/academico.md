@@ -38,6 +38,7 @@ O processo avaliativo opera pelo lançamento de notas por período letivo e falt
 - **Consulta do dia**: `GET /api/v1/academico/diario?turma_id=&data_aula=` devolve `{ encontrado: bool, conteudo_ministrado, observacao, presencas }`.
 - **Histórico da turma**: `GET /api/v1/academico/diario/recentes?turma_id=&limit=` lista os últimos diários salvos da turma.
 - **Diferenciação por Etapa**: Turmas da Educação Infantil abrem a visão integrada com rotina infantil; turmas do Fundamental/Médio abrem a pauta de frequência e conteúdo.
+- **Roster canônico**: a lista de alunos do Diário vem de `GET /secretaria/turmas/:turma_id/alunos` (vínculo ativo + aluno `ativo`) — **não** há entidade paralela. O Pedagógico usa o mesmo endpoint para exibir alunos enturmados; cadastro, ciclo de vida e prontuário ficam na Secretaria.
 
 ---
 
@@ -85,6 +86,7 @@ O processo avaliativo opera pelo lançamento de notas por período letivo e falt
 - **Matriz Curricular por Turma (`turma_disciplinas`)**:
   - Associação de componentes curriculares a turmas.
   - Endpoints: `GET /api/v1/academico/turmas/:turma_id/disciplinas`, `POST /api/v1/academico/turmas/:turma_id/disciplinas`, `DELETE /api/v1/academico/turmas/:turma_id/disciplinas/:disciplina_id`.
+  - UI Pedagógico (`PedagocioNutricaoSection`): além da matriz/grade, exibe o roster da turma via `GET /secretaria/turmas/:id/alunos` (sem cadastro duplicado de aluno).
 - **Atribuição Docente (`turma_professores`)**:
   - Alocação de professores por turma e componente curricular.
   - Endpoints: `GET /api/v1/academico/turmas/:turma_id/professores`, `POST /api/v1/academico/turmas/:turma_id/professores`, `DELETE /api/v1/academico/turmas/:turma_id/professores/:atribuicao_id`.

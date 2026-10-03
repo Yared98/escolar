@@ -127,7 +127,9 @@ function DashboardContent() {
   const [adminEmail, setAdminEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
 
-  // Synchronize activeRoute smoothly with URL search parameters (deep-linking)
+  // URL → state only. Must NOT depend on activeRoute: handleRouteChange updates
+  // state optimistically before router.push commits, and a stale searchParams
+  // read would snap the route back (Secretaria unmount → lista de alunos vazia).
   useEffect(() => {
     if (!searchParams) return;
     const routeParam = searchParams.get('route') as NavRoute | null;
@@ -135,27 +137,23 @@ function DashboardContent() {
       if (!isRouteAllowed(routeParam, role)) {
         return;
       }
-      if (routeParam !== activeRoute) {
-        setActiveRoute(routeParam);
-      }
+      setActiveRoute((prev) => (prev === routeParam ? prev : routeParam));
       return;
     }
 
     const tabParam = searchParams.get('tab');
     if (tabParam && !routeParam) {
-      const matched = findRouteByTab(tabParam, role, activeRoute);
-      if (matched && matched !== activeRoute) {
-        setActiveRoute(matched);
-      }
+      setActiveRoute((prev) => {
+        const matched = findRouteByTab(tabParam, role, prev);
+        return matched && matched !== prev ? matched : prev;
+      });
       return;
     }
 
     // Fallback for empty query parameters on browser Back to root /
     const defaultRoute: NavRoute = role === 'responsavel' ? 'portal_aluno' : 'overview';
-    if (activeRoute !== defaultRoute) {
-      setActiveRoute(defaultRoute);
-    }
-  }, [searchParams, activeRoute, role]);
+    setActiveRoute((prev) => (prev === defaultRoute ? prev : defaultRoute));
+  }, [searchParams, role]);
 
   // Keep the open route inside what this profile may see, and update the URL
   // together with the state. Changing only the state fights the URL sync above

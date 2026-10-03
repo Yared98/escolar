@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { formatCpf, formatPhone, formatCep } from '@/lib/formatters';
 import {
@@ -15,6 +15,7 @@ import {
   ProfessorItem,
   ProntuarioModal,
   EnsalamentoModal,
+  ContratosPanel,
   labelStatusAluno,
   statusAlunoBadgeClass,
   proximasAcoesStatus,
@@ -51,16 +52,39 @@ import {
   BookOpen,
   CheckCircle2,
   AlertTriangle,
+  Loader2,
 } from 'lucide-react';
 
 const PAGE_SIZE = 25;
 
 export function SecretariaSection() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams ? searchParams.get('tab') : null;
-  const activeTab: 'alunos' | 'turmas' = tabParam === 'turmas' ? 'turmas' : 'alunos';
+  const [activeTabLocal, setActiveTabLocal] = useState<'alunos' | 'turmas' | 'contratos'>(() => {
+    if (tabParam === 'turmas' || tabParam === 'contratos') return tabParam;
+    return 'alunos';
+  });
+
+  useEffect(() => {
+    if (tabParam === 'turmas' || tabParam === 'contratos' || tabParam === 'alunos') {
+      setActiveTabLocal(tabParam);
+    }
+  }, [tabParam]);
+
+  const activeTab: 'alunos' | 'turmas' | 'contratos' = activeTabLocal;
+
+  const handleTabChange = (tab: 'alunos' | 'turmas' | 'contratos') => {
+    setActiveTabLocal(tab);
+    const params = new URLSearchParams(searchParams ? searchParams.toString() : '');
+    params.set('route', 'secretaria');
+    params.set('tab', tab);
+    router.push(`/?${params.toString()}`, { scroll: false });
+  };
+
   const [alunos, setAlunos] = useState<Aluno[]>([]);
   const [turmas, setTurmas] = useState<Turma[]>([]);
+  const [turmasCatalogo, setTurmasCatalogo] = useState<Turma[]>([]);
   const [search, setSearch] = useState('');
   const [searchDebounced, setSearchDebounced] = useState('');
   const [filtroStatus, setFiltroStatus] = useState<string>('ativo');
@@ -68,19 +92,24 @@ export function SecretariaSection() {
   const [filtroSemTurma, setFiltroSemTurma] = useState(false);
   const [filtroAnoLetivo, setFiltroAnoLetivo] = useState<string>('');
   const [page, setPage] = useState(1);
+  const [alunosReloadToken, setAlunosReloadToken] = useState(0);
   const [totalAlunos, setTotalAlunos] = useState(0);
   const [contagemStatus, setContagemStatus] = useState<AlunoStatusContagem[]>([]);
   const [alunosEnsalamento, setAlunosEnsalamento] = useState<Aluno[]>([]);
   const [menuStatusAlunoId, setMenuStatusAlunoId] = useState<string | null>(null);
   const [statusInicialMatricula, setStatusInicialMatricula] = useState<'ativo' | 'pre_matricula'>('ativo');
   const [filtroTurmaTexto, setFiltroTurmaTexto] = useState('');
+  const [filtroTurmaTextoDebounced, setFiltroTurmaTextoDebounced] = useState('');
   const [filtroTurmaAno, setFiltroTurmaAno] = useState('');
   const [filtroTurmaTurno, setFiltroTurmaTurno] = useState('');
+  const [loadingTurmas, setLoadingTurmas] = useState(false);
   const [loading, setLoading] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [modalTab, setModalTab] = useState<'dados_aluno' | 'responsaveis' | 'endereco_contato' | 'prontuario'>('dados_aluno');
+  const [origemCrm, setOrigemCrm] = useState(false);
+  const lastConsumedLeadRef = useRef<string | null>(null);
   const [showTurmaModal, setShowTurmaModal] = useState(false);
   const [showEnsalamentoModal, setShowEnsalamentoModal] = useState(false);
   const [selectedTurmaParaEnsalamento, setSelectedTurmaParaEnsalamento] = useState<Turma | null>(null);
@@ -182,19 +211,19 @@ export function SecretariaSection() {
     const erros: string[] = [];
 
     if (turmasRes.status === 'fulfilled') {
-      setTurmas(
-        (turmasRes.value || []).map((t) => {
-          const matriculados = t.alunos_matriculados ?? 0;
-          return {
-            ...t,
-            alunos_matriculados: matriculados,
-            vagas_restantes:
-              t.vagas_restantes ?? Math.max(0, (t.capacidade_maxima || 0) - matriculados),
-          };
-        })
-      );
+      const items = (turmasRes.value || []).map((t) => {
+        const matriculados = t.alunos_matriculados ?? 0;
+        return {
+          ...t,
+          alunos_matriculados: matriculados,
+          vagas_restantes:
+            t.vagas_restantes ?? Math.max(0, (t.capacidade_maxima || 0) - matriculados),
+        };
+      });
+      setTurmasCatalogo(items);
+      setTurmas((prev) => (prev.length === 0 ? items : prev));
     } else {
-      setTurmas([]);
+      setTurmasCatalogo([]);
       erros.push('turmas');
     }
 
@@ -217,6 +246,40 @@ export function SecretariaSection() {
       );
     }
   }, []);
+
+  const loadTurmas = useCallback(async () => {
+    setLoadingTurmas(true);
+    try {
+      const params = new URLSearchParams();
+      if (filtroTurmaTextoDebounced.trim()) {
+        params.set('q', filtroTurmaTextoDebounced.trim());
+      }
+      if (filtroTurmaAno) {
+        params.set('ano_letivo', filtroTurmaAno);
+      }
+      if (filtroTurmaTurno) {
+        params.set('turno', filtroTurmaTurno);
+      }
+      const qs = params.toString();
+      const endpoint = qs ? `/secretaria/turmas?${qs}` : '/secretaria/turmas';
+      const data = await apiFetch<Turma[]>(endpoint);
+      const items = (data || []).map((t) => {
+        const matriculados = t.alunos_matriculados ?? 0;
+        return {
+          ...t,
+          alunos_matriculados: matriculados,
+          vagas_restantes:
+            t.vagas_restantes ?? Math.max(0, (t.capacidade_maxima || 0) - matriculados),
+        };
+      });
+      setTurmas(items);
+    } catch (err: unknown) {
+      setTurmas([]);
+      setFetchError(err instanceof Error ? err.message : 'Não foi possível carregar as turmas.');
+    } finally {
+      setLoadingTurmas(false);
+    }
+  }, [filtroTurmaTextoDebounced, filtroTurmaAno, filtroTurmaTurno]);
 
   const buildAlunosQuery = useCallback(
     (opts?: { page?: number; forEnsalamento?: boolean }) => {
@@ -243,21 +306,8 @@ export function SecretariaSection() {
   );
 
   const loadAlunos = useCallback(async () => {
-    setLoading(true);
-    setFetchError(null);
-    try {
-      const data = await apiFetch<AlunosPage>(`/secretaria/alunos?${buildAlunosQuery()}`);
-      setAlunos(data.items || []);
-      setTotalAlunos(data.total || 0);
-      setContagemStatus(data.contagem_status || []);
-    } catch (err: unknown) {
-      setAlunos([]);
-      setTotalAlunos(0);
-      setFetchError(err instanceof Error ? err.message : 'Não foi possível carregar os alunos.');
-    } finally {
-      setLoading(false);
-    }
-  }, [buildAlunosQuery]);
+    setAlunosReloadToken((token) => token + 1);
+  }, []);
 
   const loadAlunosEnsalamento = useCallback(async () => {
     try {
@@ -276,16 +326,99 @@ export function SecretariaSection() {
   }, [search]);
 
   useEffect(() => {
+    const t = setTimeout(() => setFiltroTurmaTextoDebounced(filtroTurmaTexto), 350);
+    return () => clearTimeout(t);
+  }, [filtroTurmaTexto]);
+
+  useEffect(() => {
+    void loadTurmas();
+  }, [loadTurmas]);
+
+  // Busca/filtros: volta à página 1 no mesmo ciclo de evento dos chips/handlers
+  // (efeito só para debounce de busca, que não passa por handler síncrono).
+  useEffect(() => {
     setPage(1);
-  }, [searchDebounced, filtroStatus, filtroTurmaId, filtroSemTurma, filtroAnoLetivo]);
+  }, [searchDebounced]);
 
   useEffect(() => {
     void loadCatalogo();
   }, [loadCatalogo]);
 
+  // Carrega alunos com cancelamento: evita resposta antiga zerar a lista ao trocar rota/filtro.
   useEffect(() => {
-    void loadAlunos();
-  }, [loadAlunos]);
+    if (activeTab !== 'alunos') return;
+    let cancelled = false;
+    async function carregarAlunos() {
+      setLoading(true);
+      setFetchError(null);
+      try {
+        const data = await apiFetch<AlunosPage | Aluno[]>(
+          `/secretaria/alunos?${buildAlunosQuery()}`
+        );
+        if (cancelled) return;
+
+        if (Array.isArray(data)) {
+          setAlunos(data);
+          setTotalAlunos(data.length);
+          setContagemStatus([]);
+        } else {
+          setAlunos(data.items ?? []);
+          setTotalAlunos(data.total ?? 0);
+          setContagemStatus(data.contagem_status ?? []);
+        }
+      } catch (err: unknown) {
+        if (cancelled) return;
+        // Mantém lista anterior; só sinaliza o erro (evita flash vazio em race/401).
+        setFetchError(err instanceof Error ? err.message : 'Não foi possível carregar os alunos.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    void carregarAlunos();
+    return () => {
+      cancelled = true;
+    };
+  }, [buildAlunosQuery, alunosReloadToken, activeTab]);
+
+  useEffect(() => {
+    if (!searchParams) return;
+    const isNovaMatricula =
+      searchParams.get('nova_matricula') === '1' ||
+      searchParams.get('nova_matricula') === 'true' ||
+      searchParams.get('modal') === 'nova_matricula';
+
+    if (isNovaMatricula) {
+      const querySignature = searchParams.toString();
+      if (lastConsumedLeadRef.current === querySignature) return;
+      lastConsumedLeadRef.current = querySignature;
+
+      const leadNome = searchParams.get('lead_nome') || searchParams.get('nome_responsavel') || '';
+      const leadTelefone = searchParams.get('lead_telefone') || searchParams.get('telefone') || '';
+      const leadEmail = searchParams.get('lead_email') || searchParams.get('email') || '';
+      const leadAluno = searchParams.get('lead_aluno') || searchParams.get('nome_aluno') || searchParams.get('aluno') || '';
+
+      if (leadAluno) {
+        setNome(leadAluno);
+      } else if (leadNome) {
+        setNome(leadNome);
+      }
+      if (leadNome) {
+        setNomeResponsavel(leadNome);
+      }
+      if (leadTelefone) {
+        setTelefoneResponsavel(formatPhone(leadTelefone));
+      }
+      if (leadEmail) {
+        setEmailResponsavel(leadEmail);
+      }
+
+      setOrigemCrm(true);
+      setFormError(null);
+      setFormSuccess(null);
+      setModalTab('dados_aluno');
+      setShowModal(true);
+    }
+  }, [searchParams]);
 
   const handleMatricular = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -391,6 +524,7 @@ export function SecretariaSection() {
     setCuidadosEspeciais('');
     setHistoricoObservacoes('');
     setStatusInicialMatricula('ativo');
+    setOrigemCrm(false);
     setFormSuccess(null);
     setFormError(null);
     setModalTab('dados_aluno');
@@ -436,6 +570,7 @@ export function SecretariaSection() {
         vagas_restantes: capacidadeTurma,
       };
       setTurmas((prev) => [turmaComDetalhes, ...prev]);
+      setTurmasCatalogo((prev) => [turmaComDetalhes, ...prev]);
       setShowTurmaModal(false);
       resetTurmaForm();
     } catch (err: unknown) {
@@ -488,17 +623,16 @@ export function SecretariaSection() {
         method: 'DELETE',
       });
       setTurmaAlunos((prev) => prev.filter((a) => a.aluno_id !== alunoId));
-      setTurmas((prev) =>
-        prev.map((t) =>
-          t.id === selectedTurmaAlunosModal.id
-            ? {
-                ...t,
-                alunos_matriculados: Math.max(0, (t.alunos_matriculados || 1) - 1),
-                vagas_restantes: (t.vagas_restantes || 0) + 1,
-              }
-            : t
-        )
-      );
+      const desenturmarMap = (t: Turma) =>
+        t.id === selectedTurmaAlunosModal.id
+          ? {
+              ...t,
+              alunos_matriculados: Math.max(0, (t.alunos_matriculados || 1) - 1),
+              vagas_restantes: (t.vagas_restantes || 0) + 1,
+            }
+          : t;
+      setTurmas((prev) => prev.map(desenturmarMap));
+      setTurmasCatalogo((prev) => prev.map(desenturmarMap));
       setTurmaAlunosMsg({ type: 'success', text: `Aluno ${nomeAluno} desenturmado com sucesso!` });
     } catch (err: unknown) {
       setTurmaAlunosMsg({
@@ -524,25 +658,25 @@ export function SecretariaSection() {
       });
 
       setTurmaAlunos((prev) => prev.filter((a) => a.aluno_id !== alunoParaTransferir.aluno_id));
-      setTurmas((prev) =>
-        prev.map((t) => {
-          if (t.id === selectedTurmaAlunosModal.id) {
-            return {
-              ...t,
-              alunos_matriculados: Math.max(0, (t.alunos_matriculados || 1) - 1),
-              vagas_restantes: (t.vagas_restantes || 0) + 1,
-            };
-          }
-          if (t.id === turmaDestinoTransferenciaId) {
-            return {
-              ...t,
-              alunos_matriculados: (t.alunos_matriculados || 0) + 1,
-              vagas_restantes: Math.max(0, (t.vagas_restantes || 1) - 1),
-            };
-          }
-          return t;
-        })
-      );
+      const transferMap = (t: Turma) => {
+        if (t.id === selectedTurmaAlunosModal.id) {
+          return {
+            ...t,
+            alunos_matriculados: Math.max(0, (t.alunos_matriculados || 1) - 1),
+            vagas_restantes: (t.vagas_restantes || 0) + 1,
+          };
+        }
+        if (t.id === turmaDestinoTransferenciaId) {
+          return {
+            ...t,
+            alunos_matriculados: (t.alunos_matriculados || 0) + 1,
+            vagas_restantes: Math.max(0, (t.vagas_restantes || 1) - 1),
+          };
+        }
+        return t;
+      };
+      setTurmas((prev) => prev.map(transferMap));
+      setTurmasCatalogo((prev) => prev.map(transferMap));
       setTurmaAlunosMsg({
         type: 'success',
         text: `Aluno ${alunoParaTransferir.nome} transferido de turma com sucesso!`,
@@ -562,6 +696,7 @@ export function SecretariaSection() {
     try {
       await apiFetch(`/secretaria/turmas/${id}`, { method: 'DELETE' });
       setTurmas((prev) => prev.filter((t) => t.id !== id));
+      setTurmasCatalogo((prev) => prev.filter((t) => t.id !== id));
     } catch (err: unknown) {
       setFetchError(err instanceof Error ? err.message : 'Não foi possível excluir a turma.');
     }
@@ -578,17 +713,16 @@ export function SecretariaSection() {
           aluno_id: selectedAlunoIdParaEnsalamento,
         }),
       });
-      setTurmas((prev) =>
-        prev.map((t) =>
-          t.id === selectedTurmaParaEnsalamento.id
-            ? {
-                ...t,
-                alunos_matriculados: (t.alunos_matriculados || 0) + 1,
-                vagas_restantes: Math.max(0, (t.vagas_restantes || t.capacidade_maxima) - 1),
-              }
-            : t
-        )
-      );
+      const ensalamentoMap = (t: Turma) =>
+        t.id === selectedTurmaParaEnsalamento.id
+          ? {
+              ...t,
+              alunos_matriculados: (t.alunos_matriculados || 0) + 1,
+              vagas_restantes: Math.max(0, (t.vagas_restantes || t.capacidade_maxima) - 1),
+            }
+          : t;
+      setTurmas((prev) => prev.map(ensalamentoMap));
+      setTurmasCatalogo((prev) => prev.map(ensalamentoMap));
       setEnsalamentoSuccess('Aluno enturmado com sucesso!');
       setTimeout(() => {
         setShowEnsalamentoModal(false);
@@ -688,16 +822,18 @@ export function SecretariaSection() {
   const fromItem = totalAlunos === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const toItem = Math.min(page * PAGE_SIZE, totalAlunos);
   const contagemMap = Object.fromEntries(contagemStatus.map((c) => [c.status, c.total]));
-  const anosLetivosTurma = Array.from(new Set(turmas.map((t) => t.ano_letivo))).sort((a, b) => b - a);
+  const turmasReferencia = turmasCatalogo.length > 0 ? turmasCatalogo : turmas;
+  const anosLetivosTurma = Array.from(new Set(turmasReferencia.map((t) => t.ano_letivo))).sort((a, b) => b - a);
   const turmasFiltradas = turmas.filter((t) => {
-    const q = filtroTurmaTexto.toLowerCase();
+    const q = filtroTurmaTexto.trim().toLowerCase();
     const matchTexto =
       !q ||
       t.nome.toLowerCase().includes(q) ||
       (t.codigo || '').toLowerCase().includes(q) ||
-      (t.serie || '').toLowerCase().includes(q);
+      (t.serie || '').toLowerCase().includes(q) ||
+      (t.etapa_ensino || '').toLowerCase().includes(q);
     const matchAno = !filtroTurmaAno || String(t.ano_letivo) === filtroTurmaAno;
-    const matchTurno = !filtroTurmaTurno || (t.turno || '') === filtroTurmaTurno;
+    const matchTurno = !filtroTurmaTurno || (t.turno || '').toLowerCase() === filtroTurmaTurno.toLowerCase();
     return matchTexto && matchAno && matchTurno;
   });
 
@@ -743,11 +879,12 @@ export function SecretariaSection() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {activeTab === 'alunos' ? (
+          {activeTab === 'alunos' && (
             <button
               onClick={() => {
                 setFormError(null);
                 setFormSuccess(null);
+                setOrigemCrm(false);
                 setModalTab('dados_aluno');
                 setShowModal(true);
               }}
@@ -756,7 +893,8 @@ export function SecretariaSection() {
               <PlusCircle className="w-4 h-4" />
               <span>+ Nova Matrícula Completa</span>
             </button>
-          ) : (
+          )}
+          {activeTab === 'turmas' && (
             <button
               onClick={() => setShowTurmaModal(true)}
               className="bg-salvia-700 dark:bg-salvia-600 hover:bg-salvia-800 dark:hover:bg-salvia-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-2 transition-all shadow-sm"
@@ -768,8 +906,48 @@ export function SecretariaSection() {
         </div>
       </div>
 
-      {/* Renderização Condicional: Alunos vs Turmas */}
-      {activeTab === 'alunos' ? (
+      {/* Abas Superiores de Navegação */}
+      <div className="flex border-b border-slate-200 dark:border-slate-800 mb-6 gap-2">
+        <button
+          type="button"
+          onClick={() => handleTabChange('alunos')}
+          className={`pb-3 px-3 text-xs font-bold border-b-2 flex items-center space-x-2 transition-all ${
+            activeTab === 'alunos'
+              ? 'border-salvia-600 text-salvia-700 dark:text-salvia-400'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          <span>Alunos & Matrículas</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => handleTabChange('turmas')}
+          className={`pb-3 px-3 text-xs font-bold border-b-2 flex items-center space-x-2 transition-all ${
+            activeTab === 'turmas'
+              ? 'border-salvia-600 text-salvia-700 dark:text-salvia-400'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          <BookOpen className="w-4 h-4" />
+          <span>Turmas & Ensalamento</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => handleTabChange('contratos')}
+          className={`pb-3 px-3 text-xs font-bold border-b-2 flex items-center space-x-2 transition-all ${
+            activeTab === 'contratos'
+              ? 'border-salvia-600 text-salvia-700 dark:text-salvia-400'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          <span>Contratos & Parcelas</span>
+        </button>
+      </div>
+
+      {/* Renderização Condicional: Alunos vs Turmas vs Contratos */}
+      {activeTab === 'alunos' && (
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2">
             {[
@@ -789,7 +967,10 @@ export function SecretariaSection() {
                 <button
                   key={chip.key}
                   type="button"
-                  onClick={() => setFiltroStatus(chip.key)}
+                  onClick={() => {
+                    setFiltroStatus(chip.key);
+                    setPage(1);
+                  }}
                   className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold transition ${
                     active
                       ? 'border-salvia-600 bg-salvia-700 text-white'
@@ -822,11 +1003,12 @@ export function SecretariaSection() {
                   onChange={(e) => {
                     setFiltroTurmaId(e.target.value);
                     if (e.target.value) setFiltroSemTurma(false);
+                    setPage(1);
                   }}
                   className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
                 >
                   <option value="">Todas as turmas</option>
-                  {turmas.map((t) => (
+                  {turmasReferencia.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.codigo ? `${t.codigo} — ` : ''}{t.nome} ({t.ano_letivo})
                     </option>
@@ -837,7 +1019,10 @@ export function SecretariaSection() {
                 Ano letivo
                 <select
                   value={filtroAnoLetivo}
-                  onChange={(e) => setFiltroAnoLetivo(e.target.value)}
+                  onChange={(e) => {
+                    setFiltroAnoLetivo(e.target.value);
+                    setPage(1);
+                  }}
                   className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
                 >
                   <option value="">Qualquer ano</option>
@@ -853,6 +1038,7 @@ export function SecretariaSection() {
                   onChange={(e) => {
                     setFiltroSemTurma(e.target.checked);
                     if (e.target.checked) setFiltroTurmaId('');
+                    setPage(1);
                   }}
                   className="rounded border-slate-300 text-salvia-700 focus:ring-salvia-600"
                 />
@@ -863,10 +1049,12 @@ export function SecretariaSection() {
                   type="button"
                   onClick={() => {
                     setSearch('');
+                    setSearchDebounced('');
                     setFiltroStatus('ativo');
                     setFiltroTurmaId('');
                     setFiltroSemTurma(false);
                     setFiltroAnoLetivo('');
+                    setPage(1);
                   }}
                   className="text-[11px] font-bold text-slate-500 hover:text-salvia-700 dark:hover:text-salvia-400"
                 >
@@ -1040,49 +1228,121 @@ export function SecretariaSection() {
             </div>
           </div>
         </div>
-      ) : (
+      )}
+
+      {activeTab === 'turmas' && (
         <div className="space-y-4">
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-[#0c120e]/80 p-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <div className="relative sm:col-span-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                value={filtroTurmaTexto}
-                onChange={(e) => setFiltroTurmaTexto(e.target.value)}
-                placeholder="Buscar turma, código ou série..."
-                className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs"
-              />
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-[#0c120e]/80 p-3 space-y-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="relative sm:col-span-1">
+                {loadingTurmas ? (
+                  <Loader2 className="w-4 h-4 text-salvia-600 animate-spin absolute left-3 top-2.5" />
+                ) : (
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                )}
+                <input
+                  type="text"
+                  value={filtroTurmaTexto}
+                  onChange={(e) => setFiltroTurmaTexto(e.target.value)}
+                  placeholder="Buscar turma, código ou série..."
+                  className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-8 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-salvia-500/20 focus:border-salvia-500 text-slate-900 dark:text-slate-100 placeholder-slate-400"
+                />
+                {filtroTurmaTexto && (
+                  <button
+                    type="button"
+                    onClick={() => setFiltroTurmaTexto('')}
+                    className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
+                    title="Limpar busca"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <select
+                value={filtroTurmaAno}
+                onChange={(e) => setFiltroTurmaAno(e.target.value)}
+                className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-salvia-500/20 focus:border-salvia-500 text-slate-900 dark:text-slate-100"
+              >
+                <option value="">Todos os anos letivos</option>
+                {anosLetivosTurma.map((ano) => (
+                  <option key={ano} value={String(ano)}>{ano}</option>
+                ))}
+              </select>
+              <select
+                value={filtroTurmaTurno}
+                onChange={(e) => setFiltroTurmaTurno(e.target.value)}
+                className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-salvia-500/20 focus:border-salvia-500 text-slate-900 dark:text-slate-100"
+              >
+                <option value="">Todos os turnos</option>
+                <option value="Matutino">Matutino</option>
+                <option value="Vespertino">Vespertino</option>
+                <option value="Noturno">Noturno</option>
+                <option value="Integral">Integral</option>
+              </select>
             </div>
-            <select
-              value={filtroTurmaAno}
-              onChange={(e) => setFiltroTurmaAno(e.target.value)}
-              className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs"
-            >
-              <option value="">Todos os anos letivos</option>
-              {anosLetivosTurma.map((ano) => (
-                <option key={ano} value={String(ano)}>{ano}</option>
-              ))}
-            </select>
-            <select
-              value={filtroTurmaTurno}
-              onChange={(e) => setFiltroTurmaTurno(e.target.value)}
-              className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs"
-            >
-              <option value="">Todos os turnos</option>
-              <option value="Matutino">Matutino</option>
-              <option value="Vespertino">Vespertino</option>
-              <option value="Noturno">Noturno</option>
-              <option value="Integral">Integral</option>
-            </select>
+
+            <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-200/60 dark:border-slate-800/60">
+              <span className="flex items-center gap-1.5 font-medium">
+                {loadingTurmas ? (
+                  <>
+                    <Loader2 className="w-3 h-3 text-salvia-600 animate-spin" />
+                    <span>Buscando turmas...</span>
+                  </>
+                ) : (
+                  <>
+                    <Filter className="w-3 h-3 text-salvia-600" />
+                    <span>
+                      {turmasFiltradas.length}{' '}
+                      {turmasFiltradas.length === 1 ? 'turma encontrada' : 'turmas encontradas'}
+                      {(filtroTurmaTexto || filtroTurmaAno || filtroTurmaTurno) && ' (filtro ativo)'}
+                    </span>
+                  </>
+                )}
+              </span>
+              {(filtroTurmaTexto || filtroTurmaAno || filtroTurmaTurno) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFiltroTurmaTexto('');
+                    setFiltroTurmaAno('');
+                    setFiltroTurmaTurno('');
+                  }}
+                  className="text-xs font-semibold text-salvia-700 hover:text-salvia-800 dark:text-salvia-400 dark:hover:text-salvia-300 underline transition"
+                >
+                  Limpar filtros
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {turmasFiltradas.length === 0 ? (
-              <p className="col-span-full rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-8 text-center text-sm text-slate-500">
-                {turmas.length === 0
-                  ? 'Nenhuma turma cadastrada. Use “Criar Nova Turma” para abrir a primeira.'
-                  : 'Nenhuma turma corresponde aos filtros.'}
-              </p>
+              <div className="col-span-full rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-8 text-center text-sm text-slate-500 dark:text-slate-400 space-y-3">
+                {loadingTurmas ? (
+                  <div className="flex flex-col items-center justify-center gap-2 py-4">
+                    <Loader2 className="w-6 h-6 text-salvia-600 animate-spin" />
+                    <p className="text-xs">Buscando turmas no servidor...</p>
+                  </div>
+                ) : filtroTurmaTexto || filtroTurmaAno || filtroTurmaTurno ? (
+                  <div className="space-y-2">
+                    <p>Nenhuma turma corresponde aos filtros aplicados.</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFiltroTurmaTexto('');
+                        setFiltroTurmaAno('');
+                        setFiltroTurmaTurno('');
+                      }}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-salvia-700 dark:text-salvia-400 hover:underline"
+                    >
+                      <RotateCw className="w-3 h-3" />
+                      Redefinir filtros de busca
+                    </button>
+                  </div>
+                ) : (
+                  <p>Nenhuma turma cadastrada. Use “Criar Nova Turma” para abrir a primeira.</p>
+                )}
+              </div>
             ) : turmasFiltradas.map((t) => {
               const matriculados = t.alunos_matriculados || 0;
               const vagasLivres = Math.max(0, t.capacidade_maxima - matriculados);
@@ -1203,6 +1463,20 @@ export function SecretariaSection() {
         </div>
       )}
 
+      {activeTab === 'contratos' && (
+        <ContratosPanel
+          alunos={alunos}
+          onNavigateToFinanceiro={() => {
+            if (typeof window !== 'undefined') {
+              const url = new URL(window.location.href);
+              url.searchParams.set('route', 'financeiro');
+              url.searchParams.set('tab', 'ar');
+              window.location.href = url.toString();
+            }
+          }}
+        />
+      )}
+
       {/* Modal Matrícula Online Completa (Multi-Tabs) */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
@@ -1285,6 +1559,13 @@ export function SecretariaSection() {
               <div className="mb-4 p-3 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-center space-x-2 text-emerald-800 dark:text-emerald-200 text-xs font-medium">
                 <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                 <span>{formSuccess}</span>
+              </div>
+            )}
+
+            {origemCrm && (
+              <div className="mb-4 p-3 bg-salvia-50 dark:bg-salvia-950/60 border border-salvia-300 dark:border-salvia-700/80 rounded-xl flex items-center space-x-2 text-salvia-800 dark:text-salvia-200 text-xs font-medium">
+                <UserCheck className="w-4 h-4 shrink-0 text-salvia-600 dark:text-salvia-400" />
+                <span>Dados importados do lead do CRM. Complete as informações para finalizar a matrícula.</span>
               </div>
             )}
 
@@ -2204,7 +2485,7 @@ export function SecretariaSection() {
                     className="flex-1 bg-white dark:bg-[#141d17] border border-amber-300 dark:border-amber-700 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-medium"
                   >
                     <option value="">Selecione a Turma de Destino...</option>
-                    {turmas
+                    {turmasReferencia
                       .filter((t) => t.id !== selectedTurmaAlunosModal.id)
                       .map((t) => {
                         const vagas = t.vagas_restantes ?? Math.max(0, t.capacidade_maxima - (t.alunos_matriculados || 0));

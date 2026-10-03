@@ -21,6 +21,14 @@ import {
   Copy,
   Upload,
   RotateCcw,
+  CalendarClock,
+  Clock,
+  Filter,
+  RefreshCw,
+  Mail,
+  MessageSquare,
+  Info,
+  BellRing,
 } from 'lucide-react';
 import { BankingIntegrations } from './BankingIntegrations';
 
@@ -96,11 +104,37 @@ interface ReguaLog {
   enviado_em: string;
 }
 
+export type AgingRange = '0-30' | '31-60' | '60+' | null;
+
+export const calcularDiasAtrasoFatura = (dataVencimentoStr: string): number => {
+  if (!dataVencimentoStr) return 0;
+  const parts = dataVencimentoStr.split('-');
+  if (parts.length < 3) return 0;
+  const ano = parseInt(parts[0], 10);
+  const mes = parseInt(parts[1], 10) - 1;
+  const dia = parseInt(parts[2], 10);
+  const venc = new Date(ano, mes, dia);
+  const agora = new Date();
+  const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+  const diffMs = hoje.getTime() - venc.getTime();
+  const diffDias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  return Math.max(0, diffDias);
+};
+
+export const classificarFaixaAging = (fat: Fatura): '0-30' | '31-60' | '60+' | null => {
+  if (fat.status === 'pago') return null;
+  const dias = calcularDiasAtrasoFatura(fat.data_vencimento);
+  if (dias <= 30) return '0-30';
+  if (dias <= 60) return '31-60';
+  return '60+';
+};
+
 export function FinanceiroSection() {
   const searchParams = useSearchParams();
   const tabParam = searchParams ? searchParams.get('tab') : null;
-  const activeSubTab: 'ar' | 'ap' | 'fornecedores' | 'nfse' | 'bi' | 'banking' =
+  const activeSubTab: 'ar' | 'ap' | 'cobranca' | 'fornecedores' | 'nfse' | 'bi' | 'banking' =
     tabParam === 'ap' ||
+    tabParam === 'cobranca' ||
     tabParam === 'fornecedores' ||
     tabParam === 'nfse' ||
     tabParam === 'bi' ||
@@ -121,7 +155,22 @@ export function FinanceiroSection() {
   const [nfseStatus, setNfseStatus] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Estados específicos da Aba Cobrança (régua e logs)
+  const [logCanalFilter, setLogCanalFilter] = useState<'todos' | 'whatsapp' | 'email'>('todos');
+  const [logTipoFilter, setLogTipoFilter] = useState<
+    'todos' | 'lembrete_preventivo' | 'aviso_vencimento' | 'cobranca_ativa'
+  >('todos');
+  const [logSearchQuery, setLogSearchQuery] = useState('');
+  const [loadingRegua, setLoadingRegua] = useState(false);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+  const [copiedLogId, setCopiedLogId] = useState<string | null>(null);
+  const [reguaResult, setReguaResult] = useState<{
+    disparos_executados: number;
+    mensagens: { lembretes_preventivos: number; avisos_vencimento_hoje: number; cobrancas_ativas: number };
+  } | null>(null);
+
   const [statusFilter, setStatusFilter] = useState<'todos' | 'pendente' | 'pago' | 'atrasado'>('todos');
+  const [agingFilter, setAgingFilter] = useState<AgingRange>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   const [showNovaDespesaModal, setShowNovaDespesaModal] = useState(false);
@@ -187,9 +236,57 @@ export function FinanceiroSection() {
     loadFinanceiroData();
   }, [loadFinanceiroData]);
 
+  // Métricas agregadas do Aging Operacional de Contas a Receber (AR)
+  const agingStats = useMemo(() => {
+    let count0_30 = 0;
+    let total0_30 = 0;
+    let count31_60 = 0;
+    let total31_60 = 0;
+    let count60Plus = 0;
+    let total60Plus = 0;
+
+    for (const fat of faturas) {
+      if (fat.status === 'pago') continue;
+      const faixa = classificarFaixaAging(fat);
+      if (faixa === '0-30') {
+        count0_30 += 1;
+        total0_30 += fat.valor;
+      } else if (faixa === '31-60') {
+        count31_60 += 1;
+        total31_60 += fat.valor;
+      } else if (faixa === '60+') {
+        count60Plus += 1;
+        total60Plus += fat.valor;
+      }
+    }
+
+    return {
+      r0_30: { count: count0_30, total: total0_30 },
+      r31_60: { count: count31_60, total: total31_60 },
+      r60Plus: { count: count60Plus, total: total60Plus },
+      totalEmAberto: total0_30 + total31_60 + total60Plus,
+      countEmAberto: count0_30 + count31_60 + count60Plus,
+    };
+  }, [faturas]);
+
+  const handleToggleAgingFilter = (faixa: '0-30' | '31-60' | '60+') => {
+    setAgingFilter((prev) => {
+      const next = prev === faixa ? null : faixa;
+      if (next && statusFilter === 'pago') {
+        setStatusFilter('todos');
+      }
+      return next;
+    });
+  };
+
   // Filtragem e busca de faturas
   const faturasFiltradas = useMemo(() => {
     return faturas.filter((fat) => {
+      if (agingFilter) {
+        if (fat.status === 'pago') return false;
+        const faixa = classificarFaixaAging(fat);
+        if (faixa !== agingFilter) return false;
+      }
       const matchStatus = statusFilter === 'todos' || fat.status === statusFilter;
       const matchSearch =
         searchQuery.trim() === '' ||
@@ -197,7 +294,7 @@ export function FinanceiroSection() {
         fat.metodo_pagamento.toLowerCase().includes(searchQuery.toLowerCase());
       return matchStatus && matchSearch;
     });
-  }, [faturas, statusFilter, searchQuery]);
+  }, [faturas, statusFilter, searchQuery, agingFilter]);
 
   // Baixa manual de fatura
   
@@ -285,21 +382,59 @@ export function FinanceiroSection() {
   };
 
   const handleExecutarRegua = async () => {
-    setReguaStatus('Executando régua...');
+    setLoadingRegua(true);
+    setReguaStatus('Executando régua de cobrança...');
     try {
       const res = await apiFetch<{
         disparos_executados: number;
         mensagens: { lembretes_preventivos: number; avisos_vencimento_hoje: number; cobrancas_ativas: number };
       }>('/financeiro/cobranca/regua', { method: 'POST' });
+      setReguaResult(res);
       setReguaStatus(
-        `Régua registrada: ${res.disparos_executados} eventos (D-5: ${res.mensagens.lembretes_preventivos}, D-0: ${res.mensagens.avisos_vencimento_hoje}, D+: ${res.mensagens.cobrancas_ativas}). Sem envio WhatsApp/e-mail real neste MVP.`
+        `Régua executada: ${res.disparos_executados} eventos registrados no banco (D-5: ${res.mensagens.lembretes_preventivos}, D-0: ${res.mensagens.avisos_vencimento_hoje}, D+: ${res.mensagens.cobrancas_ativas}). Status registrado internamente; sem envio real via WhatsApp ou e-mail neste MVP.`
       );
-      void loadFinanceiroData();
+      await loadFinanceiroData();
     } catch (err: unknown) {
       setReguaStatus(err instanceof Error ? err.message : 'Não foi possível executar a régua de cobrança.');
+    } finally {
+      setLoadingRegua(false);
+      setTimeout(() => setReguaStatus(null), 8000);
     }
-    setTimeout(() => setReguaStatus(null), 6000);
   };
+
+  const handleRecarregarLogs = async () => {
+    setLoadingLogs(true);
+    try {
+      const logs = await apiFetch<ReguaLog[]>('/financeiro/cobranca/logs');
+      setReguaLogs(logs || []);
+      setToastMessage('Logs de cobrança atualizados com sucesso.');
+    } catch (err: unknown) {
+      setToastMessage(err instanceof Error ? err.message : 'Erro ao atualizar logs da régua.');
+    } finally {
+      setLoadingLogs(false);
+      setTimeout(() => setToastMessage(null), 3500);
+    }
+  };
+
+  const handleCopyLogMensagem = (logId: string, texto?: string) => {
+    if (!texto) return;
+    navigator.clipboard.writeText(texto);
+    setCopiedLogId(logId);
+    setTimeout(() => setCopiedLogId(null), 2000);
+  };
+
+  const logsFiltrados = useMemo(() => {
+    return reguaLogs.filter((log) => {
+      const matchCanal = logCanalFilter === 'todos' || log.canal.toLowerCase() === logCanalFilter.toLowerCase();
+      const matchTipo = logTipoFilter === 'todos' || log.tipo_evento === logTipoFilter;
+      const matchQuery =
+        !logSearchQuery.trim() ||
+        (log.mensagem_corpo && log.mensagem_corpo.toLowerCase().includes(logSearchQuery.toLowerCase())) ||
+        log.fatura_id.toLowerCase().includes(logSearchQuery.toLowerCase()) ||
+        log.status_envio.toLowerCase().includes(logSearchQuery.toLowerCase());
+      return matchCanal && matchTipo && matchQuery;
+    });
+  }, [reguaLogs, logCanalFilter, logTipoFilter, logSearchQuery]);
 
   const handleEmitirNfse = async (faturaId: string) => {
     setNfseStatus('Registrando NFS-e simulada...');
@@ -563,6 +698,133 @@ export function FinanceiroSection() {
       {/* TAB CONTENT: AR Receitas / Faturas */}
       {activeSubTab === 'ar' && (
         <div className="space-y-4">
+          {/* Seção Aging Operacional de Contas a Receber (AR) */}
+          <div className="bg-salvia-50/50 dark:bg-salvia-950/40 border border-salvia-200 dark:border-salvia-800 rounded-xl p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <CalendarClock className="w-4 h-4 text-salvia-700 dark:text-salvia-300" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-salvia-100">
+                    Aging de Faturas em Aberto (Contas a Receber)
+                  </h3>
+                </div>
+                <p className="text-[11px] text-salvia-600 dark:text-salvia-400 mt-0.5">
+                  Posição operacional de vencimento e atraso para faturas em aberto (pendente + atrasado). Visão operacional da tesouraria, não contábil.
+                </p>
+              </div>
+
+              {agingFilter && (
+                <button
+                  type="button"
+                  onClick={() => setAgingFilter(null)}
+                  className="self-start sm:self-auto text-[11px] font-semibold text-salvia-700 dark:text-salvia-300 hover:text-salvia-900 dark:hover:text-white flex items-center space-x-1 px-2.5 py-1 rounded-lg border border-salvia-300 dark:border-salvia-700 bg-white dark:bg-salvia-900 transition-colors shadow-xs"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Limpar filtro de aging</span>
+                </button>
+              )}
+            </div>
+
+            {/* Grid das Faixas de Aging */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Faixa 0-30 dias */}
+              <button
+                type="button"
+                onClick={() => handleToggleAgingFilter('0-30')}
+                className={`p-3.5 rounded-xl border text-left transition-all relative ${
+                  agingFilter === '0-30'
+                    ? 'bg-emerald-50/80 dark:bg-emerald-950/50 border-emerald-500 dark:border-emerald-500 ring-2 ring-emerald-500/20 shadow-sm'
+                    : 'bg-white dark:bg-salvia-900/80 border-salvia-200 dark:border-salvia-800 hover:border-salvia-300 dark:hover:border-salvia-700'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-bold text-slate-800 dark:text-salvia-200 flex items-center space-x-1.5">
+                    <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span>0–30 dias</span>
+                  </span>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 font-mono">
+                    {agingStats.r0_30.count} {agingStats.r0_30.count === 1 ? 'fatura' : 'faturas'}
+                  </span>
+                </div>
+                <p className="text-base font-bold text-emerald-700 dark:text-emerald-400 font-mono">
+                  R$ {agingStats.r0_30.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+                <p className="text-[10px] text-salvia-500 dark:text-salvia-400 mt-1">
+                  A vencer ou até 30 dias de vencida
+                </p>
+                {agingFilter === '0-30' && (
+                  <div className="absolute top-2 right-2 text-emerald-600 dark:text-emerald-400">
+                    <Check className="w-3.5 h-3.5" />
+                  </div>
+                )}
+              </button>
+
+              {/* Faixa 31-60 dias */}
+              <button
+                type="button"
+                onClick={() => handleToggleAgingFilter('31-60')}
+                className={`p-3.5 rounded-xl border text-left transition-all relative ${
+                  agingFilter === '31-60'
+                    ? 'bg-amber-50/80 dark:bg-amber-950/50 border-amber-500 dark:border-amber-500 ring-2 ring-amber-500/20 shadow-sm'
+                    : 'bg-white dark:bg-salvia-900/80 border-salvia-200 dark:border-salvia-800 hover:border-salvia-300 dark:hover:border-salvia-700'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-bold text-slate-800 dark:text-salvia-200 flex items-center space-x-1.5">
+                    <span className="inline-block w-2 h-2 rounded-full bg-amber-500"></span>
+                    <span>31–60 dias</span>
+                  </span>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 font-mono">
+                    {agingStats.r31_60.count} {agingStats.r31_60.count === 1 ? 'fatura' : 'faturas'}
+                  </span>
+                </div>
+                <p className="text-base font-bold text-amber-700 dark:text-amber-400 font-mono">
+                  R$ {agingStats.r31_60.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+                <p className="text-[10px] text-salvia-500 dark:text-salvia-400 mt-1">
+                  Atraso de 31 a 60 dias da data limite
+                </p>
+                {agingFilter === '31-60' && (
+                  <div className="absolute top-2 right-2 text-amber-600 dark:text-amber-400">
+                    <Check className="w-3.5 h-3.5" />
+                  </div>
+                )}
+              </button>
+
+              {/* Faixa 60+ dias */}
+              <button
+                type="button"
+                onClick={() => handleToggleAgingFilter('60+')}
+                className={`p-3.5 rounded-xl border text-left transition-all relative ${
+                  agingFilter === '60+'
+                    ? 'bg-rose-50/80 dark:bg-rose-950/50 border-rose-500 dark:border-rose-500 ring-2 ring-rose-500/20 shadow-sm'
+                    : 'bg-white dark:bg-salvia-900/80 border-salvia-200 dark:border-salvia-800 hover:border-salvia-300 dark:hover:border-salvia-700'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-bold text-slate-800 dark:text-salvia-200 flex items-center space-x-1.5">
+                    <span className="inline-block w-2 h-2 rounded-full bg-rose-500"></span>
+                    <span>60+ dias</span>
+                  </span>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-300 font-mono">
+                    {agingStats.r60Plus.count} {agingStats.r60Plus.count === 1 ? 'fatura' : 'faturas'}
+                  </span>
+                </div>
+                <p className="text-base font-bold text-rose-700 dark:text-rose-400 font-mono">
+                  R$ {agingStats.r60Plus.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+                <p className="text-[10px] text-salvia-500 dark:text-salvia-400 mt-1">
+                  Atraso superior a 60 dias (crítico)
+                </p>
+                {agingFilter === '60+' && (
+                  <div className="absolute top-2 right-2 text-rose-600 dark:text-rose-400">
+                    <Check className="w-3.5 h-3.5" />
+                  </div>
+                )}
+              </button>
+            </div>
+          </div>
+
           {/* Barra de Filtros e Busca */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 sm:pb-0">
@@ -579,6 +841,22 @@ export function FinanceiroSection() {
                   {status}
                 </button>
               ))}
+
+              {agingFilter && (
+                <div className="flex items-center space-x-1 pl-2 border-l border-salvia-200 dark:border-salvia-700">
+                  <span className="text-[11px] px-2.5 py-0.5 rounded-lg font-semibold bg-salvia-200 dark:bg-salvia-800 text-salvia-900 dark:text-salvia-100 flex items-center space-x-1.5">
+                    <span>Aging: {agingFilter === '0-30' ? '0–30 dias' : agingFilter === '31-60' ? '31–60 dias' : '60+ dias'}</span>
+                    <button
+                      type="button"
+                      onClick={() => setAgingFilter(null)}
+                      className="p-0.5 hover:text-rose-600 dark:hover:text-rose-400"
+                      title="Remover filtro de aging"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
@@ -621,7 +899,24 @@ export function FinanceiroSection() {
                   faturasFiltradas.map((fatura) => (
                     <tr key={fatura.id} className="hover:bg-salvia-50/70 dark:hover:bg-salvia-800/40 transition-colors">
                       <td className="p-3 font-bold text-slate-900 dark:text-salvia-50">{fatura.descricao}</td>
-                      <td className="p-3 text-salvia-600 dark:text-salvia-400 font-mono">{fatura.data_vencimento}</td>
+                      <td className="p-3 text-salvia-600 dark:text-salvia-400 font-mono">
+                        <div>{fatura.data_vencimento}</div>
+                        {fatura.status !== 'pago' && (() => {
+                          const dias = calcularDiasAtrasoFatura(fatura.data_vencimento);
+                          if (dias > 0) {
+                            return (
+                              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold font-sans block">
+                                {dias}d de atraso
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-sans block">
+                              no prazo
+                            </span>
+                          );
+                        })()}
+                      </td>
                       <td className="p-3 font-bold text-slate-900 dark:text-salvia-50 font-mono">
                         R$ {fatura.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </td>
@@ -802,6 +1097,259 @@ export function FinanceiroSection() {
         </div>
       )}
 
+      {/* TAB CONTENT: Cobrança (Régua e Logs) */}
+      {activeSubTab === 'cobranca' && (
+        <div className="space-y-4">
+          {/* Banner de Conformidade e Disclaimer Honesto */}
+          <div className="rounded-xl border border-salvia-200 dark:border-salvia-800 bg-salvia-50/70 dark:bg-salvia-950/40 p-4 text-xs text-salvia-800 dark:text-salvia-200 space-y-2">
+            <div className="flex items-center space-x-2 font-bold text-slate-900 dark:text-salvia-50">
+              <Info className="w-4 h-4 text-salvia-600 dark:text-salvia-400" />
+              <span>Régua de Cobrança Escolar Automatizada · Modo Simulado (MVP)</span>
+            </div>
+            <p className="leading-relaxed">
+              O motor de régua analisa faturas escolares e processa as regras de régua preventiva (D-5 a D-1), aviso no dia (D-0) e cobrança ativa em atraso (D+ com cálculo automático de multa de 2% e juros pro-rata de 1% a.m.).
+            </p>
+            <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-900 dark:text-amber-200 font-medium">
+              <strong>Aviso de integridade (MVP stub):</strong> Os disparos são registrados internamente no banco de dados para rastreabilidade e auditoria (<code className="font-mono">regua_cobranca_logs</code> com status <em>registrado</em>). <strong>Não há envio real de mensagens via WhatsApp ou E-mail</strong> para responsáveis ou alunos neste MVP (sem conector omnicanal externo ativo).
+            </div>
+          </div>
+
+          {/* Cards dos Estágios da Régua */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white dark:bg-salvia-900 border border-salvia-200 dark:border-salvia-800 p-4 rounded-xl space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full">
+                  D-5 a D-1 · Preventivo
+                </span>
+                <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <h4 className="text-xs font-bold text-slate-900 dark:text-salvia-50">Lembrete Preventivo</h4>
+              <p className="text-[11px] text-salvia-600 dark:text-salvia-400">
+                Dispara notificação cordial com antecedência de até 5 dias contendo o Pix Copia e Cola para pagamento sem acréscimos.
+              </p>
+            </div>
+
+            <div className="bg-white dark:bg-salvia-900 border border-salvia-200 dark:border-salvia-800 p-4 rounded-xl space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded-full">
+                  D-0 · Vencimento
+                </span>
+                <BellRing className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              </div>
+              <h4 className="text-xs font-bold text-slate-900 dark:text-salvia-50">Vencimento Hoje</h4>
+              <p className="text-[11px] text-salvia-600 dark:text-salvia-400">
+                Alerta no dia do vencimento da mensalidade escolar para evitar incidência de encargos por esquecimento.
+              </p>
+            </div>
+
+            <div className="bg-white dark:bg-salvia-900 border border-salvia-200 dark:border-salvia-800 p-4 rounded-xl space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-rose-700 dark:text-rose-400 bg-rose-100 dark:bg-rose-950/60 px-2 py-0.5 rounded-full">
+                  D+ · Cobrança Ativa
+                </span>
+                <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+              </div>
+              <h4 className="text-xs font-bold text-slate-900 dark:text-salvia-50">Cobrança em Atraso</h4>
+              <p className="text-[11px] text-salvia-600 dark:text-salvia-400">
+                Altera o status da fatura para <em>atrasado</em> e calcula automaticamente a multa padrão (2%) e juros pro-rata (1% a.m.).
+              </p>
+            </div>
+          </div>
+
+          {/* Painel de Ação de Execução */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 rounded-xl">
+            <div>
+              <h4 className="text-xs font-bold text-slate-900 dark:text-salvia-50">Processar Motor de Régua</h4>
+              <p className="text-[11px] text-salvia-600 dark:text-salvia-400">
+                Dispara o endpoint POST /financeiro/cobranca/regua para classificar faturas e gravar logs no banco.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExecutarRegua}
+              disabled={loadingRegua}
+              className="bg-salvia-700 dark:bg-salvia-500 hover:bg-salvia-800 dark:hover:bg-salvia-600 disabled:opacity-50 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center space-x-2 shadow-sm transition-all whitespace-nowrap"
+            >
+              <Send className={`w-4 h-4 ${loadingRegua ? 'animate-pulse' : ''}`} />
+              <span>{loadingRegua ? 'Processando régua...' : 'Executar régua agora'}</span>
+            </button>
+          </div>
+
+          {/* Resumo da Execução Recente */}
+          {reguaResult && (
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-600/40 rounded-xl text-xs space-y-1 animate-fade-in">
+              <div className="flex items-center space-x-2 text-emerald-800 dark:text-emerald-200 font-bold">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>Última Execução da Régua (Auditada)</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px] text-emerald-900 dark:text-emerald-100 font-mono">
+                <div>Total: <strong>{reguaResult.disparos_executados}</strong> eventos</div>
+                <div>D-5: <strong>{reguaResult.mensagens.lembretes_preventivos}</strong></div>
+                <div>D-0: <strong>{reguaResult.mensagens.avisos_vencimento_hoje}</strong></div>
+                <div>D+: <strong>{reguaResult.mensagens.cobrancas_ativas}</strong></div>
+              </div>
+            </div>
+          )}
+
+          {/* Seção de Logs e Filtros */}
+          <div className="space-y-3 pt-2">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-3 border-t border-salvia-100 dark:border-salvia-800">
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-salvia-100 flex items-center space-x-2">
+                  <span>Auditoria & Logs de Cobrança ({logsFiltrados.length} de {reguaLogs.length})</span>
+                </h3>
+                <p className="text-[11px] text-salvia-600 dark:text-salvia-400">
+                  Histórico detalhado das notificações geradas localmente com canal, fatura e payload.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleRecarregarLogs}
+                disabled={loadingLogs}
+                className="self-start md:self-auto inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-salvia-300 dark:border-salvia-700 bg-white dark:bg-salvia-900 text-xs font-semibold text-salvia-700 dark:text-salvia-300 hover:bg-salvia-50 dark:hover:bg-salvia-800 transition-colors"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingLogs ? 'animate-spin' : ''}`} />
+                <span>Atualizar logs</span>
+              </button>
+            </div>
+
+            {/* Barra de Filtros */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-salvia-400" />
+                <input
+                  type="text"
+                  placeholder="Filtrar por mensagem ou fatura..."
+                  value={logSearchQuery}
+                  onChange={(e) => setLogSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-salvia-200 dark:border-salvia-700 bg-white dark:bg-salvia-950 text-slate-900 dark:text-salvia-50 focus:outline-none focus:ring-1 focus:ring-salvia-500"
+                />
+              </div>
+
+              <div className="flex items-center space-x-1.5">
+                <Filter className="w-3.5 h-3.5 text-salvia-500" />
+                <select
+                  value={logCanalFilter}
+                  onChange={(e) => setLogCanalFilter(e.target.value as any)}
+                  className="w-full py-1.5 px-2.5 text-xs rounded-xl border border-salvia-200 dark:border-salvia-700 bg-white dark:bg-salvia-950 text-slate-900 dark:text-salvia-50"
+                >
+                  <option value="todos">Todos os canais</option>
+                  <option value="whatsapp">WhatsApp (simulado)</option>
+                  <option value="email">E-mail (simulado)</option>
+                </select>
+              </div>
+
+              <div>
+                <select
+                  value={logTipoFilter}
+                  onChange={(e) => setLogTipoFilter(e.target.value as any)}
+                  className="w-full py-1.5 px-2.5 text-xs rounded-xl border border-salvia-200 dark:border-salvia-700 bg-white dark:bg-salvia-950 text-slate-900 dark:text-salvia-50"
+                >
+                  <option value="todos">Todos os eventos</option>
+                  <option value="lembrete_preventivo">Lembrete preventivo (D-5)</option>
+                  <option value="aviso_vencimento">Aviso de vencimento (D-0)</option>
+                  <option value="cobranca_ativa">Cobrança ativa (D+)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Listagem em Tabela */}
+            <div className="overflow-x-auto rounded-xl border border-salvia-200 dark:border-salvia-800">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-salvia-100 dark:bg-salvia-800 text-[11px] uppercase font-bold text-salvia-900 dark:text-salvia-200">
+                  <tr>
+                    <th className="p-3">Data/Hora</th>
+                    <th className="p-3">Canal</th>
+                    <th className="p-3">Evento</th>
+                    <th className="p-3">Status</th>
+                    <th className="p-3">Fatura</th>
+                    <th className="p-3">Mensagem / Notificação</th>
+                    <th className="p-3 text-right">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-salvia-100 dark:divide-salvia-800">
+                  {logsFiltrados.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-6 text-center text-slate-500">
+                        {reguaLogs.length === 0
+                          ? 'Nenhum log registrado ainda. Clique em "Executar régua agora" para processar faturas pendentes.'
+                          : 'Nenhum log correspondente aos filtros selecionados.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    logsFiltrados.map((log) => (
+                      <tr key={log.id} className="hover:bg-salvia-50/50 dark:hover:bg-salvia-950/40 transition-colors">
+                        <td className="p-3 font-mono text-[11px] whitespace-nowrap text-salvia-700 dark:text-salvia-300">
+                          {new Date(log.enviado_em).toLocaleString('pt-BR')}
+                        </td>
+                        <td className="p-3 whitespace-nowrap">
+                          <span className="inline-flex items-center space-x-1 font-semibold text-[11px]">
+                            {log.canal === 'whatsapp' ? (
+                              <>
+                                <MessageSquare className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                <span>WhatsApp</span>
+                              </>
+                            ) : (
+                              <>
+                                <Mail className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                                <span>E-mail</span>
+                              </>
+                            )}
+                          </span>
+                        </td>
+                        <td className="p-3 whitespace-nowrap">
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                              log.tipo_evento === 'lembrete_preventivo'
+                                ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'
+                                : log.tipo_evento === 'aviso_vencimento'
+                                ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300'
+                                : 'bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300'
+                            }`}
+                          >
+                            {log.tipo_evento.replace('_', ' ')}
+                          </span>
+                        </td>
+                        <td className="p-3 whitespace-nowrap">
+                          <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-semibold bg-slate-100 dark:bg-salvia-800 text-slate-700 dark:text-salvia-300 border border-slate-200 dark:border-salvia-700">
+                            {log.status_envio}
+                          </span>
+                        </td>
+                        <td className="p-3 font-mono text-[11px] whitespace-nowrap text-slate-500">
+                          {log.fatura_id.slice(0, 8)}…
+                        </td>
+                        <td className="p-3 text-[11px] text-slate-700 dark:text-slate-300 max-w-md">
+                          <div className="line-clamp-2 hover:line-clamp-none transition-all">
+                            {log.mensagem_corpo || '—'}
+                          </div>
+                        </td>
+                        <td className="p-3 text-right whitespace-nowrap">
+                          {log.mensagem_corpo && (
+                            <button
+                              type="button"
+                              onClick={() => handleCopyLogMensagem(log.id, log.mensagem_corpo)}
+                              className="p-1 text-salvia-600 dark:text-salvia-400 hover:text-salvia-900 dark:hover:text-salvia-100 transition-colors"
+                              title="Copiar mensagem"
+                            >
+                              {copiedLogId === log.id ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* TAB CONTENT: NFS-e */}
       {activeSubTab === 'nfse' && (
         <div className="space-y-4">
@@ -839,29 +1387,6 @@ export function FinanceiroSection() {
                 )}
               </tbody>
             </table>
-          </div>
-
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">
-              Últimos eventos da régua
-            </h4>
-            <div className="max-h-56 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800">
-              {reguaLogs.length === 0 ? (
-                <p className="p-3 text-xs text-slate-500">Sem logs. Execute a régua no cabeçalho.</p>
-              ) : (
-                reguaLogs.slice(0, 20).map((log) => (
-                  <div key={log.id} className="p-3 text-[11px]">
-                    <div className="flex justify-between gap-2 font-semibold text-slate-800 dark:text-slate-200">
-                      <span>
-                        {log.tipo_evento} · {log.canal}
-                      </span>
-                      <span className="font-mono text-slate-500">{log.status_envio}</span>
-                    </div>
-                    <p className="mt-1 text-slate-500 line-clamp-2">{log.mensagem_corpo}</p>
-                  </div>
-                ))
-              )}
-            </div>
           </div>
         </div>
       )}

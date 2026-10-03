@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
-import { Users, Phone, Mail, Plus, AlertCircle, X } from 'lucide-react';
+import { Users, Phone, Mail, Plus, AlertCircle, X, UserPlus } from 'lucide-react';
 
 interface Lead {
   id: string;
@@ -28,6 +29,7 @@ interface FunilRelatorio {
 }
 
 export function CrmSection() {
+  const router = useRouter();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [relatorio, setRelatorio] = useState<FunilRelatorio | null>(null);
   const [loading, setLoading] = useState(true);
@@ -108,6 +110,27 @@ export function CrmSection() {
       console.error(err);
       setAviso(err instanceof Error ? err.message : 'Não foi possível atualizar o estágio.');
     }
+  };
+
+  const handleAbrirMatricula = (lead: Lead) => {
+    let alunoNome = '';
+    if (lead.observacoes) {
+      const match = lead.observacoes.match(/Aluno:\s*([^·\n]+)/);
+      if (match) {
+        alunoNome = match[1].trim();
+      }
+    }
+
+    const params = new URLSearchParams();
+    params.set('route', 'secretaria');
+    params.set('tab', 'alunos');
+    params.set('nova_matricula', '1');
+    if (lead.nome) params.set('lead_nome', lead.nome);
+    if (lead.telefone) params.set('lead_telefone', lead.telefone);
+    if (lead.email) params.set('lead_email', lead.email);
+    if (alunoNome) params.set('lead_aluno', alunoNome);
+
+    router.push(`/?${params.toString()}`, { scroll: false });
   };
 
   const campo =
@@ -234,6 +257,18 @@ export function CrmSection() {
                         ))}
                       </select>
                     </div>
+                    {lead.estagio_funil === 'matriculado' && (
+                      <div className="pt-2">
+                        <button
+                          type="button"
+                          onClick={() => handleAbrirMatricula(lead)}
+                          className="w-full bg-salvia-700 hover:bg-salvia-800 dark:bg-salvia-600 dark:hover:bg-salvia-500 text-white text-xs font-bold py-1.5 px-3 rounded-xl flex items-center justify-center space-x-1.5 transition-all shadow-sm"
+                        >
+                          <UserPlus className="w-3.5 h-3.5" />
+                          <span>Abrir matrícula</span>
+                        </button>
+                      </div>
+                    )}
                   </article>
                 ))}
               </div>

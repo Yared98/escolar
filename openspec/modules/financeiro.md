@@ -12,7 +12,8 @@ Não é, ainda, um ERP de cobrança bancária/fiscal completo.
 | Contas a pagar + fornecedores + estorno de despesa | Implementado |
 | Régua D-5 / D-0 / D+ com multa/juros calculados e logs | Implementado (sem WhatsApp/e-mail reais) |
 | DRE / DFC gerencial | Implementado |
-| 2ª via Pix no portal da família | Implementado |
+| 2ª via Pix no portal da família | Implementado (chips Abertas/Pagas/Todas, EMVCo local, sem botão Pix em pagas) |
+| Aging operacional AR (0–30 / 31–60 / 60+ dias) | Implementado (visão operacional de tesouraria; não contábil) |
 | Conciliação com matching por valor/data (OFX upload na UI) | Parcial |
 | NFS-e | Stub (número/URL simulados; sem ABRASF/prefeitura) |
 | Gateway Cora / Asaas / Pagar.me | Config + webhook Cora; emissão via API mock / desconectada |
@@ -45,8 +46,19 @@ Campos relevantes em `faturas`: `contrato_id`, `parcela_numero`/`parcela_total`,
 
 ## 4. UI (Financeiro)
 
-Abas: Faturas | Despesas | Fornecedores | NFS-e | DRE & DFC | Integrações.  
-Portal da família: Mensalidades (2ª via Pix).
+Abas: Faturas (com Aging Operacional AR: faixas 0–30, 31–60 e 60+ dias para pendente+atrasado com totais R$, contagem e filtro interativo) | Despesas | Cobrança (régua automatizada D-5/D-0/D+ com cálculo de encargos, histórico e filtros de logs de auditoria) | Fornecedores | NFS-e (emissão simulada) | DRE & DFC | Integrações.  
+Portal da família: Mensalidades (2ª via Pix com filtros e confirmação de pagamento).
+
+- **Portal da família (Mensalidades & 2ª via Pix)**:
+  - Filtros rápidos por chips: "Abertas" (pendente/atrasado), "Pagas" (pago) e "Todas", com contagem dinâmica por status.
+  - Faturas pagas: exibem badge visual de confirmação de quitação (`Pagamento Confirmado`), sem botão ativo de pagamento Pix redundante.
+  - Limitações MVP e integridade: notas e disclaimers visíveis explicitam que o QR Code e código Copia e Cola são gerados localmente no padrão EMVCo para emissão de 2ª via e conciliação interna pela tesouraria da escola, sem promessa de conciliação bancária instantânea via PSP no MVP (dependente de credenciais ativas em produção).
+- **Aging operacional de faturas AR**: painel com cards resumo calculando totais em R$ e contagem por faixas de vencimento/atraso (0–30 dias, 31–60 dias e 60+ dias) para faturas em aberto (`pendente` + `atrasado`). Permite filtrar interativamente a listagem ao clicar em qualquer faixa e alternar/redefinir o filtro. Relatório estritamente operacional da tesouraria de cobrança, não contábil.
+- **Aba Cobrança (`cobranca`)**:
+  - Painel de controle e execução da régua (`POST /financeiro/cobranca/regua`) com cálculo automático de multa (2%) e juros de mora pro-rata (1% a.m.), atualização de faturas vencidas para `atrasado` e exibição de contadores por estágio (D-5 preventivo, D-0 vencimento, D+ ativo).
+  - Listagem e auditoria de logs (`GET /financeiro/cobranca/logs`) com filtros por canal (WhatsApp, E-mail), por tipo de evento e busca textual por conteúdo da notificação ou ID de fatura, além de cópia de payload para clipboard.
+  - Separação completa da aba NFS-e: a aba NFS-e mantém foco estrito em notas fiscais de serviço simuladas, enquanto a régua e seus logs residem exclusivamente na aba Cobrança.
+  - Limitação MVP e integridade: disclaimers explícitos indicam que os disparos são registrados localmente no banco para auditoria (`status_envio = registrado`), sem envio omnicanal real a clientes (sem conector WhatsApp/SMTP ativo).
 
 ## 5. Backlog de mercado (não prometido como pronto)
 
@@ -54,6 +66,6 @@ Portal da família: Mensalidades (2ª via Pix).
 2. Boleto registrado + PDF 2ª via  
 3. Disparo omnicanal real da régua  
 4. NFS-e ABRASF / provedor municipal  
-5. Aging de cobrança e AP, CNAB retorno  
+5. Aging de contas a pagar (AP), conciliação bancária automática CNAB retorno (aging AR operacional implementado)  
 6. Estorno/cancelamento fiscal de fatura paga  
 7. Cartão recorrente operacional  

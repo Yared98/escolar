@@ -186,6 +186,7 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
             allowed_origins: "*".into(),
             environment: "test".into(),
         },
+        message_hub: escolar_backend::realtime::MessageHub::new(),
     };
     if refresh_session(State(state), Json(RefreshDto { refresh_token: raw_refresh.to_string() }))
         .await

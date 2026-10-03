@@ -255,6 +255,34 @@ pub struct AssinarContratoDto {
     pub aceite_termos: bool,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct ListContratosQuery {
+    pub aluno_id: Option<Uuid>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct ContratoListItem {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub aluno_id: Uuid,
+    pub ano_letivo: i32,
+    pub valor_total: f64,
+    pub status: String,
+    pub hash_documento: Option<String>,
+    pub assinado_em: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub aluno_nome: Option<String>,
+    pub aluno_cpf: Option<String>,
+    pub total_parcelas: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContratoDetalhado {
+    #[serde(flatten)]
+    pub contrato: ContratoListItem,
+    pub parcelas: Vec<crate::models::financeiro::Fatura>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Sala {
     pub id: Uuid,
@@ -333,6 +361,42 @@ pub struct UpdateTurmaDto {
     pub ano_letivo: Option<i32>,
     pub capacidade_maxima: Option<i32>,
     pub professor_regente_id: Option<Uuid>,
+    pub status: Option<String>,
+}
+
+fn deserialize_optional_i32<'de, D>(deserializer: D) -> Result<Option<i32>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum IntOrString {
+        Int(i32),
+        String(String),
+    }
+
+    match Option::<IntOrString>::deserialize(deserializer)? {
+        None => Ok(None),
+        Some(IntOrString::Int(n)) => Ok(Some(n)),
+        Some(IntOrString::String(s)) => {
+            let trimmed = s.trim();
+            if trimmed.is_empty() {
+                Ok(None)
+            } else {
+                trimmed.parse::<i32>().map(Some).map_err(serde::de::Error::custom)
+            }
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct ListTurmasQuery {
+    /// Busca textual (nome, código, série, etapa de ensino).
+    pub q: Option<String>,
+    pub busca: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_i32")]
+    pub ano_letivo: Option<i32>,
+    pub turno: Option<String>,
     pub status: Option<String>,
 }
 

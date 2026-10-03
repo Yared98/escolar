@@ -108,6 +108,15 @@ interface ProjetoEducacional {
   status: string;
 }
 
+/** Mesmo contrato de GET /secretaria/turmas/:id/alunos (vínculo ativo + aluno ativo). */
+interface AlunoTurmaRoster {
+  id: string;
+  aluno_id: string;
+  nome: string;
+  numero_chamada?: number | null;
+  status: string;
+}
+
 export function PedagocioNutricaoSection() {
   const searchParams = useSearchParams();
   const tabParam = searchParams ? searchParams.get('tab') : null;
@@ -146,6 +155,8 @@ export function PedagocioNutricaoSection() {
   const [selectedTurmaId, setSelectedTurmaId] = useState<string>('');
   const [turmaDisciplinas, setTurmaDisciplinas] = useState<TurmaDisciplinaDetalhada[]>([]);
   const [turmaHorarios, setTurmaHorarios] = useState<HorarioTurmaDetalhado[]>([]);
+  const [turmaAlunos, setTurmaAlunos] = useState<AlunoTurmaRoster[]>([]);
+  const [turmaAlunosErro, setTurmaAlunosErro] = useState<string | null>(null);
 
   // Modais de Criação
   const [showModalDisciplina, setShowModalDisciplina] = useState(false);
@@ -219,19 +230,28 @@ export function PedagocioNutricaoSection() {
     loadInitialData();
   }, [loadInitialData]);
 
-  // Carregar Matriz Curricular e Grade Horária da Turma Selecionada
+  // Matriz, grade e roster — mesma entidade `alunos`/`turma_alunos` do Diário e da Secretaria
   const loadTurmaDetails = useCallback(async (turmaId: string) => {
     if (!turmaId) return;
     try {
-      const [discData, horData] = await Promise.all([
+      const [discData, horData, alunosData] = await Promise.all([
         apiFetch<TurmaDisciplinaDetalhada[]>(`/pedagogico/turmas/${turmaId}/disciplinas`),
         apiFetch<HorarioTurmaDetalhado[]>(`/pedagogico/turmas/${turmaId}/horarios`),
+        apiFetch<AlunoTurmaRoster[]>(`/secretaria/turmas/${turmaId}/alunos`).catch((err: unknown) => {
+          setTurmaAlunosErro(
+            err instanceof Error ? err.message : 'Não foi possível carregar os alunos da turma.'
+          );
+          return [] as AlunoTurmaRoster[];
+        }),
       ]);
       setTurmaDisciplinas(discData);
       setTurmaHorarios(horData);
+      setTurmaAlunos(alunosData || []);
+      if (alunosData) setTurmaAlunosErro(null);
     } catch {
       setTurmaDisciplinas([]);
       setTurmaHorarios([]);
+      setTurmaAlunos([]);
       setErrorMsg('Não foi possível carregar a matriz e a grade da turma.');
     }
   }, []);
@@ -559,6 +579,7 @@ export function PedagocioNutricaoSection() {
                 {turmas.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.nome} ({t.turno || 'Matutino'}) — Ano {t.ano_letivo}
+                    {typeof t.alunos_matriculados === 'number' ? ` · ${t.alunos_matriculados} alunos` : ''}
                   </option>
                 ))}
               </select>
@@ -583,9 +604,46 @@ export function PedagocioNutricaoSection() {
             </div>
           </div>
 
+          {/* Roster da turma — mesma API do Diário e do livro de chamada da Secretaria */}
+          <div className="bg-white dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                <UserCheck className="w-4 h-4 text-salvia-700 dark:text-salvia-400" />
+                <span>Alunos enturmados</span>
+              </h3>
+              <span className="text-[11px] text-slate-500">
+                {turmaAlunos.length} ativo{turmaAlunos.length === 1 ? '' : 's'} · mesma entidade da Secretaria/Diário
+              </span>
+            </div>
+            {turmaAlunosErro && (
+              <p className="text-xs text-rose-700 dark:text-rose-300">{turmaAlunosErro}</p>
+            )}
+            {!turmaAlunosErro && turmaAlunos.length === 0 && (
+              <p className="text-xs text-slate-500">
+                Nenhum aluno ativo nesta turma. Cadastre/enturme em Secretaria → Turmas (ensalamento).
+                Prontuário fica na ficha do aluno na Secretaria.
+              </p>
+            )}
+            {turmaAlunos.length > 0 && (
+              <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
+                {turmaAlunos.map((a) => (
+                  <li
+                    key={a.aluno_id}
+                    className="flex items-center gap-2 text-xs bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-lg px-2.5 py-1.5"
+                  >
+                    <span className="font-mono text-[10px] font-bold text-salvia-700 dark:text-salvia-300 w-6 shrink-0">
+                      {a.numero_chamada ?? '—'}
+                    </span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-100 truncate">{a.nome}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
           {/* Sub-seção: Matriz Curricular da Turma Selecionada */}
           <div>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center space-x-2">
                 <Layers className="w-4 h-4 text-salvia-700 dark:text-salvia-400" />
                 <span>Matriz Curricular da Turma: {selectedTurmaObj?.nome || 'Selecione uma turma'}</span>

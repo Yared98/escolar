@@ -91,6 +91,7 @@ export const MENU_ITEMS: NavItem[] = [
     subItems: [
       { id: 'sec-alunos', label: 'Alunos & Matrículas', tabKey: 'alunos', icon: Users },
       { id: 'sec-turmas', label: 'Turmas & Ensalamento', tabKey: 'turmas', icon: BookOpen },
+      { id: 'sec-contratos', label: 'Contratos & Parcelas', tabKey: 'contratos', icon: FileText },
     ],
   },
   {
@@ -141,6 +142,7 @@ export const MENU_ITEMS: NavItem[] = [
     subItems: [
       { id: 'fin-ar', label: 'Faturas', tabKey: 'ar', icon: ArrowDownLeft },
       { id: 'fin-ap', label: 'Despesas', tabKey: 'ap', icon: ArrowUpRight },
+      { id: 'fin-cobranca', label: 'Cobrança', tabKey: 'cobranca', icon: Send },
       { id: 'fin-fornecedores', label: 'Fornecedores', tabKey: 'fornecedores', icon: Truck },
       { id: 'fin-nfse', label: 'NFS-e', tabKey: 'nfse', icon: FileText },
       { id: 'fin-bi', label: 'DRE & DFC', tabKey: 'bi', icon: PieChart },

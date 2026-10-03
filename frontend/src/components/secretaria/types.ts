@@ -172,3 +172,43 @@ export interface ProfessorItem {
   email: string;
   role?: string;
 }
+
+export interface ContratoItem {
+  id: string;
+  tenant_id: string;
+  aluno_id: string;
+  aluno_nome?: string | null;
+  aluno_cpf?: string | null;
+  ano_letivo: number;
+  valor_total: number;
+  status: 'pendente_assinatura' | 'assinado' | 'cancelado' | string;
+  hash_documento?: string | null;
+  assinado_em?: string | null;
+  created_at: string;
+  total_parcelas?: number | null;
+}
+
+export interface FaturaParcela {
+  id: string;
+  tenant_id: string;
+  aluno_id: string;
+  descricao: string;
+  valor: number;
+  data_vencimento: string;
+  metodo_pagamento: string;
+  status: string;
+  linha_digitavel?: string | null;
+  qr_code_pix?: string | null;
+  contrato_id?: string | null;
+  parcela_numero?: number | null;
+  parcela_total?: number | null;
+  valor_original?: number | null;
+  desconto_percentual: number;
+  multa_percentual: number;
+  juros_mora_mes_percentual: number;
+  created_at: string;
+}
+
+export interface ContratoDetalhado extends ContratoItem {
+  parcelas?: FaturaParcela[];
+}

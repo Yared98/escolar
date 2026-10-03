@@ -139,3 +139,21 @@ def test_multitab_browser_refresh_simulation():
     assert_equal(refreshed_router.resolve_financeiro_active_tab(), "bi")
     assert_true(refreshed_router.is_sub_item_active("financeiro", "bi"))
     assert_true(refreshed_router.is_route_expanded("financeiro"))
+
+@runner.register(tier=TIER, name="test_crm_to_secretaria_matricula_prefill_workflow",
+                 description="CRM workflow: clicks 'Abrir matrícula' on matriculado lead -> navigates to Secretaria & tab=alunos with prefill params")
+def test_crm_to_secretaria_matricula_prefill_workflow():
+    router = AppNavigationRouter("/?route=crm")
+    assert_equal(router.active_route, "crm")
+
+    # Lead matriculado trigger
+    target_url = "/?route=secretaria&tab=alunos&nova_matricula=1&lead_nome=Mariana+Souza&lead_telefone=11987654321&lead_email=mariana@email.com&lead_aluno=Gabriel+Souza"
+    router.push(target_url)
+
+    assert_equal(router.active_route, "secretaria")
+    assert_equal(router.search_params.get("tab"), "alunos")
+    assert_equal(router.search_params.get("nova_matricula"), "1")
+    assert_equal(router.search_params.get("lead_nome"), "Mariana Souza")
+    assert_equal(router.search_params.get("lead_telefone"), "11987654321")
+    assert_equal(router.search_params.get("lead_email"), "mariana@email.com")
+    assert_equal(router.search_params.get("lead_aluno"), "Gabriel Souza")
