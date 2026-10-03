@@ -1,9 +1,16 @@
-use axum::{extract::Request, middleware::Next, response::Response};
+use axum::{
+    extract::{Request, State},
+    middleware::Next,
+    response::Response,
+};
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{config::Config, error::AppError};
+use crate::{
+    config::{AppState, Config},
+    error::AppError,
+};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claims {
@@ -20,7 +27,11 @@ pub struct AuthUser {
     pub role: String,
 }
 
-pub async fn auth_middleware(mut req: Request, next: Next) -> Result<Response, AppError> {
+pub async fn auth_middleware(
+    State(state): State<AppState>,
+    mut req: Request,
+    next: Next,
+) -> Result<Response, AppError> {
     let auth_header = req
         .headers()
         .get("Authorization")
@@ -64,6 +75,30 @@ pub async fn auth_middleware(mut req: Request, next: Next) -> Result<Response, A
 
     let tenant_id = Uuid::parse_str(&token_data.claims.tenant_id)
         .map_err(|_| AppError::InvalidToken("Invalid tenant ID in token".to_string()))?;
+
+    // Checagem de revogação de token no banco (fail-closed, sem logar o token)
+    let token_hash = crate::handlers::auth::sha256_hex(&token);
+    let mut tenant_db = crate::db::acquire_tenant(&state.pool, tenant_id)
+        .await
+        .map_err(|e| {
+            tracing::error!(tenant_id = %tenant_id, error = %e, "Erro ao adquirir conexao tenant para checagem de revogacao");
+            AppError::InvalidToken("Token revogado ou erro de autenticacao".to_string())
+        })?;
+
+    let is_revoked = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS(SELECT 1 FROM revoked_tokens WHERE token_hash = $1)",
+    )
+    .bind(&token_hash)
+    .fetch_one(&mut *tenant_db)
+    .await
+    .map_err(|e| {
+        tracing::error!(tenant_id = %tenant_id, error = %e, "Erro ao consultar revoked_tokens");
+        AppError::InvalidToken("Token revogado ou erro de autenticacao".to_string())
+    })?;
+
+    if is_revoked {
+        return Err(AppError::InvalidToken("Token revogado".to_string()));
+    }
 
     let auth_user = AuthUser {
         id: user_id,

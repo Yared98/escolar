@@ -415,10 +415,14 @@ pub fn verify_jwt(token: &str, public_pem: &str) -> Result<Claims, AppError> {
     Ok(token_data.claims)
 }
 
-pub fn hash_refresh_token(token: &str) -> String {
+pub fn sha256_hex(data: &str) -> String {
     let mut hasher = Sha256::new();
-    hasher.update(token.as_bytes());
+    hasher.update(data.as_bytes());
     format!("{:x}", hasher.finalize())
+}
+
+pub fn hash_refresh_token(token: &str) -> String {
+    sha256_hex(token)
 }
 
 pub fn refresh_token_usable(
@@ -827,7 +831,7 @@ pub async fn oauth_token(
 }
 
 pub async fn logout(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     TenantDb(mut db): TenantDb,
     headers: HeaderMap,
     Extension(auth_user): Extension<AuthUser>,
@@ -840,14 +844,21 @@ pub async fn logout(
     };
 
     let token_hash = if !token.is_empty() {
-        let mut hasher = Sha256::new();
-        hasher.update(token.as_bytes());
-        format!("{:x}", hasher.finalize())
+        crate::handlers::auth::sha256_hex(token)
     } else {
         Uuid::new_v4().to_string()
     };
 
-    let expires_at = Utc::now() + Duration::days(7);
+    let expires_at = if !token.is_empty() {
+        if let Ok(claims) = crate::handlers::auth::verify_jwt(token, &state.config.jwt_public_pem) {
+            chrono::DateTime::from_timestamp(claims.exp as i64, 0)
+                .unwrap_or_else(|| Utc::now() + Duration::days(7))
+        } else {
+            Utc::now() + Duration::days(7)
+        }
+    } else {
+        Utc::now() + Duration::days(7)
+    };
 
     sqlx::query(
         r#"
@@ -861,6 +872,11 @@ pub async fn logout(
     .bind(expires_at)
     .execute(&mut *db)
     .await?;
+
+    // Opcional: remover registros expirados para a tabela não crescer sem limite
+    let _ = sqlx::query("DELETE FROM revoked_tokens WHERE expires_at < NOW()")
+        .execute(&mut *db)
+        .await;
 
     if let Some(Json(payload)) = body {
         if let Some(refresh_token) = payload.refresh_token.filter(|token| !token.is_empty()) {

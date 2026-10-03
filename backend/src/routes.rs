@@ -458,11 +458,11 @@ pub fn create_router(state: AppState) -> Router {
             post(responder_rsvp).get(listar_rsvps_evento),
         )
         .layer(middleware::from_fn_with_state(
-            state_clone,
+            state_clone.clone(),
             crate::middleware::feature_flag::check_feature_flag,
         ))
         .layer(middleware::from_fn(tenant_middleware))
-        .layer(middleware::from_fn(auth_middleware));
+        .layer(middleware::from_fn_with_state(state_clone, auth_middleware));
 
     let public_routes = Router::new()
         .route(

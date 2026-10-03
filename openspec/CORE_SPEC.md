@@ -56,7 +56,7 @@ O ecossistema é construído como um SaaS Educacional Multi-Tenant com Backend e
 
 ## 3. Autenticação & Autorização (RBAC)
 
-- **Tokens**: JWT assinados com Ed25519 (`EdDSA`), access token de 15 minutos e refresh token opaco de 7 dias. Apenas o hash SHA-256 do refresh token é persistido em PostgreSQL. `POST /api/v1/auth/refresh` rotaciona o refresh token. `POST /api/v1/auth/logout` revoga os refresh tokens do usuário. Tokens HS256 não são aceitos. O JWKS em `/api/v1/.well-known/jwks.json` publica a chave pública real (`OKP` / `Ed25519`). PKCE aceita somente `S256`.
+- **Tokens**: JWT assinados com Ed25519 (`EdDSA`), access token de 15 minutos e refresh token opaco de 7 dias. Apenas o hash SHA-256 do refresh token é persistido em PostgreSQL. `POST /api/v1/auth/refresh` rotaciona o refresh token. `POST /api/v1/auth/logout` revoga o refresh token e persiste o hash SHA-256 do access token atual na tabela `revoked_tokens` com a expiração `exp` das claims. O `auth_middleware` consulta `revoked_tokens` através de uma conexão de tenant isolada (`acquire_tenant`), rejeitando com 401 qualquer requisição (seja via header `Authorization: Bearer` ou parâmetro `?access_token=`) contendo token revogado. Falhas de banco nessa checagem atuam de forma fail-closed (401/503). Outras sessões ativas do mesmo usuário continuam válidas. Tokens HS256 não são aceitos. O JWKS em `/api/v1/.well-known/jwks.json` publica a chave pública real (`OKP` / `Ed25519`). PKCE aceita somente `S256`.
 - **Funções de Usuário (Roles)**:
   - `SuperAdmin` / `admin`: Administração da plataforma SaaS e provisionamento de novos tenants.
   - `GestorEscolar` / `gestor`: Acesso total à unidade da escola (Acadêmico, Financeiro, Secretaria, CRM).
