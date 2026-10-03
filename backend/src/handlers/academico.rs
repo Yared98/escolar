@@ -1,13 +1,14 @@
-use sqlx::Acquire;
 use axum::{
     extract::{Path, Query, State},
     Extension, Json,
 };
 use serde_json::{json, Value};
+use sqlx::Acquire;
 use uuid::Uuid;
 
 use crate::{
-    config::AppState, db::TenantDb,
+    config::AppState,
+    db::TenantDb,
     error::AppError,
     middleware::{
         auth::AuthUser,
@@ -16,12 +17,13 @@ use crate::{
     },
     models::academico::{
         AdicionarDisciplinaTurmaDto, ApuracaoGabaritoDto, AtribuirProfessorDto, BoletimCompletoDto,
-        BoletimDisciplinaDto, Cardapio, CreateCardapioDto, CreateDisciplinaDto, CreateHorarioTurmaDto,
-        ConsultarDiarioQuery, CreateProjetoEducacionalDto, CreateSimuladoDto, DiarioClasse,
-        DiarioDiaResponse, DiarioRecenteItem, DiariosRecentesQuery, Disciplina, HorarioTurma,
-        HorarioTurmaDetalhado, Nota, PresencaDiaDto, ProjetoEducacional, ResultadoTriDto,
-        SimuladoItem, SimuladoResposta, SimuladoTri, SyncDiarioDto, TurmaDisciplina,
-        TurmaDisciplinaDetalhada, TurmaProfessor, TurmaProfessorDetalhado, UpdateDisciplinaDto,
+        BoletimDisciplinaDto, Cardapio, ConsultarDiarioQuery, CreateCardapioDto,
+        CreateDisciplinaDto, CreateHorarioTurmaDto, CreateProjetoEducacionalDto, CreateSimuladoDto,
+        DiarioClasse, DiarioDiaResponse, DiarioRecenteItem, DiariosRecentesQuery, Disciplina,
+        HorarioTurma, HorarioTurmaDetalhado, Nota, PresencaDiaDto, ProjetoEducacional,
+        ResultadoTriDto, SimuladoItem, SimuladoResposta, SimuladoTri, SyncDiarioDto,
+        TurmaDisciplina, TurmaDisciplinaDetalhada, TurmaProfessor, TurmaProfessorDetalhado,
+        UpdateDisciplinaDto,
     },
 };
 
@@ -124,7 +126,8 @@ pub fn estimar_proficiencia_eap(itens: &[(f64, f64, f64, bool)]) -> (f64, f64, f
 // ============================================================================
 
 pub async fn sincronizar_diario_pwa(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<SyncDiarioDto>,
@@ -337,24 +340,34 @@ pub async fn listar_diarios_recentes(
 }
 
 pub async fn consultar_boletim(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(aluno_id): Path<Uuid>,
 ) -> Result<Json<BoletimCompletoDto>, AppError> {
-    check_roles(&auth_user, &["admin", "gestor", "secretaria", "professor", "responsavel", "aluno"])?;
+    check_roles(
+        &auth_user,
+        &[
+            "admin",
+            "gestor",
+            "secretaria",
+            "professor",
+            "responsavel",
+            "aluno",
+        ],
+    )?;
     let tenant_id = active_tenant.0;
 
     check_aluno_ownership(&mut *db, &auth_user, aluno_id).await?;
 
-    let aluno_nome: (String,) = sqlx::query_as(
-        "SELECT nome FROM alunos WHERE id = $1 AND tenant_id = $2",
-    )
-    .bind(aluno_id)
-    .bind(tenant_id)
-    .fetch_optional(&mut *db)
-    .await?
-    .unwrap_or_else(|| ("Aluno Não Encontrado".to_string(),));
+    let aluno_nome: (String,) =
+        sqlx::query_as("SELECT nome FROM alunos WHERE id = $1 AND tenant_id = $2")
+            .bind(aluno_id)
+            .bind(tenant_id)
+            .fetch_optional(&mut *db)
+            .await?
+            .unwrap_or_else(|| ("Aluno Não Encontrado".to_string(),));
 
     let notas = sqlx::query_as::<_, Nota>(
         "SELECT * FROM notas WHERE tenant_id = $1 AND aluno_id = $2 ORDER BY disciplina_nome, periodo ASC",
@@ -377,19 +390,29 @@ pub async fn consultar_boletim(
         _ => 100.0,
     };
 
-    let mut disciplinas_map: std::collections::BTreeMap<String, (Option<f64>, Option<f64>, Option<f64>, Option<f64>)> = std::collections::BTreeMap::new();
+    let mut disciplinas_map: std::collections::BTreeMap<
+        String,
+        (Option<f64>, Option<f64>, Option<f64>, Option<f64>),
+    > = std::collections::BTreeMap::new();
     for n in notas {
-        let entry = disciplinas_map.entry(n.disciplina_nome).or_insert((None, None, None, None));
+        let entry = disciplinas_map
+            .entry(n.disciplina_nome)
+            .or_insert((None, None, None, None));
         match n.periodo.as_str() {
             "1_bimestre" => entry.0 = Some(n.nota),
             "2_bimestre" => entry.1 = Some(n.nota),
             "3_bimestre" => entry.2 = Some(n.nota),
             "4_bimestre" => entry.3 = Some(n.nota),
             _ => {
-                if entry.0.is_none() { entry.0 = Some(n.nota); }
-                else if entry.1.is_none() { entry.1 = Some(n.nota); }
-                else if entry.2.is_none() { entry.2 = Some(n.nota); }
-                else { entry.3 = Some(n.nota); }
+                if entry.0.is_none() {
+                    entry.0 = Some(n.nota);
+                } else if entry.1.is_none() {
+                    entry.1 = Some(n.nota);
+                } else if entry.2.is_none() {
+                    entry.2 = Some(n.nota);
+                } else {
+                    entry.3 = Some(n.nota);
+                }
             }
         }
     }
@@ -399,11 +422,27 @@ pub async fn consultar_boletim(
     for (nome, (n1, n2, n3, n4)) in disciplinas_map {
         let mut count = 0;
         let mut sum = 0.0;
-        if let Some(v) = n1 { sum += v; count += 1; }
-        if let Some(v) = n2 { sum += v; count += 1; }
-        if let Some(v) = n3 { sum += v; count += 1; }
-        if let Some(v) = n4 { sum += v; count += 1; }
-        let media = if count > 0 { (sum / count as f64 * 100.0).round() / 100.0 } else { 0.0 };
+        if let Some(v) = n1 {
+            sum += v;
+            count += 1;
+        }
+        if let Some(v) = n2 {
+            sum += v;
+            count += 1;
+        }
+        if let Some(v) = n3 {
+            sum += v;
+            count += 1;
+        }
+        if let Some(v) = n4 {
+            sum += v;
+            count += 1;
+        }
+        let media = if count > 0 {
+            (sum / count as f64 * 100.0).round() / 100.0
+        } else {
+            0.0
+        };
         soma_medias += media;
         disciplinas.push(BoletimDisciplinaDto {
             nome,
@@ -444,13 +483,19 @@ pub async fn consultar_boletim(
 // ============================================================================
 
 pub async fn criar_simulado_tri(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<CreateSimuladoDto>,
 ) -> Result<Json<SimuladoTri>, AppError> {
-    if !crate::utils::is_feature_enabled(&mut *db, active_tenant.0, "module_tri").await.unwrap_or(false) {
-        return Err(AppError::BadRequest("O Módulo TRI está desabilitado para esta escola.".to_string()));
+    if !crate::utils::is_feature_enabled(&mut *db, active_tenant.0, "module_tri")
+        .await
+        .unwrap_or(false)
+    {
+        return Err(AppError::BadRequest(
+            "O Módulo TRI está desabilitado para esta escola.".to_string(),
+        ));
     }
     check_roles(&auth_user, &["admin", "gestor", "professor"])?;
     let tenant_id = active_tenant.0;
@@ -510,14 +555,30 @@ pub async fn criar_simulado_tri(
 }
 
 pub async fn listar_simulados_tri(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<Vec<SimuladoTri>>, AppError> {
-    if !crate::utils::is_feature_enabled(&mut *db, active_tenant.0, "module_tri").await.unwrap_or(false) {
-        return Err(AppError::BadRequest("O Módulo TRI está desabilitado para esta escola.".to_string()));
+    if !crate::utils::is_feature_enabled(&mut *db, active_tenant.0, "module_tri")
+        .await
+        .unwrap_or(false)
+    {
+        return Err(AppError::BadRequest(
+            "O Módulo TRI está desabilitado para esta escola.".to_string(),
+        ));
     }
-    check_roles(&auth_user, &["admin", "gestor", "professor", "secretaria", "responsavel", "aluno"])?;
+    check_roles(
+        &auth_user,
+        &[
+            "admin",
+            "gestor",
+            "professor",
+            "secretaria",
+            "responsavel",
+            "aluno",
+        ],
+    )?;
     let tenant_id = active_tenant.0;
 
     let simulados = sqlx::query_as::<_, SimuladoTri>(
@@ -531,13 +592,19 @@ pub async fn listar_simulados_tri(
 }
 
 pub async fn apurar_gabarito_tri(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<ApuracaoGabaritoDto>,
 ) -> Result<Json<ResultadoTriDto>, AppError> {
-    if !crate::utils::is_feature_enabled(&mut *db, active_tenant.0, "module_tri").await.unwrap_or(false) {
-        return Err(AppError::BadRequest("O Módulo TRI está desabilitado para esta escola.".to_string()));
+    if !crate::utils::is_feature_enabled(&mut *db, active_tenant.0, "module_tri")
+        .await
+        .unwrap_or(false)
+    {
+        return Err(AppError::BadRequest(
+            "O Módulo TRI está desabilitado para esta escola.".to_string(),
+        ));
     }
     check_roles(&auth_user, &["admin", "gestor", "professor"])?;
     let tenant_id = active_tenant.0;
@@ -552,7 +619,9 @@ pub async fn apurar_gabarito_tri(
     .await?;
 
     if itens_banco.is_empty() {
-        return Err(AppError::BadRequest("Simulado não possui itens cadastrados".to_string()));
+        return Err(AppError::BadRequest(
+            "Simulado não possui itens cadastrados".to_string(),
+        ));
     }
 
     // Mapear respostas do aluno e conferir com o gabarito
@@ -560,19 +629,31 @@ pub async fn apurar_gabarito_tri(
     let mut total_acertos = 0;
 
     for item in &itens_banco {
-        let resp_marcada = dto.respostas.iter().find(|r| r.numero_item == item.numero_item);
+        let resp_marcada = dto
+            .respostas
+            .iter()
+            .find(|r| r.numero_item == item.numero_item);
         let acertou = match resp_marcada {
-            Some(r) => r.resposta.trim().eq_ignore_ascii_case(item.gabarito_correto.trim()),
+            Some(r) => r
+                .resposta
+                .trim()
+                .eq_ignore_ascii_case(item.gabarito_correto.trim()),
             None => false,
         };
         if acertou {
             total_acertos += 1;
         }
-        itens_para_calculo.push((item.parametro_a, item.parametro_b, item.parametro_c, acertou));
+        itens_para_calculo.push((
+            item.parametro_a,
+            item.parametro_b,
+            item.parametro_c,
+            acertou,
+        ));
     }
 
     // Executar algoritmo matemático TRI (EAP)
-    let (theta_hat, escala_enem, coerencia_score, status_diagnostico) = estimar_proficiencia_eap(&itens_para_calculo);
+    let (theta_hat, escala_enem, coerencia_score, status_diagnostico) =
+        estimar_proficiencia_eap(&itens_para_calculo);
 
     let recomendacao_pedagogica = match status_diagnostico.as_str() {
         "coerente" => "Padrão consistente com as competências esperadas. Excelente domínio nas habilidades fundamentais.".to_string(),
@@ -633,15 +714,24 @@ pub async fn apurar_gabarito_tri(
 }
 
 pub async fn consultar_resultado_simulado_tri(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path((simulado_id, aluno_id)): Path<(Uuid, Uuid)>,
 ) -> Result<Json<ResultadoTriDto>, AppError> {
-    if !crate::utils::is_feature_enabled(&mut *db, active_tenant.0, "module_tri").await.unwrap_or(false) {
-        return Err(AppError::BadRequest("O Módulo TRI está desabilitado para esta escola.".to_string()));
+    if !crate::utils::is_feature_enabled(&mut *db, active_tenant.0, "module_tri")
+        .await
+        .unwrap_or(false)
+    {
+        return Err(AppError::BadRequest(
+            "O Módulo TRI está desabilitado para esta escola.".to_string(),
+        ));
     }
-    check_roles(&auth_user, &["admin", "gestor", "professor", "responsavel", "aluno"])?;
+    check_roles(
+        &auth_user,
+        &["admin", "gestor", "professor", "responsavel", "aluno"],
+    )?;
     let tenant_id = active_tenant.0;
 
     check_aluno_ownership(&mut *db, &auth_user, aluno_id).await?;
@@ -656,13 +746,12 @@ pub async fn consultar_resultado_simulado_tri(
     .await?
     .ok_or(AppError::NotFound)?;
 
-    let simulado: SimuladoTri = sqlx::query_as(
-        "SELECT * FROM simulados_tri WHERE id = $1 AND tenant_id = $2",
-    )
-    .bind(simulado_id)
-    .bind(tenant_id)
-    .fetch_one(&mut *db)
-    .await?;
+    let simulado: SimuladoTri =
+        sqlx::query_as("SELECT * FROM simulados_tri WHERE id = $1 AND tenant_id = $2")
+            .bind(simulado_id)
+            .bind(tenant_id)
+            .fetch_one(&mut *db)
+            .await?;
 
     let recomendacao_pedagogica = match resultado.status_diagnostico.as_str() {
         "coerente" => "Padrão consistente com as competências esperadas. Excelente domínio nas habilidades fundamentais.".to_string(),
@@ -688,7 +777,8 @@ pub async fn consultar_resultado_simulado_tri(
 // ============================================================================
 
 pub async fn criar_projeto_educacional(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<CreateProjetoEducacionalDto>,
@@ -729,11 +819,15 @@ pub async fn criar_projeto_educacional(
 }
 
 pub async fn listar_projetos_educacionais(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<Vec<ProjetoEducacional>>, AppError> {
-    check_roles(&auth_user, &["admin", "gestor", "professor", "secretaria", "responsavel"])?;
+    check_roles(
+        &auth_user,
+        &["admin", "gestor", "professor", "secretaria", "responsavel"],
+    )?;
     let tenant_id = active_tenant.0;
 
     let projetos = sqlx::query_as::<_, ProjetoEducacional>(
@@ -747,7 +841,8 @@ pub async fn listar_projetos_educacionais(
 }
 
 pub async fn criar_cardapio_nutricao(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<CreateCardapioDto>,
@@ -761,7 +856,9 @@ pub async fn criar_cardapio_nutricao(
     .bind(tenant_id)
     .fetch_optional(&mut *db)
     .await?
-    .ok_or_else(|| AppError::BadRequest("Nutricionista inativo ou não cadastrado no RH deste tenant.".into()))?;
+    .ok_or_else(|| {
+        AppError::BadRequest("Nutricionista inativo ou não cadastrado no RH deste tenant.".into())
+    })?;
 
     let cardapio = sqlx::query_as::<_, Cardapio>(
         r#"
@@ -798,11 +895,21 @@ pub async fn criar_cardapio_nutricao(
 }
 
 pub async fn listar_cardapios_nutricao(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<Vec<Cardapio>>, AppError> {
-    check_roles(&auth_user, &["admin", "gestor", "nutricionista", "professor", "responsavel"])?;
+    check_roles(
+        &auth_user,
+        &[
+            "admin",
+            "gestor",
+            "nutricionista",
+            "professor",
+            "responsavel",
+        ],
+    )?;
     let tenant_id = active_tenant.0;
 
     let cardapios = sqlx::query_as::<_, Cardapio>(
@@ -820,31 +927,90 @@ pub async fn listar_cardapios_nutricao(
 // ============================================================================
 
 pub async fn listar_disciplinas(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<Vec<Disciplina>>, AppError> {
-    check_roles(&auth_user, &["admin", "gestor", "secretaria", "professor", "responsavel"])?;
+    check_roles(
+        &auth_user,
+        &["admin", "gestor", "secretaria", "professor", "responsavel"],
+    )?;
     let tenant_id = active_tenant.0;
 
-    let count = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM disciplinas WHERE tenant_id = $1"
-    )
-    .bind(tenant_id)
-    .fetch_one(&mut *db)
-    .await?;
+    let count =
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM disciplinas WHERE tenant_id = $1")
+            .bind(tenant_id)
+            .fetch_one(&mut *db)
+            .await?;
 
     // Seed inteligente caso tenant novo ainda não possua disciplinas
     if count == 0 {
         let padroes = vec![
-            ("PORT-01", "Língua Portuguesa", "linguagens", 5, 200, "Comunicação, leitura, gramática e interpretação textual"),
-            ("MAT-01", "Matemática", "matematica", 5, 200, "Aritmética, álgebra, geometria e raciocínio lógico"),
-            ("HIST-01", "História", "ciencias_humanas", 3, 120, "História do Brasil, geral e cidadania crítica"),
-            ("GEOG-01", "Geografia", "ciencias_humanas", 3, 120, "Geografia física, geopolítica e cartografia"),
-            ("CIEN-01", "Ciências da Natureza", "ciencias_natureza", 4, 160, "Biologia, ecologia, química e física integrada"),
-            ("ARTE-01", "Arte & Cultura", "linguagens", 2, 80, "Artes visuais, teatro, música e patrimônio cultural"),
-            ("EDFIS-01", "Educação Física", "linguagens", 2, 80, "Cultura corporal, esportes coletivos e saúde preventiva"),
-            ("ING-01", "Língua Inglesa", "linguagens", 2, 80, "Língua estrangeira moderna e comunicação global"),
+            (
+                "PORT-01",
+                "Língua Portuguesa",
+                "linguagens",
+                5,
+                200,
+                "Comunicação, leitura, gramática e interpretação textual",
+            ),
+            (
+                "MAT-01",
+                "Matemática",
+                "matematica",
+                5,
+                200,
+                "Aritmética, álgebra, geometria e raciocínio lógico",
+            ),
+            (
+                "HIST-01",
+                "História",
+                "ciencias_humanas",
+                3,
+                120,
+                "História do Brasil, geral e cidadania crítica",
+            ),
+            (
+                "GEOG-01",
+                "Geografia",
+                "ciencias_humanas",
+                3,
+                120,
+                "Geografia física, geopolítica e cartografia",
+            ),
+            (
+                "CIEN-01",
+                "Ciências da Natureza",
+                "ciencias_natureza",
+                4,
+                160,
+                "Biologia, ecologia, química e física integrada",
+            ),
+            (
+                "ARTE-01",
+                "Arte & Cultura",
+                "linguagens",
+                2,
+                80,
+                "Artes visuais, teatro, música e patrimônio cultural",
+            ),
+            (
+                "EDFIS-01",
+                "Educação Física",
+                "linguagens",
+                2,
+                80,
+                "Cultura corporal, esportes coletivos e saúde preventiva",
+            ),
+            (
+                "ING-01",
+                "Língua Inglesa",
+                "linguagens",
+                2,
+                80,
+                "Língua estrangeira moderna e comunicação global",
+            ),
         ];
 
         for (cod, nome, area, ch_sem, ch_anu, desc) in padroes {
@@ -878,14 +1044,17 @@ pub async fn listar_disciplinas(
 }
 
 pub async fn criar_disciplina(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<CreateDisciplinaDto>,
 ) -> Result<Json<Disciplina>, AppError> {
     check_roles(&auth_user, &["admin", "gestor", "secretaria"])?;
     let tenant_id = active_tenant.0;
-    let area = dto.area_conhecimento.unwrap_or_else(|| "linguagens".to_string());
+    let area = dto
+        .area_conhecimento
+        .unwrap_or_else(|| "linguagens".to_string());
     let ch_sem = dto.carga_horaria_semanal.unwrap_or(4);
     let ch_anu = dto.carga_horaria_anual.unwrap_or(160);
     let status = dto.status.unwrap_or_else(|| "ativo".to_string());
@@ -923,7 +1092,8 @@ pub async fn criar_disciplina(
 }
 
 pub async fn atualizar_disciplina(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(disciplina_id): Path<Uuid>,
@@ -975,7 +1145,8 @@ pub async fn atualizar_disciplina(
 }
 
 pub async fn deletar_disciplina(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(disciplina_id): Path<Uuid>,
@@ -1004,7 +1175,9 @@ pub async fn deletar_disciplina(
     )
     .await;
 
-    Ok(Json(json!({ "status": "sucesso", "mensagem": "Disciplina removida com sucesso." })))
+    Ok(Json(
+        json!({ "status": "sucesso", "mensagem": "Disciplina removida com sucesso." }),
+    ))
 }
 
 // ============================================================================
@@ -1012,12 +1185,16 @@ pub async fn deletar_disciplina(
 // ============================================================================
 
 pub async fn listar_disciplinas_turma(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(turma_id): Path<Uuid>,
 ) -> Result<Json<Vec<TurmaDisciplinaDetalhada>>, AppError> {
-    check_roles(&auth_user, &["admin", "gestor", "secretaria", "professor", "responsavel"])?;
+    check_roles(
+        &auth_user,
+        &["admin", "gestor", "secretaria", "professor", "responsavel"],
+    )?;
     let tenant_id = active_tenant.0;
 
     let rows = sqlx::query(
@@ -1071,7 +1248,8 @@ pub async fn listar_disciplinas_turma(
 }
 
 pub async fn adicionar_disciplina_turma(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(turma_id): Path<Uuid>,
@@ -1081,7 +1259,7 @@ pub async fn adicionar_disciplina_turma(
     let tenant_id = active_tenant.0;
 
     let disc = sqlx::query_as::<_, Disciplina>(
-        "SELECT * FROM disciplinas WHERE id = $1 AND tenant_id = $2"
+        "SELECT * FROM disciplinas WHERE id = $1 AND tenant_id = $2",
     )
     .bind(dto.disciplina_id)
     .bind(tenant_id)
@@ -1089,7 +1267,9 @@ pub async fn adicionar_disciplina_turma(
     .await?
     .ok_or(AppError::NotFound)?;
 
-    let ch_sem = dto.carga_horaria_semanal.unwrap_or(disc.carga_horaria_semanal);
+    let ch_sem = dto
+        .carga_horaria_semanal
+        .unwrap_or(disc.carga_horaria_semanal);
     let ch_anu = dto.carga_horaria_anual.unwrap_or(disc.carga_horaria_anual);
 
     let registro = sqlx::query_as::<_, TurmaDisciplina>(
@@ -1126,7 +1306,8 @@ pub async fn adicionar_disciplina_turma(
 }
 
 pub async fn remover_disciplina_turma(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path((turma_id, disciplina_id)): Path<(Uuid, Uuid)>,
@@ -1155,12 +1336,14 @@ pub async fn remover_disciplina_turma(
         .execute(&mut *db)
         .await;
 
-    let _ = sqlx::query("DELETE FROM horarios_turma WHERE turma_id = $1 AND disciplina_id = $2 AND tenant_id = $3")
-        .bind(turma_id)
-        .bind(disciplina_id)
-        .bind(tenant_id)
-        .execute(&mut *db)
-        .await;
+    let _ = sqlx::query(
+        "DELETE FROM horarios_turma WHERE turma_id = $1 AND disciplina_id = $2 AND tenant_id = $3",
+    )
+    .bind(turma_id)
+    .bind(disciplina_id)
+    .bind(tenant_id)
+    .execute(&mut *db)
+    .await;
 
     log_audit(
         &mut *db,
@@ -1173,7 +1356,9 @@ pub async fn remover_disciplina_turma(
     )
     .await;
 
-    Ok(Json(json!({ "status": "sucesso", "mensagem": "Disciplina desvinculada da turma com sucesso." })))
+    Ok(Json(
+        json!({ "status": "sucesso", "mensagem": "Disciplina desvinculada da turma com sucesso." }),
+    ))
 }
 
 // ============================================================================
@@ -1181,7 +1366,8 @@ pub async fn remover_disciplina_turma(
 // ============================================================================
 
 pub async fn listar_professores_turma(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(turma_id): Path<Uuid>,
@@ -1238,7 +1424,8 @@ pub async fn listar_professores_turma(
 }
 
 pub async fn atribuir_professor_turma(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<AtribuirProfessorDto>,
@@ -1306,7 +1493,8 @@ pub async fn atribuir_professor_turma(
 }
 
 pub async fn remover_atribuicao_docente(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(atribuicao_id): Path<Uuid>,
@@ -1314,13 +1502,11 @@ pub async fn remover_atribuicao_docente(
     check_roles(&auth_user, &["admin", "gestor", "secretaria"])?;
     let tenant_id = active_tenant.0;
 
-    let res = sqlx::query(
-        "DELETE FROM turma_professores WHERE id = $1 AND tenant_id = $2"
-    )
-    .bind(atribuicao_id)
-    .bind(tenant_id)
-    .execute(&mut *db)
-    .await?;
+    let res = sqlx::query("DELETE FROM turma_professores WHERE id = $1 AND tenant_id = $2")
+        .bind(atribuicao_id)
+        .bind(tenant_id)
+        .execute(&mut *db)
+        .await?;
 
     if res.rows_affected() == 0 {
         return Err(AppError::NotFound);
@@ -1337,7 +1523,9 @@ pub async fn remover_atribuicao_docente(
     )
     .await;
 
-    Ok(Json(json!({ "status": "sucesso", "mensagem": "Atribuição docente removida com sucesso." })))
+    Ok(Json(
+        json!({ "status": "sucesso", "mensagem": "Atribuição docente removida com sucesso." }),
+    ))
 }
 
 // ============================================================================
@@ -1345,12 +1533,16 @@ pub async fn remover_atribuicao_docente(
 // ============================================================================
 
 pub async fn listar_horarios_turma(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(turma_id): Path<Uuid>,
 ) -> Result<Json<Vec<HorarioTurmaDetalhado>>, AppError> {
-    check_roles(&auth_user, &["admin", "gestor", "secretaria", "professor", "responsavel"])?;
+    check_roles(
+        &auth_user,
+        &["admin", "gestor", "secretaria", "professor", "responsavel"],
+    )?;
     let tenant_id = active_tenant.0;
 
     let rows = sqlx::query(
@@ -1406,7 +1598,8 @@ pub async fn listar_horarios_turma(
 }
 
 pub async fn criar_horario_turma(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(turma_id): Path<Uuid>,
@@ -1417,7 +1610,9 @@ pub async fn criar_horario_turma(
 
     // 1. Validar que início < fim
     if dto.hora_inicio >= dto.hora_fim {
-        return Err(AppError::BadRequest("O horário de início deve ser anterior ao horário de término.".to_string()));
+        return Err(AppError::BadRequest(
+            "O horário de início deve ser anterior ao horário de término.".to_string(),
+        ));
     }
 
     // 2. Choque na mesma turma
@@ -1428,7 +1623,7 @@ pub async fn criar_horario_turma(
             WHERE tenant_id = $1 AND turma_id = $2 AND dia_semana = $3
             AND GREATEST(hora_inicio, $4) < LEAST(hora_fim, $5)
         )
-        "#
+        "#,
     )
     .bind(tenant_id)
     .bind(turma_id)
@@ -1456,7 +1651,7 @@ pub async fn criar_horario_turma(
             WHERE h.tenant_id = $1 AND h.professor_id = $2 AND h.dia_semana = $3
             AND GREATEST(h.hora_inicio, $4) < LEAST(h.hora_fim, $5)
             LIMIT 1
-            "#
+            "#,
         )
         .bind(tenant_id)
         .bind(prof_id)
@@ -1490,7 +1685,7 @@ pub async fn criar_horario_turma(
             WHERE h.tenant_id = $1 AND h.sala_id = $2 AND h.dia_semana = $3
             AND GREATEST(h.hora_inicio, $4) < LEAST(h.hora_fim, $5)
             LIMIT 1
-            "#
+            "#,
         )
         .bind(tenant_id)
         .bind(s_id)
@@ -1531,11 +1726,12 @@ pub async fn criar_horario_turma(
     .fetch_one(&mut *db)
     .await?;
 
-    let disciplina_nome = sqlx::query_scalar::<_, String>("SELECT nome FROM disciplinas WHERE id = $1")
-        .bind(h.disciplina_id)
-        .fetch_optional(&mut *db)
-        .await?
-        .unwrap_or_default();
+    let disciplina_nome =
+        sqlx::query_scalar::<_, String>("SELECT nome FROM disciplinas WHERE id = $1")
+            .bind(h.disciplina_id)
+            .fetch_optional(&mut *db)
+            .await?
+            .unwrap_or_default();
 
     let professor_nome = if let Some(pid) = h.professor_id {
         sqlx::query_scalar::<_, String>("SELECT name FROM users WHERE id = $1")
@@ -1583,7 +1779,8 @@ pub async fn criar_horario_turma(
 }
 
 pub async fn deletar_horario_turma(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(horario_id): Path<Uuid>,
@@ -1612,7 +1809,9 @@ pub async fn deletar_horario_turma(
     )
     .await;
 
-    Ok(Json(json!({ "status": "sucesso", "mensagem": "Horário removido com sucesso." })))
+    Ok(Json(
+        json!({ "status": "sucesso", "mensagem": "Horário removido com sucesso." }),
+    ))
 }
 
 // ============================================================================
@@ -1628,7 +1827,8 @@ pub struct ProfessorItemDto {
 }
 
 pub async fn listar_professores_disponiveis(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<Vec<ProfessorItemDto>>, AppError> {
@@ -1699,7 +1899,8 @@ mod tests {
             (1.0, 1.5, 0.2, true),
             (1.4, 2.0, 0.2, true),
         ];
-        let (_theta_b, _enem_b, coerencia_b, status_b) = estimar_proficiencia_eap(&aluno_incoerente);
+        let (_theta_b, _enem_b, coerencia_b, status_b) =
+            estimar_proficiencia_eap(&aluno_incoerente);
         assert_eq!(status_b, "incoerente_chute_provavel");
         assert!(coerencia_b < 0.85);
     }
@@ -1723,17 +1924,20 @@ mod tests {
     }
 }
 
-
 pub async fn registrar_portfolio_infantil(
     State(_state): State<AppState>,
     TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
-    axum::extract::Json(dto): axum::extract::Json<crate::models::academico::CreatePortfolioInfantilDto>,
+    axum::extract::Json(dto): axum::extract::Json<
+        crate::models::academico::CreatePortfolioInfantilDto,
+    >,
 ) -> Result<axum::Json<crate::models::academico::PortfolioInfantil>, AppError> {
     crate::middleware::rbac::check_roles(&auth_user, &["admin", "professor", "gestor"])?;
     let tenant_id = active_tenant.0;
-    let data_registro = dto.data_registro.unwrap_or_else(|| chrono::Utc::now().date_naive());
+    let data_registro = dto
+        .data_registro
+        .unwrap_or_else(|| chrono::Utc::now().date_naive());
 
     let portfolio = sqlx::query_as::<_, crate::models::academico::PortfolioInfantil>(
         r#"
@@ -1754,7 +1958,16 @@ pub async fn registrar_portfolio_infantil(
     .fetch_one(&mut *db)
     .await?;
 
-    crate::middleware::rbac::log_audit(&mut *db, tenant_id, Some(auth_user.id), "REGISTRAR_PORTFOLIO", "portfolio_infantil", Some(portfolio.id.to_string()), Some(serde_json::json!({"aluno_id": dto.aluno_id, "titulo": dto.titulo}))).await;
+    crate::middleware::rbac::log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "REGISTRAR_PORTFOLIO",
+        "portfolio_infantil",
+        Some(portfolio.id.to_string()),
+        Some(serde_json::json!({"aluno_id": dto.aluno_id, "titulo": dto.titulo})),
+    )
+    .await;
 
     Ok(axum::Json(portfolio))
 }
@@ -1766,7 +1979,10 @@ pub async fn listar_portfolio_infantil(
     Extension(auth_user): Extension<AuthUser>,
     axum::extract::Path(aluno_id): axum::extract::Path<Uuid>,
 ) -> Result<axum::Json<Vec<crate::models::academico::PortfolioInfantil>>, AppError> {
-    crate::middleware::rbac::check_roles(&auth_user, &["admin", "professor", "gestor", "responsavel"])?;
+    crate::middleware::rbac::check_roles(
+        &auth_user,
+        &["admin", "professor", "gestor", "responsavel"],
+    )?;
     let tenant_id = active_tenant.0;
     crate::middleware::rbac::check_aluno_ownership(&mut *db, &auth_user, aluno_id).await?;
 

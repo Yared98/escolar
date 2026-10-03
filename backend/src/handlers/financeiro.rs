@@ -1,15 +1,20 @@
-use sqlx::Acquire;
 use axum::{
     extract::{Path, Query, State},
     Extension, Json,
 };
 use serde_json::{json, Value};
+use sqlx::Acquire;
 use uuid::Uuid;
 
 use crate::{
-    config::AppState, db::TenantDb,
+    config::AppState,
+    db::TenantDb,
     error::AppError,
-    middleware::{auth::AuthUser, rbac::{check_roles, log_audit}, tenant::ActiveTenant},
+    middleware::{
+        auth::AuthUser,
+        rbac::{check_roles, log_audit},
+        tenant::ActiveTenant,
+    },
     models::financeiro::{
         ConciliacaoBancaria, CreateDespesaDto, CreateFaturaDto, Despesa, DreReportDto, Fatura,
         GerarParcelasContratoDto, MensagensReguaContadores, NfseEmissao, ProcessarConciliacaoDto,
@@ -36,14 +41,32 @@ pub fn calcular_crc16_pix(payload: &str) -> String {
     format!("{:04X}", crc)
 }
 
-pub fn gerar_pix_emvco(chave_pix: &str, recebedor: &str, cidade: &str, valor: f64, txid: &str) -> String {
+pub fn gerar_pix_emvco(
+    chave_pix: &str,
+    recebedor: &str,
+    cidade: &str,
+    valor: f64,
+    txid: &str,
+) -> String {
     let chave_pix_clean = chave_pix.trim();
-    let recebedor_clean = if recebedor.len() > 25 { &recebedor[..25] } else { recebedor };
-    let cidade_clean = if cidade.len() > 15 { &cidade[..15] } else { cidade };
+    let recebedor_clean = if recebedor.len() > 25 {
+        &recebedor[..25]
+    } else {
+        recebedor
+    };
+    let cidade_clean = if cidade.len() > 15 {
+        &cidade[..15]
+    } else {
+        cidade
+    };
     let valor_str = format!("{:.2}", valor);
     let txid_clean = if txid.len() > 25 { &txid[..25] } else { txid };
 
-    let mai_payload = format!("0014br.gov.bcb.pix01{:02}{}", chave_pix_clean.len(), chave_pix_clean);
+    let mai_payload = format!(
+        "0014br.gov.bcb.pix01{:02}{}",
+        chave_pix_clean.len(),
+        chave_pix_clean
+    );
     let mai = format!("26{:02}{}", mai_payload.len(), mai_payload);
 
     let adf_payload = format!("05{:02}{}", txid_clean.len(), txid_clean);
@@ -67,18 +90,30 @@ pub fn gerar_pix_emvco(chave_pix: &str, recebedor: &str, cidade: &str, valor: f6
 }
 
 pub fn gerar_linha_digitavel_febraban(banco: &str, valor: f64, fatura_hash: u32) -> String {
-    let banco_cod = if banco.contains("itau") { "3419" } else if banco.contains("brasil") { "0019" } else { "2379" };
+    let banco_cod = if banco.contains("itau") {
+        "3419"
+    } else if banco.contains("brasil") {
+        "0019"
+    } else {
+        "2379"
+    };
     let valor_cents = (valor * 100.0) as u64;
-    format!("{}.{:05} {:05}.{:06} {:05}.{:06} 1 {:04}{:010}", 
-        banco_cod, fatura_hash % 100000,
-        (fatura_hash / 100000) % 100000, (fatura_hash / 100) % 1000000,
-        (fatura_hash / 10) % 100000, (fatura_hash % 999999),
-        9999, valor_cents
+    format!(
+        "{}.{:05} {:05}.{:06} {:05}.{:06} 1 {:04}{:010}",
+        banco_cod,
+        fatura_hash % 100000,
+        (fatura_hash / 100000) % 100000,
+        (fatura_hash / 100) % 1000000,
+        (fatura_hash / 10) % 100000,
+        (fatura_hash % 999999),
+        9999,
+        valor_cents
     )
 }
 
 pub async fn gerar_fatura(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<CreateFaturaDto>,
@@ -87,7 +122,9 @@ pub async fn gerar_fatura(
     let tenant_id = active_tenant.0;
 
     if dto.valor <= 0.0 {
-        return Err(AppError::BadRequest("Valor da fatura deve ser positivo.".to_string()));
+        return Err(AppError::BadRequest(
+            "Valor da fatura deve ser positivo.".to_string(),
+        ));
     }
 
     let desconto = dto.desconto_percentual.unwrap_or(0.0).clamp(0.0, 100.0);
@@ -220,7 +257,8 @@ pub async fn gerar_parcelas_de_contrato(
 }
 
 pub async fn listar_faturas(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<Vec<Fatura>>, AppError> {
@@ -235,7 +273,7 @@ pub async fn listar_faturas(
             LEFT JOIN responsaveis_alunos ra ON ra.aluno_id = a.id
             WHERE f.tenant_id = $1 AND (a.responsavel_user_id = $2 OR ra.responsavel_user_id = $2)
             ORDER BY f.data_vencimento ASC
-            "#
+            "#,
         )
         .bind(tenant_id)
         .bind(auth_user.id)
@@ -254,7 +292,8 @@ pub async fn listar_faturas(
 }
 
 pub async fn atualizar_fatura(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(fatura_id): Path<Uuid>,
@@ -288,13 +327,23 @@ pub async fn atualizar_fatura(
     .await?
     .ok_or(AppError::NotFound)?;
 
-    log_audit(&mut *db, tenant_id, Some(auth_user.id), "ATUALIZAR_FATURA", "faturas", Some(fatura.id.to_string()), Some(json!({"valor": &fatura.valor, "status": &fatura.status}))).await;
+    log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "ATUALIZAR_FATURA",
+        "faturas",
+        Some(fatura.id.to_string()),
+        Some(json!({"valor": &fatura.valor, "status": &fatura.status})),
+    )
+    .await;
 
     Ok(Json(fatura))
 }
 
 pub async fn deletar_fatura(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(fatura_id): Path<Uuid>,
@@ -302,15 +351,18 @@ pub async fn deletar_fatura(
     check_roles(&auth_user, &["admin", "financeiro"])?;
     let tenant_id = active_tenant.0;
 
-    let fatura = sqlx::query_as::<_, Fatura>("SELECT * FROM faturas WHERE id = $1 AND tenant_id = $2")
-        .bind(fatura_id)
-        .bind(tenant_id)
-        .fetch_optional(&mut *db)
-        .await?
-        .ok_or(AppError::NotFound)?;
+    let fatura =
+        sqlx::query_as::<_, Fatura>("SELECT * FROM faturas WHERE id = $1 AND tenant_id = $2")
+            .bind(fatura_id)
+            .bind(tenant_id)
+            .fetch_optional(&mut *db)
+            .await?
+            .ok_or(AppError::NotFound)?;
 
     if fatura.status == "pago" {
-        return Err(AppError::BadRequest("Violação Fiscal: Não é permitido excluir faturas já liquidadas.".to_string()));
+        return Err(AppError::BadRequest(
+            "Violação Fiscal: Não é permitido excluir faturas já liquidadas.".to_string(),
+        ));
     }
 
     sqlx::query("UPDATE faturas SET status = 'cancelado', updated_at = NOW() WHERE id = $1 AND tenant_id = $2")
@@ -319,13 +371,25 @@ pub async fn deletar_fatura(
         .execute(&mut *db)
         .await?;
 
-    log_audit(&mut *db, tenant_id, Some(auth_user.id), "CANCELAR_FATURA", "faturas", Some(fatura_id.to_string()), None).await;
+    log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "CANCELAR_FATURA",
+        "faturas",
+        Some(fatura_id.to_string()),
+        None,
+    )
+    .await;
 
-    Ok(Json(json!({ "status": "sucesso", "mensagem": "Fatura cancelada com sucesso mantendo escrituração fiscal." })))
+    Ok(Json(
+        json!({ "status": "sucesso", "mensagem": "Fatura cancelada com sucesso mantendo escrituração fiscal." }),
+    ))
 }
 
 pub async fn gerar_despesa(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<CreateDespesaDto>,
@@ -353,13 +417,23 @@ pub async fn gerar_despesa(
     .fetch_one(&mut *db)
     .await?;
 
-    log_audit(&mut *db, tenant_id, Some(auth_user.id), "GERAR_DESPESA", "despesas", Some(despesa.id.to_string()), Some(json!({"valor": dto.valor, "categoria": dto.categoria}))).await;
+    log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "GERAR_DESPESA",
+        "despesas",
+        Some(despesa.id.to_string()),
+        Some(json!({"valor": dto.valor, "categoria": dto.categoria})),
+    )
+    .await;
 
     Ok(Json(despesa))
 }
 
 pub async fn listar_despesas(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<Vec<Despesa>>, AppError> {
@@ -377,7 +451,8 @@ pub async fn listar_despesas(
 }
 
 pub async fn atualizar_despesa(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(despesa_id): Path<Uuid>,
@@ -420,7 +495,16 @@ pub async fn atualizar_despesa(
     .await?
     .ok_or(AppError::NotFound)?;
 
-    log_audit(&mut *db, tenant_id, Some(auth_user.id), "ATUALIZAR_DESPESA", "despesas", Some(despesa.id.to_string()), Some(json!({"valor": &despesa.valor, "status": &despesa.status}))).await;
+    log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "ATUALIZAR_DESPESA",
+        "despesas",
+        Some(despesa.id.to_string()),
+        Some(json!({"valor": &despesa.valor, "status": &despesa.status})),
+    )
+    .await;
 
     Ok(Json(despesa))
 }
@@ -445,7 +529,8 @@ pub fn despesa_liquidada(status: &str) -> bool {
 }
 
 pub async fn deletar_despesa(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(despesa_id): Path<Uuid>,
@@ -453,12 +538,13 @@ pub async fn deletar_despesa(
     check_roles(&auth_user, &["admin", "financeiro"])?;
     let tenant_id = active_tenant.0;
 
-    let despesa = sqlx::query_as::<_, Despesa>("SELECT * FROM despesas WHERE id = $1 AND tenant_id = $2")
-        .bind(despesa_id)
-        .bind(tenant_id)
-        .fetch_optional(&mut *db)
-        .await?
-        .ok_or(AppError::NotFound)?;
+    let despesa =
+        sqlx::query_as::<_, Despesa>("SELECT * FROM despesas WHERE id = $1 AND tenant_id = $2")
+            .bind(despesa_id)
+            .bind(tenant_id)
+            .fetch_optional(&mut *db)
+            .await?
+            .ok_or(AppError::NotFound)?;
 
     if despesa_liquidada(&despesa.status) {
         return Err(AppError::BadRequest(
@@ -472,13 +558,25 @@ pub async fn deletar_despesa(
         .execute(&mut *db)
         .await?;
 
-    log_audit(&mut *db, tenant_id, Some(auth_user.id), "CANCELAR_DESPESA", "despesas", Some(despesa_id.to_string()), None).await;
+    log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "CANCELAR_DESPESA",
+        "despesas",
+        Some(despesa_id.to_string()),
+        None,
+    )
+    .await;
 
-    Ok(Json(json!({ "status": "sucesso", "mensagem": "Despesa cancelada com rastreio contábil." })))
+    Ok(Json(
+        json!({ "status": "sucesso", "mensagem": "Despesa cancelada com rastreio contábil." }),
+    ))
 }
 
 pub async fn estornar_despesa(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(despesa_id): Path<Uuid>,
@@ -486,12 +584,13 @@ pub async fn estornar_despesa(
     check_roles(&auth_user, &["admin", "financeiro"])?;
     let tenant_id = active_tenant.0;
 
-    let despesa = sqlx::query_as::<_, Despesa>("SELECT * FROM despesas WHERE id = $1 AND tenant_id = $2")
-        .bind(despesa_id)
-        .bind(tenant_id)
-        .fetch_optional(&mut *db)
-        .await?
-        .ok_or(AppError::NotFound)?;
+    let despesa =
+        sqlx::query_as::<_, Despesa>("SELECT * FROM despesas WHERE id = $1 AND tenant_id = $2")
+            .bind(despesa_id)
+            .bind(tenant_id)
+            .fetch_optional(&mut *db)
+            .await?
+            .ok_or(AppError::NotFound)?;
 
     if !matches!(despesa.status.as_str(), "pago" | "liquidado" | "conciliado") {
         return Err(AppError::BadRequest(
@@ -543,7 +642,8 @@ pub async fn estornar_despesa(
 }
 
 pub async fn emitir_nfse(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(payload): Json<Value>,
@@ -553,14 +653,21 @@ pub async fn emitir_nfse(
     let fatura_id_str = payload["fatura_id"].as_str().unwrap_or_default();
     let fatura_id = Uuid::parse_str(fatura_id_str).unwrap_or_default();
 
-    let fatura = sqlx::query_as::<_, Fatura>("SELECT * FROM faturas WHERE id = $1 AND tenant_id = $2")
-        .bind(fatura_id)
-        .bind(tenant_id)
-        .fetch_one(&mut *db)
-        .await?;
+    let fatura =
+        sqlx::query_as::<_, Fatura>("SELECT * FROM faturas WHERE id = $1 AND tenant_id = $2")
+            .bind(fatura_id)
+            .bind(tenant_id)
+            .fetch_one(&mut *db)
+            .await?;
 
-    let numero_nfse = format!("NFSE-2026-{}", uuid::Uuid::new_v4().to_string()[..8].to_uppercase());
-    let codigo_verif = format!("ABRASF-{}", uuid::Uuid::new_v4().to_string()[..6].to_uppercase());
+    let numero_nfse = format!(
+        "NFSE-2026-{}",
+        uuid::Uuid::new_v4().to_string()[..8].to_uppercase()
+    );
+    let codigo_verif = format!(
+        "ABRASF-{}",
+        uuid::Uuid::new_v4().to_string()[..6].to_uppercase()
+    );
 
     let nfse = sqlx::query_as::<_, NfseEmissao>(
         r#"
@@ -578,7 +685,16 @@ pub async fn emitir_nfse(
     .fetch_one(&mut *db)
     .await?;
 
-    log_audit(&mut *db, tenant_id, Some(auth_user.id), "EMITIR_NFSE", "nfse_emissoes", Some(nfse.id.to_string()), Some(json!({"fatura_id": fatura.id, "numero_nfse": numero_nfse}))).await;
+    log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "EMITIR_NFSE",
+        "nfse_emissoes",
+        Some(nfse.id.to_string()),
+        Some(json!({"fatura_id": fatura.id, "numero_nfse": numero_nfse})),
+    )
+    .await;
 
     Ok(Json(nfse))
 }
@@ -603,7 +719,8 @@ pub async fn listar_nfse(
 }
 
 pub async fn listar_conciliacao(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<Vec<ConciliacaoBancaria>>, AppError> {
@@ -621,7 +738,8 @@ pub async fn listar_conciliacao(
 }
 
 pub async fn processar_conciliacao_bancaria(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<ProcessarConciliacaoDto>,
@@ -758,7 +876,8 @@ pub fn classificar_evento_regua(dias_ate_vencimento: i64) -> Option<&'static str
 }
 
 pub async fn executar_regua_cobranca(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<ReguaExecucaoResultDto>, AppError> {
@@ -788,14 +907,13 @@ pub async fn executar_regua_cobranca(
                 _ => {}
             }
 
-            let aluno_nome: (String,) = sqlx::query_as(
-                "SELECT nome FROM alunos WHERE id = $1 AND tenant_id = $2",
-            )
-            .bind(fatura.aluno_id)
-            .bind(tenant_id)
-            .fetch_optional(&mut *db)
-            .await?
-            .unwrap_or_else(|| ("Aluno(a)".to_string(),));
+            let aluno_nome: (String,) =
+                sqlx::query_as("SELECT nome FROM alunos WHERE id = $1 AND tenant_id = $2")
+                    .bind(fatura.aluno_id)
+                    .bind(tenant_id)
+                    .fetch_optional(&mut *db)
+                    .await?
+                    .unwrap_or_else(|| ("Aluno(a)".to_string(),));
 
             let dias_atraso = (-dias).max(0);
             let valor_base = fatura.valor_original.unwrap_or(fatura.valor);
@@ -877,7 +995,8 @@ pub async fn executar_regua_cobranca(
 }
 
 pub async fn listar_logs_regua(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<Vec<ReguaCobrancaLog>>, AppError> {
@@ -903,7 +1022,8 @@ pub struct FiltroDreQuery {
 }
 
 pub async fn relatorio_dre(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Query(query): Query<FiltroDreQuery>,
@@ -917,9 +1037,11 @@ pub async fn relatorio_dre(
             (Some(ano), Some(mes)) => {
                 let start = chrono::NaiveDate::from_ymd_opt(ano, mes as u32, 1).unwrap_or_default();
                 let end = if mes == 12 {
-                    chrono::NaiveDate::from_ymd_opt(ano + 1, 1, 1).unwrap_or_default() - chrono::Duration::days(1)
+                    chrono::NaiveDate::from_ymd_opt(ano + 1, 1, 1).unwrap_or_default()
+                        - chrono::Duration::days(1)
                 } else {
-                    chrono::NaiveDate::from_ymd_opt(ano, (mes + 1) as u32, 1).unwrap_or_default() - chrono::Duration::days(1)
+                    chrono::NaiveDate::from_ymd_opt(ano, (mes + 1) as u32, 1).unwrap_or_default()
+                        - chrono::Duration::days(1)
                 };
                 (Some(start), Some(end))
             }
@@ -959,7 +1081,7 @@ pub async fn relatorio_dre(
           AND status NOT IN ('cancelado', 'estornada')
           AND ($2::date IS NULL OR data_vencimento >= $2)
           AND ($3::date IS NULL OR data_vencimento <= $3)
-        "#
+        "#,
     )
     .bind(tenant_id)
     .bind(data_inicio)
@@ -974,7 +1096,8 @@ pub async fn relatorio_dre(
     let despesas_totais = despesas_totais.unwrap_or(0.0);
 
     let resultado_liquido = ((receita_bruta - despesas_totais) * 100.0).round() / 100.0;
-    let dfc_caixa_projetado = ((resultado_liquido + (inadimplencia_total * 0.4)) * 100.0).round() / 100.0;
+    let dfc_caixa_projetado =
+        ((resultado_liquido + (inadimplencia_total * 0.4)) * 100.0).round() / 100.0;
 
     Ok(Json(DreReportDto {
         receita_bruta: (receita_bruta * 100.0).round() / 100.0,
@@ -1051,7 +1174,13 @@ mod tests {
 
     #[test]
     fn test_gerar_pix_emvco_valido() {
-        let pix = gerar_pix_emvco("financeiro@escola.com.br", "ESCOLA MODERNA", "SAO PAULO", 850.00, "FATURA123");
+        let pix = gerar_pix_emvco(
+            "financeiro@escola.com.br",
+            "ESCOLA MODERNA",
+            "SAO PAULO",
+            850.00,
+            "FATURA123",
+        );
         assert!(pix.starts_with("000201010212"));
         assert!(pix.contains("br.gov.bcb.pix"));
         assert!(pix.contains("5303986")); // Moeda BRL

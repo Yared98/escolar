@@ -13,6 +13,6 @@ where
     .bind(feature_name)
     .fetch_optional(executor)
     .await?;
-    
+
     Ok(result.unwrap_or(false))
 }

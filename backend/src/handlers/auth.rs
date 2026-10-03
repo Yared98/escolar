@@ -1,12 +1,11 @@
 use argon2::{
-    password_hash::{rand_core::OsRng, rand_core::RngCore, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
+    password_hash::{
+        rand_core::OsRng, rand_core::RngCore, PasswordHash, PasswordHasher, PasswordVerifier,
+        SaltString,
+    },
     Argon2,
 };
-use axum::{
-    extract::State,
-    http::HeaderMap,
-    Extension, Json,
-};
+use axum::{extract::State, http::HeaderMap, Extension, Json};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
@@ -14,7 +13,8 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use crate::{
-    config::AppState, db::TenantDb,
+    config::AppState,
+    db::TenantDb,
     error::AppError,
     middleware::auth::{AuthUser, Claims},
     models::{
@@ -116,7 +116,12 @@ pub async fn register_tenant(
     let clean_email = dto.admin_email.trim().to_lowercase();
 
     // Validações rigorosas de segurança (BLOCKER-03)
-    if clean_slug.len() < 3 || clean_slug.len() > 60 || !clean_slug.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+    if clean_slug.len() < 3
+        || clean_slug.len() > 60
+        || !clean_slug
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-')
+    {
         return Err(AppError::Forbidden(
             "Slug inválido: deve ter entre 3 e 60 caracteres alfanuméricos ou hífens".to_string(),
         ));
@@ -134,7 +139,9 @@ pub async fn register_tenant(
         ));
     }
 
-    if !dto.password.chars().any(|c| c.is_alphabetic()) || !dto.password.chars().any(|c| c.is_numeric()) {
+    if !dto.password.chars().any(|c| c.is_alphabetic())
+        || !dto.password.chars().any(|c| c.is_numeric())
+    {
         return Err(AppError::Forbidden(
             "A senha deve conter letras e números.".to_string(),
         ));
@@ -153,7 +160,9 @@ pub async fn register_tenant(
 
     let tenant = match tenant_result {
         Ok(t) => t,
-        Err(sqlx::Error::Database(db_err)) if db_err.is_unique_violation() || db_err.code().as_deref() == Some("23505") => {
+        Err(sqlx::Error::Database(db_err))
+            if db_err.is_unique_violation() || db_err.code().as_deref() == Some("23505") =>
+        {
             return Err(AppError::UserAlreadyExists);
         }
         Err(e) => return Err(AppError::DatabaseError(e)),
@@ -180,7 +189,9 @@ pub async fn register_tenant(
 
     let user = match user_result {
         Ok(u) => u,
-        Err(sqlx::Error::Database(db_err)) if db_err.is_unique_violation() || db_err.code().as_deref() == Some("23505") => {
+        Err(sqlx::Error::Database(db_err))
+            if db_err.is_unique_violation() || db_err.code().as_deref() == Some("23505") =>
+        {
             return Err(AppError::UserAlreadyExists);
         }
         Err(e) => return Err(AppError::DatabaseError(e)),
@@ -223,17 +234,19 @@ pub async fn login(
     let clean_slug = dto.tenant_slug.trim().to_lowercase();
     let clean_email = dto.email.trim().to_lowercase();
 
-    let tenant = sqlx::query_as::<_, Tenant>("SELECT * FROM tenants WHERE slug = $1 AND status = 'active'")
-        .bind(&clean_slug)
-        .fetch_optional(&state.pool)
-        .await?
-        .ok_or(AppError::TenantNotFound)?;
+    let tenant =
+        sqlx::query_as::<_, Tenant>("SELECT * FROM tenants WHERE slug = $1 AND status = 'active'")
+            .bind(&clean_slug)
+            .fetch_optional(&state.pool)
+            .await?
+            .ok_or(AppError::TenantNotFound)?;
 
-    let user_opt = sqlx::query_as::<_, User>("SELECT * FROM users WHERE tenant_id = $1 AND email = $2")
-        .bind(tenant.id)
-        .bind(&clean_email)
-        .fetch_optional(&state.pool)
-        .await?;
+    let user_opt =
+        sqlx::query_as::<_, User>("SELECT * FROM users WHERE tenant_id = $1 AND email = $2")
+            .bind(tenant.id)
+            .bind(&clean_email)
+            .fetch_optional(&state.pool)
+            .await?;
 
     let user = match user_opt {
         Some(u) => u,
@@ -308,7 +321,8 @@ pub async fn login(
 }
 
 pub async fn me(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<UserResponseDto>, AppError> {
     let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1 AND tenant_id = $2")
@@ -318,9 +332,8 @@ pub async fn me(
         .await?
         .ok_or(AppError::NotFound)?;
 
-    
     let flags = sqlx::query_scalar::<_, String>(
-        "SELECT feature_name FROM tenant_feature_flags WHERE tenant_id = $1 AND is_enabled = true"
+        "SELECT feature_name FROM tenant_feature_flags WHERE tenant_id = $1 AND is_enabled = true",
     )
     .bind(auth_user.tenant_id)
     .fetch_all(&mut *db)
@@ -330,7 +343,6 @@ pub async fn me(
     response.features = flags;
 
     Ok(Json(response))
-
 }
 
 pub const ACCESS_TOKEN_SECONDS: usize = 15 * 60;
@@ -443,7 +455,16 @@ pub async fn refresh_session(
     Json(dto): Json<RefreshDto>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let hash = hash_refresh_token(&dto.refresh_token);
-    let row = sqlx::query_as::<_, (Uuid, Uuid, String, chrono::DateTime<Utc>, Option<chrono::DateTime<Utc>>)>(
+    let row = sqlx::query_as::<
+        _,
+        (
+            Uuid,
+            Uuid,
+            String,
+            chrono::DateTime<Utc>,
+            Option<chrono::DateTime<Utc>>,
+        ),
+    >(
         r#"
         SELECT rt.user_id, rt.tenant_id, u.role, rt.expires_at, rt.revoked_at
         FROM refresh_tokens rt
@@ -458,15 +479,20 @@ pub async fn refresh_session(
 
     let (user_id, tenant_id, role, expires_at, revoked_at) = row;
     if !refresh_token_usable(revoked_at, expires_at, Utc::now()) {
-        return Err(AppError::InvalidToken("Refresh token revogado ou expirado".into()));
+        return Err(AppError::InvalidToken(
+            "Refresh token revogado ou expirado".into(),
+        ));
     }
 
-    sqlx::query("UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_hash = $1 AND revoked_at IS NULL")
-        .bind(&hash)
-        .execute(&state.pool)
-        .await?;
+    sqlx::query(
+        "UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_hash = $1 AND revoked_at IS NULL",
+    )
+    .bind(&hash)
+    .execute(&state.pool)
+    .await?;
 
-    let (token, refresh_token, expires_in) = issue_session(&state, user_id, tenant_id, &role).await?;
+    let (token, refresh_token, expires_in) =
+        issue_session(&state, user_id, tenant_id, &role).await?;
     Ok(Json(serde_json::json!({
         "token": token,
         "refresh_token": refresh_token,
@@ -554,7 +580,8 @@ pub struct OAuthTokenResponse {
 }
 
 pub fn base64_url_encode(data: &[u8]) -> String {
-    const URL_SAFE_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    const URL_SAFE_CHARS: &[u8] =
+        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
     let mut result = String::new();
     for chunk in data.chunks(3) {
         let b0 = chunk[0];
@@ -610,12 +637,15 @@ pub async fn jwks(State(state): State<AppState>) -> Json<JwksResponse> {
 }
 
 pub async fn oauth_authorize(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<OAuthAuthorizeDto>,
 ) -> Result<Json<OAuthAuthorizeResponse>, AppError> {
     let code = format!("authcode_{}", Uuid::new_v4().to_string().replace('-', ""));
-    let method = dto.code_challenge_method.unwrap_or_else(|| "S256".to_string());
+    let method = dto
+        .code_challenge_method
+        .unwrap_or_else(|| "S256".to_string());
     if method != "S256" {
         return Err(AppError::BadRequest("Apenas PKCE S256 é aceito.".into()));
     }
@@ -675,7 +705,19 @@ pub async fn oauth_token(
         return Err(AppError::InvalidCredentials);
     }
 
-    let code_record = sqlx::query_as::<_, (Uuid, Uuid, Uuid, String, String, String, bool, chrono::DateTime<Utc>)>(
+    let code_record = sqlx::query_as::<
+        _,
+        (
+            Uuid,
+            Uuid,
+            Uuid,
+            String,
+            String,
+            String,
+            bool,
+            chrono::DateTime<Utc>,
+        ),
+    >(
         r#"
         SELECT id, tenant_id, user_id, client_id, redirect_uri, code_challenge, used, expires_at
         FROM oauth_authorization_codes
@@ -734,7 +776,12 @@ pub async fn oauth_token(
     )
     .map_err(|e| AppError::InternalServerError(e.to_string()))?;
 
-    let access_token = generate_jwt(user.id, tenant_id, &user.role, &state.config.jwt_private_pem)?;
+    let access_token = generate_jwt(
+        user.id,
+        tenant_id,
+        &user.role,
+        &state.config.jwt_private_pem,
+    )?;
 
     log_audit(
         &state.pool,
@@ -760,7 +807,8 @@ pub async fn oauth_token(
 }
 
 pub async fn logout(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     headers: HeaderMap,
     Extension(auth_user): Extension<AuthUser>,
     body: Option<Json<LogoutDto>>,
@@ -836,7 +884,8 @@ pub async fn logout(
 }
 
 pub async fn userinfo(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1 AND tenant_id = $2")
@@ -864,10 +913,15 @@ mod tests {
         let password = "SuperSecretPassword2026!";
         let salt = SaltString::generate(&mut OsRng);
         let argon2 = Argon2::default();
-        let hash = argon2.hash_password(password.as_bytes(), &salt).unwrap().to_string();
+        let hash = argon2
+            .hash_password(password.as_bytes(), &salt)
+            .unwrap()
+            .to_string();
 
         let parsed_hash = PasswordHash::new(&hash).unwrap();
-        assert!(argon2.verify_password(password.as_bytes(), &parsed_hash).is_ok());
+        assert!(argon2
+            .verify_password(password.as_bytes(), &parsed_hash)
+            .is_ok());
     }
 
     #[test]
@@ -876,10 +930,15 @@ mod tests {
         let wrong_password = "WrongPassword123";
         let salt = SaltString::generate(&mut OsRng);
         let argon2 = Argon2::default();
-        let hash = argon2.hash_password(password.as_bytes(), &salt).unwrap().to_string();
+        let hash = argon2
+            .hash_password(password.as_bytes(), &salt)
+            .unwrap()
+            .to_string();
 
         let parsed_hash = PasswordHash::new(&hash).unwrap();
-        assert!(argon2.verify_password(wrong_password.as_bytes(), &parsed_hash).is_err());
+        assert!(argon2
+            .verify_password(wrong_password.as_bytes(), &parsed_hash)
+            .is_err());
     }
 
     fn dev_pems() -> (String, String) {
@@ -894,7 +953,8 @@ mod tests {
         let role = "gestor";
         let (private_pem, public_pem) = dev_pems();
 
-        let token = generate_jwt(user_id, tenant_id, role, &private_pem).expect("Token should be generated");
+        let token = generate_jwt(user_id, tenant_id, role, &private_pem)
+            .expect("Token should be generated");
         assert!(!token.is_empty());
 
         let claims = verify_jwt(&token, &public_pem).expect("Token should be valid");

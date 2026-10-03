@@ -2,9 +2,13 @@ use crate::{error::AppError, middleware::auth::AuthUser};
 
 pub fn check_roles(auth_user: &AuthUser, allowed_roles: &[&str]) -> Result<(), AppError> {
     let user_role = auth_user.role.to_lowercase().replace('_', "");
-    
+
     // Admin e gestor têm privilégio total em rotas protegidas
-    if user_role == "admin" || user_role == "gestor" || user_role == "superadmin" || user_role == "gestorescolar" {
+    if user_role == "admin"
+        || user_role == "gestor"
+        || user_role == "superadmin"
+        || user_role == "gestorescolar"
+    {
         return Ok(());
     }
 
@@ -19,9 +23,10 @@ pub fn check_roles(auth_user: &AuthUser, allowed_roles: &[&str]) -> Result<(), A
     if is_allowed {
         Ok(())
     } else {
-        Err(AppError::Forbidden(
-            format!("Acesso negado: o perfil '{}' não possui permissão para este recurso.", auth_user.role)
-        ))
+        Err(AppError::Forbidden(format!(
+            "Acesso negado: o perfil '{}' não possui permissão para este recurso.",
+            auth_user.role
+        )))
     }
 }
 
@@ -42,7 +47,9 @@ pub fn role_key(role: &str) -> String {
 
 pub fn aluno_access_mode(role: &str) -> AlunoAccessMode {
     match role_key(role).as_str() {
-        "admin" | "gestor" | "superadmin" | "gestorescolar" | "secretaria" => AlunoAccessMode::TenantStaff,
+        "admin" | "gestor" | "superadmin" | "gestorescolar" | "secretaria" => {
+            AlunoAccessMode::TenantStaff
+        }
         "aluno" => AlunoAccessMode::SelfOnly,
         "responsavel" => AlunoAccessMode::GuardianLink,
         "professor" => AlunoAccessMode::ProfessorLink,
@@ -53,7 +60,13 @@ pub fn aluno_access_mode(role: &str) -> AlunoAccessMode {
 pub fn can_notify_others(role: &str) -> bool {
     matches!(
         role_key(role).as_str(),
-        "admin" | "gestor" | "superadmin" | "gestorescolar" | "secretaria" | "financeiro" | "tesouraria"
+        "admin"
+            | "gestor"
+            | "superadmin"
+            | "gestorescolar"
+            | "secretaria"
+            | "financeiro"
+            | "tesouraria"
     )
 }
 
@@ -66,7 +79,9 @@ pub async fn check_aluno_ownership(
         AlunoAccessMode::TenantStaff => Ok(()),
         AlunoAccessMode::SelfOnly => {
             if auth_user.id != aluno_id {
-                return Err(AppError::Forbidden("Acesso negado: aluno só pode acessar seus próprios dados.".into()));
+                return Err(AppError::Forbidden(
+                    "Acesso negado: aluno só pode acessar seus próprios dados.".into(),
+                ));
             }
             Ok(())
         }
@@ -78,7 +93,7 @@ pub async fn check_aluno_ownership(
                     LEFT JOIN responsaveis_alunos ra ON a.id = ra.aluno_id
                     WHERE a.id = $1 AND (a.responsavel_user_id = $2 OR ra.responsavel_user_id = $2)
                 )
-                "#
+                "#,
             )
             .bind(aluno_id)
             .bind(auth_user.id)
@@ -86,7 +101,9 @@ pub async fn check_aluno_ownership(
             .await?;
 
             if !is_linked.0 {
-                return Err(AppError::Forbidden("Acesso negado: responsável não vinculado a este aluno.".into()));
+                return Err(AppError::Forbidden(
+                    "Acesso negado: responsável não vinculado a este aluno.".into(),
+                ));
             }
             Ok(())
         }
@@ -104,7 +121,7 @@ pub async fn check_aluno_ownership(
                       AND ta.status = 'ativo'
                       AND ta.tenant_id = get_current_tenant()
                 )
-                "#
+                "#,
             )
             .bind(aluno_id)
             .bind(auth_user.id)
@@ -112,7 +129,9 @@ pub async fn check_aluno_ownership(
             .await?;
 
             if !is_linked.0 {
-                return Err(AppError::Forbidden("Acesso negado: professor não vinculado à turma deste aluno.".into()));
+                return Err(AppError::Forbidden(
+                    "Acesso negado: professor não vinculado à turma deste aluno.".into(),
+                ));
             }
             Ok(())
         }
@@ -177,10 +196,19 @@ mod tests {
 
     #[test]
     fn test_aluno_access_denies_unlinked_profiles() {
-        assert_eq!(aluno_access_mode("professor"), AlunoAccessMode::ProfessorLink);
+        assert_eq!(
+            aluno_access_mode("professor"),
+            AlunoAccessMode::ProfessorLink
+        );
         assert_eq!(aluno_access_mode("nutricionista"), AlunoAccessMode::Denied);
-        assert_eq!(aluno_access_mode("secretaria"), AlunoAccessMode::TenantStaff);
-        assert_eq!(aluno_access_mode("responsavel"), AlunoAccessMode::GuardianLink);
+        assert_eq!(
+            aluno_access_mode("secretaria"),
+            AlunoAccessMode::TenantStaff
+        );
+        assert_eq!(
+            aluno_access_mode("responsavel"),
+            AlunoAccessMode::GuardianLink
+        );
         assert!(!can_notify_others("professor"));
         assert!(can_notify_others("secretaria"));
     }

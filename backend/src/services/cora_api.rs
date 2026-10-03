@@ -1,7 +1,7 @@
+use crate::error::AppError;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::error::AppError;
 
 #[derive(Serialize)]
 pub struct CoraAuthRequest {
@@ -79,11 +79,15 @@ impl CoraClient {
         }
     }
 
-    pub async fn get_token(&self, client_id: &str, client_secret: &str) -> Result<String, AppError> {
+    pub async fn get_token(
+        &self,
+        client_id: &str,
+        client_secret: &str,
+    ) -> Result<String, AppError> {
         // NOTE: In Cora v2, authentication requires mTLS or standard Basic Auth for Sandbox
         // For simplicity in this ERP, we mock the auth logic to return a dummy token in testing,
         // but construct the real request structure.
-        
+
         let _payload = [
             ("grant_type", "client_credentials"),
             ("client_id", client_id),
@@ -96,7 +100,7 @@ impl CoraClient {
             .send()
             .await
             .map_err(|e| AppError::InternalServerError(e.to_string()))?;
-        
+
         let auth_resp: CoraAuthResponse = response.json().await.map_err(|e| AppError::InternalServerError(e.to_string()))?;
         Ok(auth_resp.access_token)
         */
@@ -105,7 +109,11 @@ impl CoraClient {
         Ok("mocked_bearer_token_for_cora".to_string())
     }
 
-    pub async fn create_invoice(&self, _token: &str, _invoice: CoraCreateInvoiceRequest) -> Result<CoraInvoiceResponse, AppError> {
+    pub async fn create_invoice(
+        &self,
+        _token: &str,
+        _invoice: CoraCreateInvoiceRequest,
+    ) -> Result<CoraInvoiceResponse, AppError> {
         /* Real request:
         let response = self.http_client.post(&format!("{}/invoices", self.base_url))
             .bearer_auth(token)

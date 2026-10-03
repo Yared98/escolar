@@ -8,7 +8,8 @@ use serde_json::{json, Value};
 use uuid::Uuid;
 
 use crate::{
-    config::AppState, db::TenantDb,
+    config::AppState,
+    db::TenantDb,
     error::AppError,
     middleware::{
         auth::AuthUser,
@@ -41,7 +42,8 @@ pub struct CreateLeadPublicDto {
 }
 
 pub async fn criar_lead(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<CreateLeadDto>,
@@ -144,7 +146,9 @@ pub async fn capturar_lead_publico(
     .await?;
     let mut db = crate::db::acquire_tenant(&state.pool, tenant_id).await?;
 
-    let canal = dto.canal_aquisicao.unwrap_or_else(|| "landing_page".to_string());
+    let canal = dto
+        .canal_aquisicao
+        .unwrap_or_else(|| "landing_page".to_string());
 
     // Desduplicação de lead público
     let existing_lead = sqlx::query_as::<_, Lead>(
@@ -208,7 +212,8 @@ pub async fn capturar_lead_publico(
 }
 
 pub async fn listar_leads(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Query(query): Query<ListLeadsQuery>,
@@ -236,7 +241,8 @@ pub async fn listar_leads(
 }
 
 pub async fn obter_lead(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(lead_id): Path<Uuid>,
@@ -277,7 +283,8 @@ pub async fn obter_lead(
 }
 
 pub async fn atualizar_lead(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(lead_id): Path<Uuid>,
@@ -309,7 +316,10 @@ pub async fn atualizar_lead(
             )
             .bind(tenant_id)
             .bind(lead_id)
-            .bind(format!("Estágio alterado de '{}' para '{}'", lead_atual.estagio_funil, novo_estagio))
+            .bind(format!(
+                "Estágio alterado de '{}' para '{}'",
+                lead_atual.estagio_funil, novo_estagio
+            ))
             .bind(auth_user.id)
             .execute(&mut *db)
             .await;
@@ -358,7 +368,8 @@ pub async fn atualizar_lead(
 }
 
 pub async fn adicionar_interacao_lead(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(lead_id): Path<Uuid>,
@@ -424,7 +435,8 @@ struct FunilAggregates {
 }
 
 pub async fn relatorio_funil_crm(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<RelatorioFunilResponse>, AppError> {
@@ -538,7 +550,10 @@ pub async fn whatsapp_webhook_verify(
     if mode == "subscribe" && token == expected_token {
         (StatusCode::OK, challenge)
     } else {
-        (StatusCode::FORBIDDEN, "Verificação de webhook rejeitada".to_string())
+        (
+            StatusCode::FORBIDDEN,
+            "Verificação de webhook rejeitada".to_string(),
+        )
     }
 }
 
@@ -578,17 +593,41 @@ pub async fn whatsapp_webhook(
     }
 
     if phone_raw.is_none() {
-        if let Some(entry) = payload.entry.as_ref().and_then(|e| e.as_array()).and_then(|a| a.first()) {
-            if let Some(changes) = entry.get("changes").and_then(|c| c.as_array()).and_then(|a| a.first()) {
-                if let Some(messages) = changes.get("value").and_then(|v| v.get("messages")).and_then(|m| m.as_array()).and_then(|a| a.first()) {
+        if let Some(entry) = payload
+            .entry
+            .as_ref()
+            .and_then(|e| e.as_array())
+            .and_then(|a| a.first())
+        {
+            if let Some(changes) = entry
+                .get("changes")
+                .and_then(|c| c.as_array())
+                .and_then(|a| a.first())
+            {
+                if let Some(messages) = changes
+                    .get("value")
+                    .and_then(|v| v.get("messages"))
+                    .and_then(|m| m.as_array())
+                    .and_then(|a| a.first())
+                {
                     if phone_raw.is_none() {
-                        phone_raw = messages.get("from").and_then(|v| v.as_str()).map(|s| s.to_string());
+                        phone_raw = messages
+                            .get("from")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string());
                     }
                     if text_raw.is_none() {
-                        text_raw = messages.get("text").and_then(|v| v.get("body")).and_then(|b| b.as_str()).map(|s| s.to_string());
+                        text_raw = messages
+                            .get("text")
+                            .and_then(|v| v.get("body"))
+                            .and_then(|b| b.as_str())
+                            .map(|s| s.to_string());
                     }
                     if message_id.is_none() {
-                        message_id = messages.get("id").and_then(|v| v.as_str()).map(|s| s.to_string());
+                        message_id = messages
+                            .get("id")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string());
                     }
                 }
             }
@@ -752,7 +791,8 @@ pub async fn whatsapp_webhook(
 }
 
 pub async fn listar_protocolos_atendimento(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<Vec<AtendimentoProtocolo>>, AppError> {
@@ -776,7 +816,8 @@ pub async fn listar_protocolos_atendimento(
 }
 
 pub async fn responder_protocolo_atendimento(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(protocolo_id): Path<Uuid>,
@@ -822,7 +863,8 @@ pub async fn responder_protocolo_atendimento(
 }
 
 pub async fn salvar_lms_config(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<SaveLmsConfigDto>,
@@ -837,7 +879,9 @@ pub async fn salvar_lms_config(
         ));
     }
 
-    let lti_version = dto.lti_version.unwrap_or_else(|| "1.3 Advantage".to_string());
+    let lti_version = dto
+        .lti_version
+        .unwrap_or_else(|| "1.3 Advantage".to_string());
 
     let config = sqlx::query_as::<_, LmsConfig>(
         r#"
@@ -877,7 +921,8 @@ pub async fn salvar_lms_config(
 }
 
 pub async fn obter_lms_config(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<Vec<LmsConfig>>, AppError> {
@@ -900,7 +945,8 @@ pub async fn obter_lms_config(
 }
 
 pub async fn lti_launch(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<LtiLaunchResponse>, AppError> {
@@ -964,7 +1010,8 @@ pub fn normalizar_nota_lti(raw: f64) -> f64 {
 }
 
 pub async fn lti_grade_sync(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<LtiGradeSyncDto>,
@@ -1074,7 +1121,8 @@ pub fn validar_status_scorm(status: &str) -> bool {
 }
 
 pub async fn scorm_track(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<ScormTrackDto>,
@@ -1139,12 +1187,16 @@ pub async fn scorm_track(
 }
 
 pub async fn obter_scorm_track(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path((package_id, aluno_id)): Path<(String, Uuid)>,
 ) -> Result<Json<ScormTrackingRecord>, AppError> {
-    check_roles(&auth_user, &["admin", "gestor", "professor", "aluno", "responsavel"])?;
+    check_roles(
+        &auth_user,
+        &["admin", "gestor", "professor", "aluno", "responsavel"],
+    )?;
     let tenant_id = active_tenant.0;
 
     let record = sqlx::query_as::<_, ScormTrackingRecord>(
@@ -1291,7 +1343,10 @@ pub mod tests {
             launch_url,
             "https://moodle.escola.edu.br/auth/lti/launch.php?id=test-client-123&state=lti_state_test"
         );
-        assert_eq!(jwt_target_link, "https://moodle.escola.edu.br/mod/lti/view.php");
+        assert_eq!(
+            jwt_target_link,
+            "https://moodle.escola.edu.br/mod/lti/view.php"
+        );
     }
 
     #[test]

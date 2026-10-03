@@ -44,7 +44,8 @@ fn material_from_key(private_pem: String, key: &Ed25519KeyPair) -> (String, Stri
 
 fn pkcs8_ed25519_private(seed: &[u8; 32]) -> Vec<u8> {
     let mut der = vec![
-        0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20,
+        0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04,
+        0x20,
     ];
     der.extend_from_slice(seed);
     der
@@ -111,7 +112,10 @@ fn base64_decode(input: &str) -> Result<Vec<u8>, String> {
         }
         table
     };
-    let cleaned: String = input.chars().filter(|c| !c.is_whitespace() && *c != '=').collect();
+    let cleaned: String = input
+        .chars()
+        .filter(|c| !c.is_whitespace() && *c != '=')
+        .collect();
     let bytes = cleaned.as_bytes();
     let mut out = Vec::new();
     let mut index = 0;
@@ -125,7 +129,10 @@ fn base64_decode(input: &str) -> Result<Vec<u8>, String> {
         let n = decode_quartet(&[bytes[index], bytes[index + 1], b'A', b'A'], TABLE)?;
         out.push((n >> 16) as u8);
     } else if rest == 3 {
-        let n = decode_quartet(&[bytes[index], bytes[index + 1], bytes[index + 2], b'A'], TABLE)?;
+        let n = decode_quartet(
+            &[bytes[index], bytes[index + 1], bytes[index + 2], b'A'],
+            TABLE,
+        )?;
         out.push((n >> 16) as u8);
         out.push((n >> 8) as u8);
     } else if rest != 0 {
@@ -147,7 +154,8 @@ fn decode_quartet(chars: &[u8], table: &[u8; 256]) -> Result<u32, String> {
 }
 
 fn base64_url(bytes: &[u8]) -> String {
-    const URL_SAFE_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    const URL_SAFE_CHARS: &[u8] =
+        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
     let mut result = String::new();
     for chunk in bytes.chunks(3) {
         let b0 = chunk[0];
@@ -181,7 +189,9 @@ impl Config {
             "postgres://escolar_app:escolar_password@localhost:5432/escolar_db".to_string()
         });
 
-        let (jwt_private_pem, jwt_public_pem, jwt_public_x) = if let Ok(pem) = env::var("JWT_ED25519_PRIVATE_PEM") {
+        let (jwt_private_pem, jwt_public_pem, jwt_public_x) = if let Ok(pem) =
+            env::var("JWT_ED25519_PRIVATE_PEM")
+        {
             if pem.trim().is_empty() {
                 return Err("JWT_ED25519_PRIVATE_PEM está vazio.".to_string());
             }

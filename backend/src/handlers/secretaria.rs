@@ -1,26 +1,28 @@
-use sqlx::Acquire;
 use axum::{
     extract::{Path, Query, State},
     Extension, Json,
 };
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
+use sqlx::Acquire;
 use uuid::Uuid;
 
 use crate::{
-    config::AppState, db::TenantDb,
+    config::AppState,
+    db::TenantDb,
     error::AppError,
     middleware::{
         auth::AuthUser,
-        rbac::{check_roles, log_audit, check_aluno_ownership},
+        rbac::{check_aluno_ownership, check_roles, log_audit},
         tenant::ActiveTenant,
     },
     models::secretaria::{
-        Aluno, AlunoListItem, AlunoStatusContagem, AlunoTurmaDetalhado, AlunosPage, AssinarContratoDto,
-        Contrato, ContratoDetalhado, ContratoListItem, CreateAlunoDto, CreateContratoDto, CreateSalaDto, CreateTurmaDto, ListAlunosQuery,
-        ListContratosQuery, ListTurmasQuery, MatricularTurmaDto, Prontuario, Sala, SalvarProntuarioDto, STATUS_ALUNO_VALIDOS,
+        Aluno, AlunoListItem, AlunoStatusContagem, AlunoTurmaDetalhado, AlunosPage,
+        AssinarContratoDto, Contrato, ContratoDetalhado, ContratoListItem, CreateAlunoDto,
+        CreateContratoDto, CreateSalaDto, CreateTurmaDto, ListAlunosQuery, ListContratosQuery,
+        ListTurmasQuery, MatricularTurmaDto, Prontuario, Sala, SalvarProntuarioDto,
         TransferirAlunoTurmaDto, Turma, TurmaAluno, TurmaDetalhada, UpdateAlunoDto, UpdateTurmaDto,
-        VincularResponsavelDto,
+        VincularResponsavelDto, STATUS_ALUNO_VALIDOS,
     },
 };
 
@@ -52,7 +54,12 @@ pub fn validar_cpf_brasileiro(cpf: &str) -> bool {
     }
 
     // Primeiro dígito verificador (Módulo 11 Receita Federal)
-    let soma1: u32 = digits.iter().take(9).enumerate().map(|(i, &d)| d * (10 - i as u32)).sum();
+    let soma1: u32 = digits
+        .iter()
+        .take(9)
+        .enumerate()
+        .map(|(i, &d)| d * (10 - i as u32))
+        .sum();
     let resto1 = soma1 % 11;
     let d1 = if resto1 < 2 { 0 } else { 11 - resto1 };
     if digits[9] != d1 {
@@ -60,7 +67,12 @@ pub fn validar_cpf_brasileiro(cpf: &str) -> bool {
     }
 
     // Segundo dígito verificador (Módulo 11 Receita Federal)
-    let soma2: u32 = digits.iter().take(10).enumerate().map(|(i, &d)| d * (11 - i as u32)).sum();
+    let soma2: u32 = digits
+        .iter()
+        .take(10)
+        .enumerate()
+        .map(|(i, &d)| d * (11 - i as u32))
+        .sum();
     let resto2 = soma2 % 11;
     let d2 = if resto2 < 2 { 0 } else { 11 - resto2 };
     digits[10] == d2
@@ -71,31 +83,66 @@ pub fn validar_telefone_brasileiro(tel: &str) -> bool {
     digits.len() >= 10 && digits.len() <= 11
 }
 
-pub fn espelhar_responsavel_financeiro(dto: &CreateAlunoDto) -> (String, Option<String>, String, String, String) {
+pub fn espelhar_responsavel_financeiro(
+    dto: &CreateAlunoDto,
+) -> (String, Option<String>, String, String, String) {
     if dto.responsavel_financeiro_igual_legal {
         (
             dto.nome_responsavel.clone(),
             dto.cpf_responsavel_legal.clone(),
             dto.email_responsavel.clone(),
             dto.telefone_responsavel.clone(),
-            dto.parentesco_responsavel_legal.clone().unwrap_or_else(|| "Mãe/Pai/Tutor Legal".to_string()),
+            dto.parentesco_responsavel_legal
+                .clone()
+                .unwrap_or_else(|| "Mãe/Pai/Tutor Legal".to_string()),
         )
     } else {
-        let nome = dto.nome_responsavel_financeiro.clone().unwrap_or_else(|| dto.nome_responsavel.clone());
-        let email = dto.email_responsavel_financeiro.clone().unwrap_or_else(|| dto.email_responsavel.clone());
-        let tel = dto.telefone_responsavel_financeiro.clone().unwrap_or_else(|| dto.telefone_responsavel.clone());
-        let parentesco = dto.parentesco_responsavel_financeiro.clone().unwrap_or_else(|| "Responsável Financeiro".to_string());
-        (nome, dto.cpf_responsavel_financeiro.clone(), email, tel, parentesco)
+        let nome = dto
+            .nome_responsavel_financeiro
+            .clone()
+            .unwrap_or_else(|| dto.nome_responsavel.clone());
+        let email = dto
+            .email_responsavel_financeiro
+            .clone()
+            .unwrap_or_else(|| dto.email_responsavel.clone());
+        let tel = dto
+            .telefone_responsavel_financeiro
+            .clone()
+            .unwrap_or_else(|| dto.telefone_responsavel.clone());
+        let parentesco = dto
+            .parentesco_responsavel_financeiro
+            .clone()
+            .unwrap_or_else(|| "Responsável Financeiro".to_string());
+        (
+            nome,
+            dto.cpf_responsavel_financeiro.clone(),
+            email,
+            tel,
+            parentesco,
+        )
     }
 }
 
 pub fn validar_tipo_sanguineo(tipo: &str) -> bool {
     let t = tipo.trim().to_uppercase();
-    matches!(t.as_str(), "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-" | "NÃO INFORMADO" | "NAO INFORMADO" | "")
+    matches!(
+        t.as_str(),
+        "A+" | "A-"
+            | "B+"
+            | "B-"
+            | "AB+"
+            | "AB-"
+            | "O+"
+            | "O-"
+            | "NÃO INFORMADO"
+            | "NAO INFORMADO"
+            | ""
+    )
 }
 
 pub async fn criar_matricula(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<CreateAlunoDto>,
@@ -106,7 +153,8 @@ pub async fn criar_matricula(
     let cpf_limpo = limpar_cpf(&dto.cpf);
     if !validar_cpf_brasileiro(&cpf_limpo) {
         return Err(AppError::BadRequest(
-            "CPF informado é inválido segundo as regras de validação da Receita Federal.".to_string(),
+            "CPF informado é inválido segundo as regras de validação da Receita Federal."
+                .to_string(),
         ));
     }
 
@@ -125,7 +173,8 @@ pub async fn criar_matricula(
     }
 
     // Regra de Duplo Responsável: Se a flag for true (único pai/mesmo responsável), espelha os dados
-    let (nome_fin, cpf_fin, email_fin, tel_fin, parentesco_fin) = espelhar_responsavel_financeiro(&dto);
+    let (nome_fin, cpf_fin, email_fin, tel_fin, parentesco_fin) =
+        espelhar_responsavel_financeiro(&dto);
 
     // Checar duplicidade de CPF no mesmo tenant para retornar HTTP 409 Conflict
     let cpf_duplicado = sqlx::query_scalar::<_, bool>(
@@ -252,7 +301,10 @@ pub async fn criar_matricula(
         .bind(tenant_id)
         .bind(resp_id)
         .bind(aluno.id)
-        .bind(dto.parentesco_responsavel_legal.unwrap_or_else(|| "Pai/Mãe/Responsável Legal".to_string()))
+        .bind(
+            dto.parentesco_responsavel_legal
+                .unwrap_or_else(|| "Pai/Mãe/Responsável Legal".to_string()),
+        )
         .execute(&mut *tx)
         .await?;
     }
@@ -266,8 +318,8 @@ pub async fn criar_matricula(
         "CRIAR_MATRICULA",
         "aluno",
         Some(aluno.id.to_string()),
-        Some(json!({ 
-            "nome": aluno.nome, 
+        Some(json!({
+            "nome": aluno.nome,
             "cpf": aluno.cpf,
             "responsavel_financeiro_igual_legal": aluno.responsavel_financeiro_igual_legal,
             "cidade": aluno.cidade
@@ -518,24 +570,33 @@ pub async fn listar_alunos(
 }
 
 pub async fn obter_prontuario(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(aluno_id): Path<Uuid>,
 ) -> Result<Json<Value>, AppError> {
-    check_roles(&auth_user, &["admin", "gestor", "secretaria", "professor", "nutricionista", "responsavel"])?;
+    check_roles(
+        &auth_user,
+        &[
+            "admin",
+            "gestor",
+            "secretaria",
+            "professor",
+            "nutricionista",
+            "responsavel",
+        ],
+    )?;
     let tenant_id = active_tenant.0;
 
     check_aluno_ownership(&mut *db, &auth_user, aluno_id).await?;
 
-    let aluno = sqlx::query_as::<_, Aluno>(
-        "SELECT * FROM alunos WHERE id = $1 AND tenant_id = $2",
-    )
-    .bind(aluno_id)
-    .bind(tenant_id)
-    .fetch_optional(&mut *db)
-    .await?
-    .ok_or(AppError::NotFound)?;
+    let aluno = sqlx::query_as::<_, Aluno>("SELECT * FROM alunos WHERE id = $1 AND tenant_id = $2")
+        .bind(aluno_id)
+        .bind(tenant_id)
+        .fetch_optional(&mut *db)
+        .await?
+        .ok_or(AppError::NotFound)?;
 
     let prontuario = sqlx::query_as::<_, Prontuario>(
         "SELECT * FROM prontuarios WHERE aluno_id = $1 AND tenant_id = $2",
@@ -582,13 +643,23 @@ pub async fn obter_prontuario(
 }
 
 pub async fn salvar_prontuario(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(aluno_id): Path<Uuid>,
     Json(dto): Json<SalvarProntuarioDto>,
 ) -> Result<Json<Prontuario>, AppError> {
-    check_roles(&auth_user, &["admin", "gestor", "secretaria", "professor", "nutricionista"])?;
+    check_roles(
+        &auth_user,
+        &[
+            "admin",
+            "gestor",
+            "secretaria",
+            "professor",
+            "nutricionista",
+        ],
+    )?;
     let tenant_id = active_tenant.0;
 
     // Verificar se aluno pertence ao tenant
@@ -660,7 +731,8 @@ pub async fn salvar_prontuario(
 }
 
 pub async fn atualizar_aluno(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(aluno_id): Path<Uuid>,
@@ -777,7 +849,8 @@ pub async fn atualizar_aluno(
 }
 
 pub async fn deletar_aluno(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(aluno_id): Path<Uuid>,
@@ -786,7 +859,7 @@ pub async fn deletar_aluno(
     let tenant_id = active_tenant.0;
 
     let result = sqlx::query(
-        "UPDATE alunos SET status = 'inativo', updated_at = NOW() WHERE id = $1 AND tenant_id = $2"
+        "UPDATE alunos SET status = 'inativo', updated_at = NOW() WHERE id = $1 AND tenant_id = $2",
     )
     .bind(aluno_id)
     .bind(tenant_id)
@@ -808,11 +881,14 @@ pub async fn deletar_aluno(
     )
     .await;
 
-    Ok(Json(json!({ "status": "sucesso", "mensagem": "Aluno inativado com sucesso mantendo integridade histórica." })))
+    Ok(Json(
+        json!({ "status": "sucesso", "mensagem": "Aluno inativado com sucesso mantendo integridade histórica." }),
+    ))
 }
 
 pub async fn listar_meus_alunos(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<Vec<Aluno>>, AppError> {
@@ -835,7 +911,8 @@ pub async fn listar_meus_alunos(
 }
 
 pub async fn vincular_responsavel_aluno(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<VincularResponsavelDto>,
@@ -853,7 +930,10 @@ pub async fn vincular_responsavel_aluno(
     .bind(tenant_id)
     .bind(dto.responsavel_user_id)
     .bind(dto.aluno_id)
-    .bind(dto.parentesco.unwrap_or_else(|| "Pai/Mãe/Responsável Legal".to_string()))
+    .bind(
+        dto.parentesco
+            .unwrap_or_else(|| "Pai/Mãe/Responsável Legal".to_string()),
+    )
     .execute(&mut *db)
     .await?;
 
@@ -877,7 +957,9 @@ pub async fn vincular_responsavel_aluno(
     )
     .await;
 
-    Ok(Json(json!({ "status": "sucesso", "mensagem": "Vínculo responsável-aluno realizado com sucesso." })))
+    Ok(Json(
+        json!({ "status": "sucesso", "mensagem": "Vínculo responsável-aluno realizado com sucesso." }),
+    ))
 }
 
 // --- GESTÃO DE TURMAS & SERIAÇÃO ---
@@ -885,7 +967,8 @@ pub async fn vincular_responsavel_aluno(
 // --- GESTÃO DE TURMAS, SALAS & ENSALAMENTO ---
 
 pub async fn criar_turma(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<CreateTurmaDto>,
@@ -893,7 +976,9 @@ pub async fn criar_turma(
     check_roles(&auth_user, &["admin", "gestor", "secretaria"])?;
     let tenant_id = active_tenant.0;
     let cap = dto.capacidade_maxima.unwrap_or(35);
-    let etapa = dto.etapa_ensino.unwrap_or_else(|| "fundamental_1".to_string());
+    let etapa = dto
+        .etapa_ensino
+        .unwrap_or_else(|| "fundamental_1".to_string());
     let turno = dto.turno.unwrap_or_else(|| "matutino".to_string());
     let status = dto.status.unwrap_or_else(|| "ativo".to_string());
 
@@ -969,12 +1054,16 @@ pub async fn criar_turma(
 }
 
 pub async fn listar_turmas(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Query(query): Query<ListTurmasQuery>,
 ) -> Result<Json<Vec<TurmaDetalhada>>, AppError> {
-    check_roles(&auth_user, &["admin", "gestor", "secretaria", "professor", "responsavel"])?;
+    check_roles(
+        &auth_user,
+        &["admin", "gestor", "secretaria", "professor", "responsavel"],
+    )?;
     let tenant_id = active_tenant.0;
 
     let busca = query
@@ -1076,12 +1165,16 @@ pub async fn listar_turmas(
 }
 
 pub async fn obter_turma(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(turma_id): Path<Uuid>,
 ) -> Result<Json<TurmaDetalhada>, AppError> {
-    check_roles(&auth_user, &["admin", "gestor", "secretaria", "professor", "responsavel"])?;
+    check_roles(
+        &auth_user,
+        &["admin", "gestor", "secretaria", "professor", "responsavel"],
+    )?;
     let tenant_id = active_tenant.0;
 
     let row = sqlx::query(
@@ -1144,7 +1237,8 @@ pub async fn obter_turma(
 }
 
 pub async fn atualizar_turma(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(turma_id): Path<Uuid>,
@@ -1202,7 +1296,8 @@ pub async fn atualizar_turma(
 }
 
 pub async fn deletar_turma(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(turma_id): Path<Uuid>,
@@ -1231,10 +1326,15 @@ pub async fn deletar_turma(
     )
     .await;
 
-    Ok(Json(json!({ "status": "sucesso", "mensagem": "Turma removida com sucesso." })))
+    Ok(Json(
+        json!({ "status": "sucesso", "mensagem": "Turma removida com sucesso." }),
+    ))
 }
 
-pub fn validar_capacidade_turma(alunos_ativos: i64, capacidade_maxima: i32) -> Result<(), &'static str> {
+pub fn validar_capacidade_turma(
+    alunos_ativos: i64,
+    capacidade_maxima: i32,
+) -> Result<(), &'static str> {
     if alunos_ativos >= capacidade_maxima as i64 {
         Err("Capacidade máxima da turma atingida. Ensalamento bloqueado para evitar sobrelotação.")
     } else {
@@ -1262,7 +1362,8 @@ pub fn validar_choque_horario(
 // --- VÍNCULOS ALUNO-TURMA (ENSALAMENTO & CHAMADA) ---
 
 pub async fn listar_alunos_turma(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(turma_id): Path<Uuid>,
@@ -1342,7 +1443,8 @@ pub async fn listar_alunos_turma(
 }
 
 pub async fn matricular_aluno_turma(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<MatricularTurmaDto>,
@@ -1351,14 +1453,12 @@ pub async fn matricular_aluno_turma(
     let tenant_id = active_tenant.0;
 
     // 1. Validar existência da turma no tenant
-    let turma = sqlx::query_as::<_, Turma>(
-        "SELECT * FROM turmas WHERE id = $1 AND tenant_id = $2",
-    )
-    .bind(dto.turma_id)
-    .bind(tenant_id)
-    .fetch_optional(&mut *db)
-    .await?
-    .ok_or(AppError::NotFound)?;
+    let turma = sqlx::query_as::<_, Turma>("SELECT * FROM turmas WHERE id = $1 AND tenant_id = $2")
+        .bind(dto.turma_id)
+        .bind(tenant_id)
+        .fetch_optional(&mut *db)
+        .await?
+        .ok_or(AppError::NotFound)?;
 
     // 2. Checar se o aluno já está matriculado e ativo para evitar falso bloqueio por capacidade
     let aluno_ja_matriculado = sqlx::query_scalar::<_, bool>(
@@ -1444,7 +1544,8 @@ pub async fn matricular_aluno_turma(
 }
 
 pub async fn desenturmar_aluno_turma(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path((turma_id, aluno_id)): Path<(Uuid, Uuid)>,
@@ -1476,11 +1577,14 @@ pub async fn desenturmar_aluno_turma(
     )
     .await;
 
-    Ok(Json(json!({ "status": "sucesso", "mensagem": "Aluno removido da turma com sucesso." })))
+    Ok(Json(
+        json!({ "status": "sucesso", "mensagem": "Aluno removido da turma com sucesso." }),
+    ))
 }
 
 pub async fn transferir_aluno_turma(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<TransferirAlunoTurmaDto>,
@@ -1490,14 +1594,13 @@ pub async fn transferir_aluno_turma(
 
     let mut tx = (&mut *db).begin().await?;
 
-    let turma_dest = sqlx::query_as::<_, Turma>(
-        "SELECT * FROM turmas WHERE id = $1 AND tenant_id = $2",
-    )
-    .bind(dto.turma_destino_id)
-    .bind(tenant_id)
-    .fetch_optional(&mut *tx)
-    .await?
-    .ok_or(AppError::NotFound)?;
+    let turma_dest =
+        sqlx::query_as::<_, Turma>("SELECT * FROM turmas WHERE id = $1 AND tenant_id = $2")
+            .bind(dto.turma_destino_id)
+            .bind(tenant_id)
+            .fetch_optional(&mut *tx)
+            .await?
+            .ok_or(AppError::NotFound)?;
 
     let count_alunos_dest = sqlx::query_scalar::<_, i64>(
         "SELECT COUNT(*) FROM turma_alunos WHERE turma_id = $1 AND tenant_id = $2 AND status = 'ativo'",
@@ -1581,7 +1684,8 @@ pub async fn transferir_aluno_turma(
 }
 
 pub async fn renumerar_chamada_turma(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(turma_id): Path<Uuid>,
@@ -1640,25 +1744,26 @@ pub async fn renumerar_chamada_turma(
 // --- GESTÃO DE SALAS FÍSICAS ---
 
 pub async fn listar_salas(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<Vec<Sala>>, AppError> {
     check_roles(&auth_user, &["admin", "gestor", "secretaria", "professor"])?;
     let tenant_id = active_tenant.0;
 
-    let salas = sqlx::query_as::<_, Sala>(
-        "SELECT * FROM salas WHERE tenant_id = $1 ORDER BY nome ASC",
-    )
-    .bind(tenant_id)
-    .fetch_all(&mut *db)
-    .await?;
+    let salas =
+        sqlx::query_as::<_, Sala>("SELECT * FROM salas WHERE tenant_id = $1 ORDER BY nome ASC")
+            .bind(tenant_id)
+            .fetch_all(&mut *db)
+            .await?;
 
     Ok(Json(salas))
 }
 
 pub async fn criar_sala(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<CreateSalaDto>,
@@ -1695,7 +1800,8 @@ pub async fn criar_sala(
 }
 
 pub async fn deletar_sala(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(sala_id): Path<Uuid>,
@@ -1724,7 +1830,9 @@ pub async fn deletar_sala(
     )
     .await;
 
-    Ok(Json(json!({ "status": "sucesso", "mensagem": "Sala removida com sucesso." })))
+    Ok(Json(
+        json!({ "status": "sucesso", "mensagem": "Sala removida com sucesso." }),
+    ))
 }
 
 // --- CONTRATOS DE MATRÍCULA & ASSINATURA ELETRÔNICA ---
@@ -1740,18 +1848,14 @@ pub fn gerar_hash_contrato(
     let mut hasher = Sha256::new();
     hasher.update(format!(
         "CONTRATO_EDUCACIONAL_MP2200:T:{}:C:{}:A:{}:ANO:{}:VALOR:{:.2}:TS:{}",
-        tenant_id,
-        contrato_id,
-        aluno_id,
-        ano_letivo,
-        valor_total,
-        assinado_em_iso
+        tenant_id, contrato_id, aluno_id, ano_letivo, valor_total, assinado_em_iso
     ));
     format!("{:x}", hasher.finalize())
 }
 
 pub async fn criar_contrato(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<CreateContratoDto>,
@@ -1810,7 +1914,10 @@ pub async fn listar_contratos(
     Extension(auth_user): Extension<AuthUser>,
     Query(query): Query<ListContratosQuery>,
 ) -> Result<Json<Vec<ContratoListItem>>, AppError> {
-    check_roles(&auth_user, &["admin", "gestor", "secretaria", "financeiro", "responsavel"])?;
+    check_roles(
+        &auth_user,
+        &["admin", "gestor", "secretaria", "financeiro", "responsavel"],
+    )?;
     let tenant_id = active_tenant.0;
     let is_responsavel = auth_user.role == "responsavel";
 
@@ -1862,7 +1969,10 @@ pub async fn obter_contrato(
     Extension(auth_user): Extension<AuthUser>,
     Path(contrato_id): Path<Uuid>,
 ) -> Result<Json<ContratoDetalhado>, AppError> {
-    check_roles(&auth_user, &["admin", "gestor", "secretaria", "financeiro", "responsavel"])?;
+    check_roles(
+        &auth_user,
+        &["admin", "gestor", "secretaria", "financeiro", "responsavel"],
+    )?;
     let tenant_id = active_tenant.0;
     let is_responsavel = auth_user.role == "responsavel";
 
@@ -1915,37 +2025,38 @@ pub async fn obter_contrato(
     .fetch_all(&mut *db)
     .await?;
 
-    Ok(Json(ContratoDetalhado {
-        contrato,
-        parcelas,
-    }))
+    Ok(Json(ContratoDetalhado { contrato, parcelas }))
 }
 
 pub async fn assinar_contrato(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     headers: axum::http::HeaderMap,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(contrato_id): Path<Uuid>,
     Json(dto): Json<AssinarContratoDto>,
 ) -> Result<Json<Contrato>, AppError> {
-    check_roles(&auth_user, &["admin", "gestor", "secretaria", "responsavel"])?;
+    check_roles(
+        &auth_user,
+        &["admin", "gestor", "secretaria", "responsavel"],
+    )?;
     let tenant_id = active_tenant.0;
 
     if !dto.aceite_termos {
         return Err(AppError::BadRequest(
-            "O aceite formal dos termos é obrigatório para validação jurídica do contrato.".to_string(),
+            "O aceite formal dos termos é obrigatório para validação jurídica do contrato."
+                .to_string(),
         ));
     }
 
-    let contrato = sqlx::query_as::<_, Contrato>(
-        "SELECT * FROM contratos WHERE id = $1 AND tenant_id = $2",
-    )
-    .bind(contrato_id)
-    .bind(tenant_id)
-    .fetch_optional(&mut *db)
-    .await?
-    .ok_or(AppError::NotFound)?;
+    let contrato =
+        sqlx::query_as::<_, Contrato>("SELECT * FROM contratos WHERE id = $1 AND tenant_id = $2")
+            .bind(contrato_id)
+            .bind(tenant_id)
+            .fetch_optional(&mut *db)
+            .await?
+            .ok_or(AppError::NotFound)?;
 
     if contrato.status == "assinado" {
         return Err(AppError::BadRequest(
@@ -2094,10 +2205,14 @@ mod tests {
     fn test_validar_choque_horario_permite_horarios_disjuntos() {
         // Segunda-feira (1), das 08:00 às 09:40 vs 10:00 às 11:40 -> Sem choque
         let tem_choque = validar_choque_horario(1, "08:00", "09:40", 1, "10:00", "11:40");
-        assert!(!tem_choque, "Horários contíguos/disjuntos não devem acusar choque");
+        assert!(
+            !tem_choque,
+            "Horários contíguos/disjuntos não devem acusar choque"
+        );
 
         // Dias da semana diferentes não geram choque mesmo com mesmo horário
-        let choque_dias_diferentes = validar_choque_horario(1, "08:00", "10:00", 2, "08:00", "10:00");
+        let choque_dias_diferentes =
+            validar_choque_horario(1, "08:00", "10:00", 2, "08:00", "10:00");
         assert!(!choque_dias_diferentes);
     }
 
@@ -2110,11 +2225,22 @@ mod tests {
 
         let hash1 = gerar_hash_contrato(&tenant_id, &contrato_id, &aluno_id, 2026, 18000.0, ts);
         let hash2 = gerar_hash_contrato(&tenant_id, &contrato_id, &aluno_id, 2026, 18000.0, ts);
-        assert_eq!(hash1, hash2, "Hashes de contrato com parâmetros idênticos devem ser estritamente iguais");
-        assert_eq!(hash1.len(), 64, "Hash SHA-256 deve ter 64 caracteres hexadecimais");
+        assert_eq!(
+            hash1, hash2,
+            "Hashes de contrato com parâmetros idênticos devem ser estritamente iguais"
+        );
+        assert_eq!(
+            hash1.len(),
+            64,
+            "Hash SHA-256 deve ter 64 caracteres hexadecimais"
+        );
 
-        let hash_adulterado = gerar_hash_contrato(&tenant_id, &contrato_id, &aluno_id, 2026, 18000.01, ts);
-        assert_ne!(hash1, hash_adulterado, "Qualquer alteração de valor monetário deve alterar o hash");
+        let hash_adulterado =
+            gerar_hash_contrato(&tenant_id, &contrato_id, &aluno_id, 2026, 18000.01, ts);
+        assert_ne!(
+            hash1, hash_adulterado,
+            "Qualquer alteração de valor monetário deve alterar o hash"
+        );
     }
 
     #[test]
@@ -2248,16 +2374,19 @@ mod tests {
     }
 }
 
-
-
 pub async fn criar_autorizado_retirada(
     State(_state): State<AppState>,
     TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
-    axum::extract::Json(dto): axum::extract::Json<crate::models::secretaria::CreateAutorizadoRetiradaDto>,
+    axum::extract::Json(dto): axum::extract::Json<
+        crate::models::secretaria::CreateAutorizadoRetiradaDto,
+    >,
 ) -> Result<axum::Json<crate::models::secretaria::AutorizadoRetirada>, AppError> {
-    crate::middleware::rbac::check_roles(&auth_user, &["admin", "gestor", "secretaria", "responsavel"])?;
+    crate::middleware::rbac::check_roles(
+        &auth_user,
+        &["admin", "gestor", "secretaria", "responsavel"],
+    )?;
     let tenant_id = active_tenant.0;
 
     crate::middleware::rbac::check_aluno_ownership(&mut *db, &auth_user, dto.aluno_id).await?;
@@ -2280,7 +2409,16 @@ pub async fn criar_autorizado_retirada(
     .fetch_one(&mut *db)
     .await?;
 
-    crate::middleware::rbac::log_audit(&mut *db, tenant_id, Some(auth_user.id), "CRIAR_AUTORIZADO_RETIRADA", "autorizados_retirada", Some(autorizado.id.to_string()), Some(serde_json::json!({"aluno_id": dto.aluno_id, "nome": dto.nome}))).await;
+    crate::middleware::rbac::log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "CRIAR_AUTORIZADO_RETIRADA",
+        "autorizados_retirada",
+        Some(autorizado.id.to_string()),
+        Some(serde_json::json!({"aluno_id": dto.aluno_id, "nome": dto.nome})),
+    )
+    .await;
 
     Ok(axum::Json(autorizado))
 }
@@ -2292,7 +2430,10 @@ pub async fn listar_autorizados_retirada(
     Extension(auth_user): Extension<AuthUser>,
     axum::extract::Path(aluno_id): axum::extract::Path<Uuid>,
 ) -> Result<axum::Json<Vec<crate::models::secretaria::AutorizadoRetirada>>, AppError> {
-    crate::middleware::rbac::check_roles(&auth_user, &["admin", "gestor", "secretaria", "professor", "responsavel"])?;
+    crate::middleware::rbac::check_roles(
+        &auth_user,
+        &["admin", "gestor", "secretaria", "professor", "responsavel"],
+    )?;
     let tenant_id = active_tenant.0;
 
     crate::middleware::rbac::check_aluno_ownership(&mut *db, &auth_user, aluno_id).await?;
@@ -2314,9 +2455,14 @@ pub async fn atualizar_autorizado_retirada(
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     axum::extract::Path((aluno_id, autorizado_id)): axum::extract::Path<(Uuid, Uuid)>,
-    axum::extract::Json(dto): axum::extract::Json<crate::models::secretaria::CreateAutorizadoRetiradaDto>,
+    axum::extract::Json(dto): axum::extract::Json<
+        crate::models::secretaria::CreateAutorizadoRetiradaDto,
+    >,
 ) -> Result<axum::Json<crate::models::secretaria::AutorizadoRetirada>, AppError> {
-    crate::middleware::rbac::check_roles(&auth_user, &["admin", "gestor", "secretaria", "responsavel"])?;
+    crate::middleware::rbac::check_roles(
+        &auth_user,
+        &["admin", "gestor", "secretaria", "responsavel"],
+    )?;
     let tenant_id = active_tenant.0;
     crate::middleware::rbac::check_aluno_ownership(&mut *db, &auth_user, aluno_id).await?;
 
@@ -2339,7 +2485,16 @@ pub async fn atualizar_autorizado_retirada(
     .fetch_one(&mut *db)
     .await?;
 
-    crate::middleware::rbac::log_audit(&mut *db, tenant_id, Some(auth_user.id), "ATUALIZAR_AUTORIZADO_RETIRADA", "autorizados_retirada", Some(autorizado.id.to_string()), Some(serde_json::json!({"aluno_id": aluno_id, "nome": dto.nome}))).await;
+    crate::middleware::rbac::log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "ATUALIZAR_AUTORIZADO_RETIRADA",
+        "autorizados_retirada",
+        Some(autorizado.id.to_string()),
+        Some(serde_json::json!({"aluno_id": aluno_id, "nome": dto.nome})),
+    )
+    .await;
 
     Ok(axum::Json(autorizado))
 }
@@ -2351,7 +2506,10 @@ pub async fn deletar_autorizado_retirada(
     Extension(auth_user): Extension<AuthUser>,
     axum::extract::Path((aluno_id, autorizado_id)): axum::extract::Path<(Uuid, Uuid)>,
 ) -> Result<axum::Json<serde_json::Value>, AppError> {
-    crate::middleware::rbac::check_roles(&auth_user, &["admin", "gestor", "secretaria", "responsavel"])?;
+    crate::middleware::rbac::check_roles(
+        &auth_user,
+        &["admin", "gestor", "secretaria", "responsavel"],
+    )?;
     let tenant_id = active_tenant.0;
     crate::middleware::rbac::check_aluno_ownership(&mut *db, &auth_user, aluno_id).await?;
 
@@ -2364,7 +2522,16 @@ pub async fn deletar_autorizado_retirada(
     .execute(&mut *db)
     .await?;
 
-    crate::middleware::rbac::log_audit(&mut *db, tenant_id, Some(auth_user.id), "DELETAR_AUTORIZADO_RETIRADA", "autorizados_retirada", Some(autorizado_id.to_string()), Some(serde_json::json!({"aluno_id": aluno_id}))).await;
+    crate::middleware::rbac::log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "DELETAR_AUTORIZADO_RETIRADA",
+        "autorizados_retirada",
+        Some(autorizado_id.to_string()),
+        Some(serde_json::json!({"aluno_id": aluno_id})),
+    )
+    .await;
 
     Ok(axum::Json(serde_json::json!({"status": "sucesso"})))
 }
@@ -2374,7 +2541,9 @@ pub async fn criar_grupo_familiar(
     TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
-    axum::extract::Json(dto): axum::extract::Json<crate::models::secretaria::CreateGrupoFamiliarDto>,
+    axum::extract::Json(dto): axum::extract::Json<
+        crate::models::secretaria::CreateGrupoFamiliarDto,
+    >,
 ) -> Result<axum::Json<crate::models::secretaria::GrupoFamiliar>, AppError> {
     crate::middleware::rbac::check_roles(&auth_user, &["admin", "gestor", "financeiro"])?;
     let tenant_id = active_tenant.0;
@@ -2393,7 +2562,16 @@ pub async fn criar_grupo_familiar(
     .fetch_one(&mut *db)
     .await?;
 
-    crate::middleware::rbac::log_audit(&mut *db, tenant_id, Some(auth_user.id), "CRIAR_GRUPO_FAMILIAR", "grupos_familiares", Some(grupo.id.to_string()), Some(serde_json::json!({"nome": dto.nome_familia}))).await;
+    crate::middleware::rbac::log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "CRIAR_GRUPO_FAMILIAR",
+        "grupos_familiares",
+        Some(grupo.id.to_string()),
+        Some(serde_json::json!({"nome": dto.nome_familia})),
+    )
+    .await;
 
     Ok(axum::Json(grupo))
 }
@@ -2408,7 +2586,7 @@ pub async fn listar_grupos_familiares(
     let tenant_id = active_tenant.0;
 
     let grupos = sqlx::query_as::<_, crate::models::secretaria::GrupoFamiliar>(
-        "SELECT * FROM grupos_familiares WHERE tenant_id = $1"
+        "SELECT * FROM grupos_familiares WHERE tenant_id = $1",
     )
     .bind(tenant_id)
     .fetch_all(&mut *db)

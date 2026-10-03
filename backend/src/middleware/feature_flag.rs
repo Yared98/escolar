@@ -1,11 +1,11 @@
+use crate::error::AppError;
+use crate::middleware::tenant::ActiveTenant;
+use crate::AppState;
 use axum::{
-    extract::{Request, State, Extension},
+    extract::{Extension, Request, State},
     middleware::Next,
     response::Response,
 };
-use crate::middleware::tenant::ActiveTenant;
-use crate::error::AppError;
-use crate::AppState;
 
 pub async fn check_feature_flag(
     State(state): State<AppState>,
@@ -14,7 +14,7 @@ pub async fn check_feature_flag(
     next: Next,
 ) -> Result<Response, AppError> {
     let path = req.uri().path();
-    
+
     let required_feature = if path.contains("/simulados") || path.contains("/apuracao-gabarito") {
         Some("module_tri")
     } else if path.contains("/crm") {
@@ -28,11 +28,20 @@ pub async fn check_feature_flag(
     if let Some(feature) = required_feature {
         let mut conn = match crate::db::acquire_tenant(&state.pool, active_tenant.0).await {
             Ok(conn) => conn,
-            Err(_) => return Err(AppError::InternalServerError("Falha ao isolar o tenant da funcionalidade.".into())),
+            Err(_) => {
+                return Err(AppError::InternalServerError(
+                    "Falha ao isolar o tenant da funcionalidade.".into(),
+                ))
+            }
         };
-        let is_enabled = crate::utils::is_feature_enabled(&mut *conn, active_tenant.0, feature).await.unwrap_or(false);
+        let is_enabled = crate::utils::is_feature_enabled(&mut *conn, active_tenant.0, feature)
+            .await
+            .unwrap_or(false);
         if !is_enabled {
-            return Err(AppError::BadRequest(format!("O Módulo '{}' está desabilitado para esta escola.", feature)));
+            return Err(AppError::BadRequest(format!(
+                "O Módulo '{}' está desabilitado para esta escola.",
+                feature
+            )));
         }
     }
 

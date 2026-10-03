@@ -13,9 +13,14 @@ use tokio_stream::wrappers::BroadcastStream;
 use uuid::Uuid;
 
 use crate::{
-    config::AppState, db::TenantDb,
+    config::AppState,
+    db::TenantDb,
     error::AppError,
-    middleware::{auth::AuthUser, rbac::{check_roles, log_audit, check_aluno_ownership}, tenant::ActiveTenant},
+    middleware::{
+        auth::AuthUser,
+        rbac::{check_aluno_ownership, check_roles, log_audit},
+        tenant::ActiveTenant,
+    },
     models::agenda_admin::{
         AuditLog, CreateFornecedorDto, CreateFuncionarioDto, CreateMensagemAgendaDto,
         CreateOcorrenciaDto, CreateRotinaDiariaDto, DiarioInfantilQuery, Fornecedor, Funcionario,
@@ -27,7 +32,8 @@ use crate::{
 // --- ADMINISTRATIVO (RH, Fornecedores, Auditoria) ---
 
 pub async fn criar_funcionario(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<CreateFuncionarioDto>,
@@ -52,13 +58,23 @@ pub async fn criar_funcionario(
     .fetch_one(&mut *db)
     .await?;
 
-    log_audit(&mut *db, tenant_id, Some(auth_user.id), "CRIAR_FUNCIONARIO", "funcionarios", Some(funcionario.id.to_string()), Some(json!({"nome": dto.nome, "cargo": dto.cargo}))).await;
+    log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "CRIAR_FUNCIONARIO",
+        "funcionarios",
+        Some(funcionario.id.to_string()),
+        Some(json!({"nome": dto.nome, "cargo": dto.cargo})),
+    )
+    .await;
 
     Ok(Json(funcionario))
 }
 
 pub async fn listar_funcionarios(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<Vec<Funcionario>>, AppError> {
@@ -76,7 +92,8 @@ pub async fn listar_funcionarios(
 }
 
 pub async fn atualizar_funcionario(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(funcionario_id): Path<Uuid>,
@@ -123,13 +140,23 @@ pub async fn atualizar_funcionario(
         .await?;
     }
 
-    log_audit(&mut *db, tenant_id, Some(auth_user.id), "ATUALIZAR_FUNCIONARIO", "funcionarios", Some(funcionario.id.to_string()), Some(json!({"cargo": &funcionario.cargo, "status": &funcionario.status}))).await;
+    log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "ATUALIZAR_FUNCIONARIO",
+        "funcionarios",
+        Some(funcionario.id.to_string()),
+        Some(json!({"cargo": &funcionario.cargo, "status": &funcionario.status})),
+    )
+    .await;
 
     Ok(Json(funcionario))
 }
 
 pub async fn deletar_funcionario(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(funcionario_id): Path<Uuid>,
@@ -162,7 +189,16 @@ pub async fn deletar_funcionario(
             .bind(tenant_id)
             .execute(&mut *db)
             .await?;
-        log_audit(&mut *db, tenant_id, Some(auth_user.id), "INATIVAR_FUNCIONARIO", "funcionarios", Some(funcionario_id.to_string()), None).await;
+        log_audit(
+            &mut *db,
+            tenant_id,
+            Some(auth_user.id),
+            "INATIVAR_FUNCIONARIO",
+            "funcionarios",
+            Some(funcionario_id.to_string()),
+            None,
+        )
+        .await;
         return Ok(Json(json!({
             "status": "inativado",
             "mensagem": "Funcionário inativado porque há cardápios vinculados."
@@ -175,13 +211,25 @@ pub async fn deletar_funcionario(
         .execute(&mut *db)
         .await?;
 
-    log_audit(&mut *db, tenant_id, Some(auth_user.id), "DELETAR_FUNCIONARIO", "funcionarios", Some(funcionario_id.to_string()), None).await;
+    log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "DELETAR_FUNCIONARIO",
+        "funcionarios",
+        Some(funcionario_id.to_string()),
+        None,
+    )
+    .await;
 
-    Ok(Json(json!({ "status": "removido", "mensagem": "Funcionário removido com sucesso." })))
+    Ok(Json(
+        json!({ "status": "removido", "mensagem": "Funcionário removido com sucesso." }),
+    ))
 }
 
 pub async fn criar_fornecedor(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<CreateFornecedorDto>,
@@ -205,13 +253,23 @@ pub async fn criar_fornecedor(
     .fetch_one(&mut *db)
     .await?;
 
-    log_audit(&mut *db, tenant_id, Some(auth_user.id), "CRIAR_FORNECEDOR", "fornecedores", Some(fornecedor.id.to_string()), Some(json!({"razao_social": &fornecedor.razao_social, "cnpj": &fornecedor.cnpj}))).await;
+    log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "CRIAR_FORNECEDOR",
+        "fornecedores",
+        Some(fornecedor.id.to_string()),
+        Some(json!({"razao_social": &fornecedor.razao_social, "cnpj": &fornecedor.cnpj})),
+    )
+    .await;
 
     Ok(Json(fornecedor))
 }
 
 pub async fn listar_fornecedores(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<Vec<Fornecedor>>, AppError> {
@@ -229,7 +287,8 @@ pub async fn listar_fornecedores(
 }
 
 pub async fn atualizar_fornecedor(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(fornecedor_id): Path<Uuid>,
@@ -274,13 +333,23 @@ pub async fn atualizar_fornecedor(
         .await?;
     }
 
-    log_audit(&mut *db, tenant_id, Some(auth_user.id), "ATUALIZAR_FORNECEDOR", "fornecedores", Some(fornecedor.id.to_string()), Some(json!({"razao_social": &fornecedor.razao_social, "cnpj": &fornecedor.cnpj}))).await;
+    log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "ATUALIZAR_FORNECEDOR",
+        "fornecedores",
+        Some(fornecedor.id.to_string()),
+        Some(json!({"razao_social": &fornecedor.razao_social, "cnpj": &fornecedor.cnpj})),
+    )
+    .await;
 
     Ok(Json(fornecedor))
 }
 
 pub async fn deletar_fornecedor(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(fornecedor_id): Path<Uuid>,
@@ -313,7 +382,16 @@ pub async fn deletar_fornecedor(
             .bind(tenant_id)
             .execute(&mut *db)
             .await?;
-        log_audit(&mut *db, tenant_id, Some(auth_user.id), "INATIVAR_FORNECEDOR", "fornecedores", Some(fornecedor_id.to_string()), None).await;
+        log_audit(
+            &mut *db,
+            tenant_id,
+            Some(auth_user.id),
+            "INATIVAR_FORNECEDOR",
+            "fornecedores",
+            Some(fornecedor_id.to_string()),
+            None,
+        )
+        .await;
         return Ok(Json(json!({
             "status": "inativado",
             "mensagem": "Fornecedor inativado porque há despesas vinculadas."
@@ -326,13 +404,25 @@ pub async fn deletar_fornecedor(
         .execute(&mut *db)
         .await?;
 
-    log_audit(&mut *db, tenant_id, Some(auth_user.id), "DELETAR_FORNECEDOR", "fornecedores", Some(fornecedor_id.to_string()), None).await;
+    log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "DELETAR_FORNECEDOR",
+        "fornecedores",
+        Some(fornecedor_id.to_string()),
+        None,
+    )
+    .await;
 
-    Ok(Json(json!({ "status": "removido", "mensagem": "Fornecedor removido com sucesso." })))
+    Ok(Json(
+        json!({ "status": "removido", "mensagem": "Fornecedor removido com sucesso." }),
+    ))
 }
 
 pub async fn relatorios_operacionais_auditoria(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<Value>, AppError> {
@@ -359,23 +449,35 @@ pub async fn relatorios_operacionais_auditoria(
 // --- AGENDA DIGITAL APP (Comunicação Auditável, Ocorrências & Tracking de Rotina Diária) ---
 
 pub async fn enviar_mensagem_agenda(
-    State(state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<CreateMensagemAgendaDto>,
 ) -> Result<Json<MensagemAgenda>, AppError> {
     check_roles(
         &auth_user,
-        &["admin", "gestor", "secretaria", "professor", "nutricionista", "responsavel"],
+        &[
+            "admin",
+            "gestor",
+            "secretaria",
+            "professor",
+            "nutricionista",
+            "responsavel",
+        ],
     )?;
     let tenant_id = active_tenant.0;
     let is_responsavel = auth_user.role.eq_ignore_ascii_case("responsavel");
 
     if dto.titulo.trim().is_empty() || dto.conteudo.trim().is_empty() {
-        return Err(AppError::BadRequest("Informe título e conteúdo do comunicado.".into()));
+        return Err(AppError::BadRequest(
+            "Informe título e conteúdo do comunicado.".into(),
+        ));
     }
     if dto.canal.trim().is_empty() {
-        return Err(AppError::BadRequest("Informe o canal do comunicado.".into()));
+        return Err(AppError::BadRequest(
+            "Informe o canal do comunicado.".into(),
+        ));
     }
     if is_responsavel && dto.canal.trim() == "mural_turma" && dto.resposta_a_id.is_none() {
         return Err(AppError::BadRequest(
@@ -399,7 +501,9 @@ pub async fn enviar_mensagem_agenda(
         .await?
         .ok_or(AppError::NotFound)?;
 
-        let original_remetente: Uuid = original.try_get("remetente_id").map_err(|_| AppError::NotFound)?;
+        let original_remetente: Uuid = original
+            .try_get("remetente_id")
+            .map_err(|_| AppError::NotFound)?;
         let original_dest: Option<Uuid> = original.try_get("destinatario_id").unwrap_or(None);
         let original_canal: String = original.try_get("canal").unwrap_or_default();
         let original_turma: Option<Uuid> = original.try_get("turma_id").unwrap_or(None);
@@ -627,29 +731,39 @@ pub async fn enviar_mensagem_agenda(
         }
     }
 
-    state.message_hub.publish(crate::realtime::MensagemRealtimeEvent {
-        tipo: "mensagem_nova".into(),
-        tenant_id,
-        mensagem_id: mensagem.id,
-        thread_id: mensagem.thread_id,
-        remetente_id: auth_user.id,
-        destinatario_id: mensagem.destinatario_id,
-        titulo: mensagem.titulo.clone(),
-        conteudo: mensagem.conteudo.clone(),
-        canal: mensagem.canal.clone(),
-    });
+    state
+        .message_hub
+        .publish(crate::realtime::MensagemRealtimeEvent {
+            tipo: "mensagem_nova".into(),
+            tenant_id,
+            mensagem_id: mensagem.id,
+            thread_id: mensagem.thread_id,
+            remetente_id: auth_user.id,
+            destinatario_id: mensagem.destinatario_id,
+            titulo: mensagem.titulo.clone(),
+            conteudo: mensagem.conteudo.clone(),
+            canal: mensagem.canal.clone(),
+        });
 
     Ok(Json(mensagem))
 }
 
 pub async fn listar_mensagens_agenda(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<Vec<MensagemAgendaView>>, AppError> {
     check_roles(
         &auth_user,
-        &["admin", "gestor", "secretaria", "professor", "nutricionista", "responsavel"],
+        &[
+            "admin",
+            "gestor",
+            "secretaria",
+            "professor",
+            "nutricionista",
+            "responsavel",
+        ],
     )?;
     let tenant_id = active_tenant.0;
     let role = auth_user.role.to_lowercase().replace([' ', '_'], "");
@@ -748,7 +862,14 @@ pub async fn marcar_mensagem_lida(
 ) -> Result<Json<Value>, AppError> {
     check_roles(
         &auth_user,
-        &["admin", "gestor", "secretaria", "professor", "nutricionista", "responsavel"],
+        &[
+            "admin",
+            "gestor",
+            "secretaria",
+            "professor",
+            "nutricionista",
+            "responsavel",
+        ],
     )?;
     let tenant_id = active_tenant.0;
     let atual = sqlx::query(
@@ -761,10 +882,16 @@ pub async fn marcar_mensagem_lida(
     .ok_or(AppError::NotFound)?;
 
     let dest: Option<Uuid> = atual.try_get("destinatario_id").unwrap_or(None);
-    let rem: Uuid = atual.try_get("remetente_id").map_err(|_| AppError::NotFound)?;
+    let rem: Uuid = atual
+        .try_get("remetente_id")
+        .map_err(|_| AppError::NotFound)?;
     let canal: String = atual.try_get("canal").unwrap_or_default();
     let is_staff = matches!(
-        auth_user.role.to_lowercase().replace([' ', '_'], "").as_str(),
+        auth_user
+            .role
+            .to_lowercase()
+            .replace([' ', '_'], "")
+            .as_str(),
         "admin" | "gestor" | "gestorescolar" | "secretaria" | "superadmin"
     );
     if !is_staff && dest != Some(auth_user.id) && rem != auth_user.id && canal != "mural_turma" {
@@ -800,7 +927,15 @@ pub async fn listar_contatos_escola(
 ) -> Result<Json<Vec<ContatoEscolaDto>>, AppError> {
     check_roles(
         &auth_user,
-        &["admin", "gestor", "secretaria", "professor", "nutricionista", "financeiro", "responsavel"],
+        &[
+            "admin",
+            "gestor",
+            "secretaria",
+            "professor",
+            "nutricionista",
+            "financeiro",
+            "responsavel",
+        ],
     )?;
     let tenant_id = active_tenant.0;
     let is_responsavel = auth_user.role.eq_ignore_ascii_case("responsavel");
@@ -970,7 +1105,14 @@ pub async fn stream_mensagens_agenda(
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, AppError> {
     check_roles(
         &auth_user,
-        &["admin", "gestor", "secretaria", "professor", "nutricionista", "responsavel"],
+        &[
+            "admin",
+            "gestor",
+            "secretaria",
+            "professor",
+            "nutricionista",
+            "responsavel",
+        ],
     )?;
     let tenant_id = active_tenant.0;
     let user_id = auth_user.id;
@@ -1024,16 +1166,21 @@ pub async fn stream_mensagens_agenda(
 }
 
 pub async fn registrar_rotina_diaria(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<CreateRotinaDiariaDto>,
 ) -> Result<Json<RotinaDiariaInfantil>, AppError> {
-    check_roles(&auth_user, &["admin", "professor", "nutricionista", "gestor"])?;
+    check_roles(
+        &auth_user,
+        &["admin", "professor", "nutricionista", "gestor"],
+    )?;
     let tenant_id = active_tenant.0;
     let data_rotina = dto.data.unwrap_or_else(|| chrono::Utc::now().date_naive());
 
-    let (status_presenca, _) = presenca_do_dia(&mut *db, tenant_id, dto.aluno_id, data_rotina).await?;
+    let (status_presenca, _) =
+        presenca_do_dia(&mut *db, tenant_id, dto.aluno_id, data_rotina).await?;
     if status_presenca == "falta" || status_presenca == "justificada" {
         return Err(AppError::BadRequest(
             "Aluno ausente nesta data. Corrija a presença antes de registrar a rotina.".to_string(),
@@ -1100,18 +1247,38 @@ pub async fn registrar_rotina_diaria(
         .await?
     };
 
-    log_audit(&mut *db, tenant_id, Some(auth_user.id), "REGISTRAR_ROTINA_DIARIA", "rotina_diaria_infantil", Some(rotina.id.to_string()), Some(json!({"aluno_id": dto.aluno_id, "data": data_rotina}))).await;
+    log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "REGISTRAR_ROTINA_DIARIA",
+        "rotina_diaria_infantil",
+        Some(rotina.id.to_string()),
+        Some(json!({"aluno_id": dto.aluno_id, "data": data_rotina})),
+    )
+    .await;
 
     Ok(Json(rotina))
 }
 
 pub async fn consultar_rotina_aluno(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(aluno_id): Path<Uuid>,
 ) -> Result<Json<Vec<RotinaDiariaInfantil>>, AppError> {
-    check_roles(&auth_user, &["admin", "gestor", "secretaria", "professor", "nutricionista", "responsavel"])?;
+    check_roles(
+        &auth_user,
+        &[
+            "admin",
+            "gestor",
+            "secretaria",
+            "professor",
+            "nutricionista",
+            "responsavel",
+        ],
+    )?;
     let tenant_id = active_tenant.0;
     check_aluno_ownership(&mut *db, &auth_user, aluno_id).await?;
 
@@ -1171,7 +1338,17 @@ pub async fn consultar_diario_infantil(
     Path(aluno_id): Path<Uuid>,
     Query(query): Query<DiarioInfantilQuery>,
 ) -> Result<Json<Value>, AppError> {
-    check_roles(&auth_user, &["admin", "gestor", "secretaria", "professor", "nutricionista", "responsavel"])?;
+    check_roles(
+        &auth_user,
+        &[
+            "admin",
+            "gestor",
+            "secretaria",
+            "professor",
+            "nutricionista",
+            "responsavel",
+        ],
+    )?;
     let tenant_id = active_tenant.0;
     check_aluno_ownership(&mut *db, &auth_user, aluno_id).await?;
 
@@ -1199,7 +1376,8 @@ pub async fn consultar_diario_infantil(
         })
     });
 
-    let (presenca, justificativa) = presenca_do_dia(&mut *db, tenant_id, aluno_id, query.data).await?;
+    let (presenca, justificativa) =
+        presenca_do_dia(&mut *db, tenant_id, aluno_id, query.data).await?;
 
     let rotina = sqlx::query_as::<_, RotinaDiariaInfantil>(
         "SELECT * FROM rotina_diaria_infantil WHERE tenant_id = $1 AND aluno_id = $2 AND data = $3 ORDER BY created_at DESC LIMIT 1",
@@ -1248,7 +1426,8 @@ pub async fn consultar_diario_infantil(
 }
 
 pub async fn registrar_ocorrencia(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<CreateOcorrenciaDto>,
@@ -1273,13 +1452,23 @@ pub async fn registrar_ocorrencia(
     .fetch_one(&mut *db)
     .await?;
 
-    log_audit(&mut *db, tenant_id, Some(auth_user.id), "REGISTRAR_OCORRENCIA", "ocorrencias_aluno", Some(ocorrencia.id.to_string()), Some(json!({"aluno_id": dto.aluno_id, "tipo_ocorrencia": dto.tipo_ocorrencia}))).await;
+    log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "REGISTRAR_OCORRENCIA",
+        "ocorrencias_aluno",
+        Some(ocorrencia.id.to_string()),
+        Some(json!({"aluno_id": dto.aluno_id, "tipo_ocorrencia": dto.tipo_ocorrencia})),
+    )
+    .await;
 
     Ok(Json(ocorrencia))
 }
 
 pub async fn listar_ocorrencias_aluno(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(aluno_id): Path<Uuid>,
@@ -1299,13 +1488,14 @@ pub async fn listar_ocorrencias_aluno(
     Ok(Json(ocorrencias))
 }
 
-
 pub async fn criar_autorizacao_medicamento(
     State(_state): State<AppState>,
     TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
-    axum::extract::Json(dto): axum::extract::Json<crate::models::agenda_admin::CreateAutorizacaoMedicamentoDto>,
+    axum::extract::Json(dto): axum::extract::Json<
+        crate::models::agenda_admin::CreateAutorizacaoMedicamentoDto,
+    >,
 ) -> Result<axum::Json<crate::models::agenda_admin::AutorizacaoMedicamento>, AppError> {
     crate::middleware::rbac::check_roles(&auth_user, &["admin", "responsavel"])?;
     let tenant_id = active_tenant.0;
@@ -1332,7 +1522,16 @@ pub async fn criar_autorizacao_medicamento(
     .fetch_one(&mut *db)
     .await?;
 
-    crate::middleware::rbac::log_audit(&mut *db, tenant_id, Some(auth_user.id), "CRIAR_AUTORIZACAO_MEDICAMENTO", "autorizacoes_medicamento", Some(auth_med.id.to_string()), Some(serde_json::json!({"aluno_id": dto.aluno_id, "medicamento": dto.medicamento}))).await;
+    crate::middleware::rbac::log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "CRIAR_AUTORIZACAO_MEDICAMENTO",
+        "autorizacoes_medicamento",
+        Some(auth_med.id.to_string()),
+        Some(serde_json::json!({"aluno_id": dto.aluno_id, "medicamento": dto.medicamento})),
+    )
+    .await;
 
     Ok(axum::Json(auth_med))
 }
@@ -1369,8 +1568,11 @@ pub async fn atualizar_status_medicamento(
 ) -> Result<axum::Json<serde_json::Value>, AppError> {
     crate::middleware::rbac::check_roles(&auth_user, &["admin", "professor"])?;
     let tenant_id = active_tenant.0;
-    
-    let status = payload.get("status").and_then(|v| v.as_str()).unwrap_or("aplicado");
+
+    let status = payload
+        .get("status")
+        .and_then(|v| v.as_str())
+        .unwrap_or("aplicado");
 
     sqlx::query(
         "UPDATE autorizacoes_medicamento SET status = $1 WHERE id = $2 AND tenant_id = $3 AND aluno_id = $4"
@@ -1382,7 +1584,16 @@ pub async fn atualizar_status_medicamento(
     .execute(&mut *db)
     .await?;
 
-    crate::middleware::rbac::log_audit(&mut *db, tenant_id, Some(auth_user.id), "ATUALIZAR_STATUS_MEDICAMENTO", "autorizacoes_medicamento", Some(auth_id.to_string()), Some(serde_json::json!({"aluno_id": aluno_id, "status": status}))).await;
+    crate::middleware::rbac::log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "ATUALIZAR_STATUS_MEDICAMENTO",
+        "autorizacoes_medicamento",
+        Some(auth_id.to_string()),
+        Some(serde_json::json!({"aluno_id": aluno_id, "status": status})),
+    )
+    .await;
 
     Ok(axum::Json(serde_json::json!({"status": "sucesso"})))
 }
@@ -1392,7 +1603,9 @@ pub async fn criar_evento_calendario(
     TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
-    axum::extract::Json(dto): axum::extract::Json<crate::models::agenda_admin::CreateEventoCalendarioDto>,
+    axum::extract::Json(dto): axum::extract::Json<
+        crate::models::agenda_admin::CreateEventoCalendarioDto,
+    >,
 ) -> Result<axum::Json<crate::models::agenda_admin::EventoCalendario>, AppError> {
     crate::middleware::rbac::check_roles(&auth_user, &["admin", "gestor", "secretaria"])?;
     let tenant_id = active_tenant.0;
@@ -1417,7 +1630,16 @@ pub async fn criar_evento_calendario(
     .fetch_one(&mut *db)
     .await?;
 
-    crate::middleware::rbac::log_audit(&mut *db, tenant_id, Some(auth_user.id), "CRIAR_EVENTO_CALENDARIO", "eventos_calendario", Some(evento.id.to_string()), Some(serde_json::json!({"titulo": dto.titulo}))).await;
+    crate::middleware::rbac::log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "CRIAR_EVENTO_CALENDARIO",
+        "eventos_calendario",
+        Some(evento.id.to_string()),
+        Some(serde_json::json!({"titulo": dto.titulo})),
+    )
+    .await;
 
     Ok(axum::Json(evento))
 }
@@ -1458,7 +1680,9 @@ pub async fn atualizar_evento_calendario(
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     axum::extract::Path(evento_id): axum::extract::Path<Uuid>,
-    axum::extract::Json(dto): axum::extract::Json<crate::models::agenda_admin::UpdateEventoCalendarioDto>,
+    axum::extract::Json(dto): axum::extract::Json<
+        crate::models::agenda_admin::UpdateEventoCalendarioDto,
+    >,
 ) -> Result<axum::Json<crate::models::agenda_admin::EventoCalendario>, AppError> {
     crate::middleware::rbac::check_roles(&auth_user, &["admin", "gestor", "secretaria"])?;
     let tenant_id = active_tenant.0;
@@ -1483,7 +1707,16 @@ pub async fn atualizar_evento_calendario(
     .fetch_one(&mut *db)
     .await?;
 
-    crate::middleware::rbac::log_audit(&mut *db, tenant_id, Some(auth_user.id), "ATUALIZAR_EVENTO_CALENDARIO", "eventos_calendario", Some(evento.id.to_string()), Some(serde_json::json!({"titulo": dto.titulo}))).await;
+    crate::middleware::rbac::log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "ATUALIZAR_EVENTO_CALENDARIO",
+        "eventos_calendario",
+        Some(evento.id.to_string()),
+        Some(serde_json::json!({"titulo": dto.titulo})),
+    )
+    .await;
 
     Ok(axum::Json(evento))
 }
@@ -1504,7 +1737,16 @@ pub async fn deletar_evento_calendario(
         .execute(&mut *db)
         .await?;
 
-    crate::middleware::rbac::log_audit(&mut *db, tenant_id, Some(auth_user.id), "DELETAR_EVENTO_CALENDARIO", "eventos_calendario", Some(evento_id.to_string()), None).await;
+    crate::middleware::rbac::log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "DELETAR_EVENTO_CALENDARIO",
+        "eventos_calendario",
+        Some(evento_id.to_string()),
+        None,
+    )
+    .await;
 
     Ok(axum::Json(serde_json::json!({"status": "sucesso"})))
 }
@@ -1521,7 +1763,7 @@ pub async fn responder_rsvp(
 
     // Check if event requires RSVP
     let evento = sqlx::query_as::<_, crate::models::agenda_admin::EventoCalendario>(
-        "SELECT * FROM eventos_calendario WHERE id = $1 AND tenant_id = $2"
+        "SELECT * FROM eventos_calendario WHERE id = $1 AND tenant_id = $2",
     )
     .bind(evento_id)
     .bind(tenant_id)
@@ -1530,7 +1772,9 @@ pub async fn responder_rsvp(
     .ok_or_else(|| AppError::NotFound)?;
 
     if !evento.exige_confirmacao {
-        return Err(AppError::BadRequest("Este evento não exige confirmação de presença.".to_string()));
+        return Err(AppError::BadRequest(
+            "Este evento não exige confirmação de presença.".to_string(),
+        ));
     }
 
     let rsvp = sqlx::query_as::<_, crate::models::agenda_admin::EventoRsvp>(
@@ -1550,7 +1794,16 @@ pub async fn responder_rsvp(
     .fetch_one(&mut *db)
     .await?;
 
-    crate::middleware::rbac::log_audit(&mut *db, tenant_id, Some(auth_user.id), "RESPONDER_RSVP", "eventos_rsvps", Some(rsvp.id.to_string()), Some(serde_json::json!({"evento_id": evento_id, "status": dto.status}))).await;
+    crate::middleware::rbac::log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "RESPONDER_RSVP",
+        "eventos_rsvps",
+        Some(rsvp.id.to_string()),
+        Some(serde_json::json!({"evento_id": evento_id, "status": dto.status})),
+    )
+    .await;
 
     Ok(axum::Json(rsvp))
 }
@@ -1563,7 +1816,10 @@ pub async fn listar_rsvps_evento(
     axum::extract::Path(evento_id): axum::extract::Path<Uuid>,
 ) -> Result<axum::Json<Vec<crate::models::agenda_admin::EventoRsvp>>, AppError> {
     // Only management can view the RSVPs!
-    crate::middleware::rbac::check_roles(&auth_user, &["admin", "gestor", "secretaria", "professor"])?;
+    crate::middleware::rbac::check_roles(
+        &auth_user,
+        &["admin", "gestor", "secretaria", "professor"],
+    )?;
     let tenant_id = active_tenant.0;
 
     let rsvps = sqlx::query_as::<_, crate::models::agenda_admin::EventoRsvp>(

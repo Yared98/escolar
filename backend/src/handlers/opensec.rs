@@ -1,17 +1,16 @@
-use axum::{
-    extract::State,
-    Extension, Json,
-};
+use axum::{extract::State, Extension, Json};
 
 use crate::{
-    config::AppState, db::TenantDb,
+    config::AppState,
+    db::TenantDb,
     error::AppError,
     middleware::{auth::AuthUser, rbac::check_roles, tenant::ActiveTenant},
     models::opensec::{OpenSecAuditStatusDto, OpenSecRule},
 };
 
 pub async fn obter_status_opensec(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<OpenSecAuditStatusDto>, AppError> {

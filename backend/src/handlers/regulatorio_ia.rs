@@ -8,7 +8,8 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use crate::{
-    config::AppState, db::TenantDb,
+    config::AppState,
+    db::TenantDb,
     error::AppError,
     middleware::{
         auth::AuthUser,
@@ -16,10 +17,10 @@ use crate::{
         tenant::ActiveTenant,
     },
     models::regulatorio_ia::{
-        CadastrarCredencialPerimetralDto, DetalhesEvasao, DiplomaDigital,
-        EducacensoExportResponse, EmitirDiplomaDto, EmitirDiplomaResponse, LgpdTermo,
-        PerimetroCredencial, PredizerEvasaoResponse, RegistrarConsentimentoLgpdDto,
-        ValidarAcessoPerimetralDto, ValidarAcessoPerimetralResponse, ValidarDiplomaResponse,
+        CadastrarCredencialPerimetralDto, DetalhesEvasao, DiplomaDigital, EducacensoExportResponse,
+        EmitirDiplomaDto, EmitirDiplomaResponse, LgpdTermo, PerimetroCredencial,
+        PredizerEvasaoResponse, RegistrarConsentimentoLgpdDto, ValidarAcessoPerimetralDto,
+        ValidarAcessoPerimetralResponse, ValidarDiplomaResponse,
     },
 };
 
@@ -116,29 +117,50 @@ pub fn gerar_arquivo_posicional_educacenso(
     let mut linhas = Vec::new();
 
     // Registro 00: Cabeçalho do arquivo
-    linhas.push(format!("00|2026.1|{}|{}|{}", codigo_inep, escola_nome, timestamp_iso));
+    linhas.push(format!(
+        "00|2026.1|{}|{}|{}",
+        codigo_inep, escola_nome, timestamp_iso
+    ));
 
     // Registro 10: Entidade Escolar
-    linhas.push(format!("10|{}|{}|12.345.678/0001-90|Urbana|Privada", codigo_inep, escola_nome));
+    linhas.push(format!(
+        "10|{}|{}|12.345.678/0001-90|Urbana|Privada",
+        codigo_inep, escola_nome
+    ));
 
     // Registro 20: Gestor Escolar
-    linhas.push(format!("20|{}|{}|Gestor Geral Escolar", gestor_nome, gestor_email));
+    linhas.push(format!(
+        "20|{}|{}|Gestor Geral Escolar",
+        gestor_nome, gestor_email
+    ));
 
     // Registro 30: Turmas
     for turma in turmas {
-        let sala_ref = turma.sala_id.map(|s| s.to_string()).unwrap_or_else(|| "SEM_SALA".to_string());
-        linhas.push(format!("30|{}|{}|{}|{}|Presencial", turma.id, turma.nome, turma.ano_letivo, sala_ref));
+        let sala_ref = turma
+            .sala_id
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "SEM_SALA".to_string());
+        linhas.push(format!(
+            "30|{}|{}|{}|{}|Presencial",
+            turma.id, turma.nome, turma.ano_letivo, sala_ref
+        ));
     }
 
     // Registro 40: Alunos
     for aluno in alunos {
         let turma_ref = aluno.turma_nome.as_deref().unwrap_or("SEM_TURMA");
-        linhas.push(format!("40|{}|{}|{}|{}|{}", aluno.id, aluno.nome, aluno.cpf, aluno.data_nascimento, turma_ref));
+        linhas.push(format!(
+            "40|{}|{}|{}|{}|{}",
+            aluno.id, aluno.nome, aluno.cpf, aluno.data_nascimento, turma_ref
+        ));
     }
 
     // Registro 50: Profissionais Escolares
     for prof in professores {
-        linhas.push(format!("50|{}|{}|{}|{}|Ensino Superior", prof.id, prof.nome, prof.cpf, prof.cargo));
+        linhas.push(format!(
+            "50|{}|{}|{}|{}|Ensino Superior",
+            prof.id, prof.nome, prof.cpf, prof.cargo
+        ));
     }
 
     // Registro 99: Rodapé / Trailer
@@ -155,7 +177,8 @@ pub fn gerar_arquivo_posicional_educacenso(
 }
 
 pub async fn exportar_educacenso(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<EducacensoExportResponse>, AppError> {
@@ -163,13 +186,18 @@ pub async fn exportar_educacenso(
     let tenant_id = active_tenant.0;
 
     let (tenant_nome, codigo_inep) = sqlx::query_as::<_, (String, Option<String>)>(
-        "SELECT name, codigo_inep FROM tenants WHERE id = $1"
+        "SELECT name, codigo_inep FROM tenants WHERE id = $1",
     )
     .bind(tenant_id)
     .fetch_optional(&mut *db)
     .await?
     .map(|(n, inep)| (n, inep.unwrap_or_else(|| "19842".to_string())))
-    .unwrap_or_else(|| ("Escola Modelo de Ensino Básico".to_string(), "19842".to_string()));
+    .unwrap_or_else(|| {
+        (
+            "Escola Modelo de Ensino Básico".to_string(),
+            "19842".to_string(),
+        )
+    });
 
     // 1. Módulo Alunos
     let alunos_raw = sqlx::query_as::<_, (Uuid, String, String, chrono::NaiveDate, Option<String>)>(
@@ -190,13 +218,15 @@ pub async fn exportar_educacenso(
 
     let alunos: Vec<CensoAlunoRow> = alunos_raw
         .into_iter()
-        .map(|(id, nome, cpf, data_nascimento, turma_nome)| CensoAlunoRow {
-            id,
-            nome,
-            cpf,
-            data_nascimento,
-            turma_nome,
-        })
+        .map(
+            |(id, nome, cpf, data_nascimento, turma_nome)| CensoAlunoRow {
+                id,
+                nome,
+                cpf,
+                data_nascimento,
+                turma_nome,
+            },
+        )
         .collect();
 
     // 2. Módulo Turmas
@@ -257,7 +287,12 @@ pub async fn exportar_educacenso(
     .bind(tenant_id)
     .fetch_optional(&mut *db)
     .await?
-    .unwrap_or_else(|| ("Gestor Geral".to_string(), "gestor@escola.gov.br".to_string()));
+    .unwrap_or_else(|| {
+        (
+            "Gestor Geral".to_string(),
+            "gestor@escola.gov.br".to_string(),
+        )
+    });
 
     let agora_iso = chrono::Utc::now().to_rfc3339();
     let conteudo_arquivo = gerar_arquivo_posicional_educacenso(
@@ -273,7 +308,12 @@ pub async fn exportar_educacenso(
 
     // Salvar arquivo localmente para download real com custo R$ 0,00
     tokio::fs::create_dir_all("public/downloads").await.ok();
-    tokio::fs::write("public/downloads/censo_escolar_2026_inep.txt", &conteudo_arquivo).await.ok();
+    tokio::fs::write(
+        "public/downloads/censo_escolar_2026_inep.txt",
+        &conteudo_arquivo,
+    )
+    .await
+    .ok();
 
     // 5. Trilha de Auditoria Indelével
     log_audit(
@@ -310,17 +350,32 @@ pub async fn exportar_educacenso(
         total_professores_validados: professores.len(),
         erros_validacao,
         arquivo_exportado_url: "/downloads/censo_escolar_2026_inep.txt".to_string(),
-        conteudo_arquivo_amostra: Some(conteudo_arquivo.lines().take(15).collect::<Vec<_>>().join("\n")),
+        conteudo_arquivo_amostra: Some(
+            conteudo_arquivo
+                .lines()
+                .take(15)
+                .collect::<Vec<_>>()
+                .join("\n"),
+        ),
     }))
 }
 
-pub async fn baixar_educacenso() -> Result<([(axum::http::header::HeaderName, &'static str); 2], Vec<u8>), AppError> {
+pub async fn baixar_educacenso(
+) -> Result<([(axum::http::header::HeaderName, &'static str); 2], Vec<u8>), AppError> {
     let path = "public/downloads/censo_escolar_2026_inep.txt";
-    let bytes = tokio::fs::read(path).await.map_err(|_| AppError::NotFound)?;
+    let bytes = tokio::fs::read(path)
+        .await
+        .map_err(|_| AppError::NotFound)?;
     Ok((
         [
-            (axum::http::header::CONTENT_TYPE, "text/plain; charset=utf-8"),
-            (axum::http::header::CONTENT_DISPOSITION, "attachment; filename=\"censo_escolar_2026_inep.txt\""),
+            (
+                axum::http::header::CONTENT_TYPE,
+                "text/plain; charset=utf-8",
+            ),
+            (
+                axum::http::header::CONTENT_DISPOSITION,
+                "attachment; filename=\"censo_escolar_2026_inep.txt\"",
+            ),
         ],
         bytes,
     ))
@@ -338,7 +393,12 @@ pub fn calcular_digest_historico(notas: &[(String, String, f64)]) -> String {
         hasher.update("HISTORICO_PADRAO_CURRICULO_COMPLETO;");
     } else {
         for (disciplina, periodo, nota) in sorted_notas {
-            hasher.update(format!("{}:{}:{:.2};", disciplina.trim(), periodo.trim(), nota));
+            hasher.update(format!(
+                "{}:{}:{:.2};",
+                disciplina.trim(),
+                periodo.trim(),
+                nota
+            ));
         }
     }
     format!("{:x}", hasher.finalize())
@@ -403,7 +463,7 @@ pub fn gerar_xml_diplomado(
     hash_digest: &str,
 ) -> String {
     format!(
-r##"<?xml version="1.0" encoding="UTF-8"?>
+        r##"<?xml version="1.0" encoding="UTF-8"?>
 <Diploma xmlns="http://portal.mec.gov.br/diplomadigital/arquivos-em-xsd" versao="1.05">
   <infDiploma Id="DIP_{aluno_id}">
     <DadosEmissora>
@@ -475,7 +535,8 @@ r##"<?xml version="1.0" encoding="UTF-8"?>
       </QualifyingProperties>
     </Object>
   </Signature>
-</Diploma>"##)
+</Diploma>"##
+    )
 }
 
 pub fn gerar_xml_historico(
@@ -495,7 +556,11 @@ pub fn gerar_xml_historico(
 
     for (disciplina, periodo, nota) in notas {
         soma_notas += *nota;
-        let situacao = if *nota >= 6.0 { "Aprovado" } else { "Em Recuperacao" };
+        let situacao = if *nota >= 6.0 {
+            "Aprovado"
+        } else {
+            "Em Recuperacao"
+        };
         disciplinas_xml.push_str(&format!(
             "      <Disciplina>\n        <Nome>{}</Nome>\n        <Periodo>{}</Periodo>\n        <Nota>{:.2}</Nota>\n        <CargaHoraria>80h</CargaHoraria>\n        <Situacao>{}</Situacao>\n      </Disciplina>\n",
             disciplina, periodo, nota, situacao
@@ -510,7 +575,7 @@ pub fn gerar_xml_historico(
     let carga_total = total_disciplinas * 80;
 
     format!(
-r##"<?xml version="1.0" encoding="UTF-8"?>
+        r##"<?xml version="1.0" encoding="UTF-8"?>
 <HistoricoEscolar xmlns="http://portal.mec.gov.br/diplomadigital/arquivos-em-xsd" versao="1.05">
   <infHistorico Id="HIST_{aluno_id}">
     <DadosInstituicao>
@@ -570,11 +635,13 @@ r##"<?xml version="1.0" encoding="UTF-8"?>
       </QualifyingProperties>
     </Object>
   </Signature>
-</HistoricoEscolar>"##)
+</HistoricoEscolar>"##
+    )
 }
 
 pub async fn emitir_diploma_digital(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(aluno_id): Path<Uuid>,
@@ -612,15 +679,19 @@ pub async fn emitir_diploma_digital(
     .bind(tenant_id)
     .fetch_optional(&mut *db)
     .await?
-    .unwrap_or_else(|| (
-        "Escola Modelo de Ensino".to_string(),
-        Some("19842".to_string()),
-        Some("12.345.678/0001-90".to_string()),
-    ));
+    .unwrap_or_else(|| {
+        (
+            "Escola Modelo de Ensino".to_string(),
+            Some("19842".to_string()),
+            Some("12.345.678/0001-90".to_string()),
+        )
+    });
 
     let tenant_nome = tenant_info.0;
     let codigo_mec = tenant_info.1.unwrap_or_else(|| "19842".to_string());
-    let escola_cnpj = tenant_info.2.unwrap_or_else(|| "12.345.678/0001-90".to_string());
+    let escola_cnpj = tenant_info
+        .2
+        .unwrap_or_else(|| "12.345.678/0001-90".to_string());
 
     let curso_nome = dto
         .curso_nome
@@ -660,8 +731,12 @@ pub async fn emitir_diploma_digital(
         &carimbo_tempo_iso,
     );
 
-    let codigo_validacao = format!("MEC-{}-{}", &aluno_id.to_string()[..8], &hash_xades[..8]).to_uppercase();
-    let qr_code_validacao_url = format!("https://validadiploma.mec.gov.br/?codigo={}", codigo_validacao);
+    let codigo_validacao =
+        format!("MEC-{}-{}", &aluno_id.to_string()[..8], &hash_xades[..8]).to_uppercase();
+    let qr_code_validacao_url = format!(
+        "https://validadiploma.mec.gov.br/?codigo={}",
+        codigo_validacao
+    );
 
     // 5. Geração de XMLs canônicos (MEC Portaria 70/2025 + XAdES / ICP-Brasil A3)
     let xml_diplomado = gerar_xml_diplomado(
@@ -694,7 +769,10 @@ pub async fn emitir_diploma_digital(
     );
 
     let diploma_id = Uuid::new_v4();
-    let rvdd_pdf_url = format!("https://portal.escolar.gov.br/diplomas/rvdd/{}.pdf", diploma_id);
+    let rvdd_pdf_url = format!(
+        "https://portal.escolar.gov.br/diplomas/rvdd/{}.pdf",
+        diploma_id
+    );
 
     // 6. Gravação na tabela diplomas_digitais
     sqlx::query(
@@ -747,12 +825,16 @@ pub async fn emitir_diploma_digital(
 }
 
 pub async fn consultar_diploma_digital(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(aluno_id): Path<Uuid>,
 ) -> Result<Json<DiplomaDigital>, AppError> {
-    check_roles(&auth_user, &["admin", "gestor", "secretaria", "responsavel"])?;
+    check_roles(
+        &auth_user,
+        &["admin", "gestor", "secretaria", "responsavel"],
+    )?;
     let tenant_id = active_tenant.0;
 
     let diploma = sqlx::query_as::<_, DiplomaDigital>(
@@ -793,12 +875,11 @@ pub async fn validar_diploma_digital_publico(
     Path(codigo): Path<String>,
 ) -> Result<Json<ValidarDiplomaResponse>, AppError> {
     let clean_code = codigo.trim();
-    let diploma = sqlx::query_as::<_, DiplomaPublicoRow>(
-        "SELECT * FROM validar_diploma_publico($1)",
-    )
-    .bind(clean_code)
-    .fetch_optional(&state.pool)
-    .await?;
+    let diploma =
+        sqlx::query_as::<_, DiplomaPublicoRow>("SELECT * FROM validar_diploma_publico($1)")
+            .bind(clean_code)
+            .fetch_optional(&state.pool)
+            .await?;
 
     let diploma = match diploma {
         Some(d) => d,
@@ -814,7 +895,8 @@ pub async fn validar_diploma_digital_publico(
                 carimbo_tempo: None,
                 data_emissao: None,
                 integridade_verificada: false,
-                mensagem: "Diploma digital não localizado no registro nacional/institucional.".to_string(),
+                mensagem: "Diploma digital não localizado no registro nacional/institucional."
+                    .to_string(),
             }));
         }
     };
@@ -860,7 +942,8 @@ pub async fn validar_diploma_digital_publico(
             carimbo_tempo: Some(diploma.carimbo_tempo),
             data_emissao: Some(diploma.data_emissao),
             integridade_verificada: true,
-            mensagem: "Diploma Digital Autêntico e Íntegro (Portaria MEC 70/2025 / ICP-Brasil A3)".to_string(),
+            mensagem: "Diploma Digital Autêntico e Íntegro (Portaria MEC 70/2025 / ICP-Brasil A3)"
+                .to_string(),
         }))
     } else {
         Ok(Json(ValidarDiplomaResponse {
@@ -899,13 +982,17 @@ pub fn gerar_hash_consentimento_lgpd(
 }
 
 pub async fn registrar_consentimento_lgpd(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     headers: HeaderMap,
     Json(dto): Json<RegistrarConsentimentoLgpdDto>,
 ) -> Result<Json<LgpdTermo>, AppError> {
-    check_roles(&auth_user, &["responsavel", "admin", "gestor", "secretaria"])?;
+    check_roles(
+        &auth_user,
+        &["responsavel", "admin", "gestor", "secretaria"],
+    )?;
     let tenant_id = active_tenant.0;
 
     // Se a requisição for feita pelo perfil responsável, valida guarda do dependente
@@ -989,7 +1076,8 @@ pub async fn registrar_consentimento_lgpd(
 // ==========================================
 
 pub async fn validar_acesso_perimetral(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<ValidarAcessoPerimetralDto>,
@@ -998,7 +1086,9 @@ pub async fn validar_acesso_perimetral(
     let tenant_id = active_tenant.0;
 
     let direcao = dto.direcao.unwrap_or_else(|| "entrada".to_string());
-    let ponto_acesso = dto.ponto_acesso.unwrap_or_else(|| "Portaria Principal".to_string());
+    let ponto_acesso = dto
+        .ponto_acesso
+        .unwrap_or_else(|| "Portaria Principal".to_string());
 
     // 1. Identificação do Aluno via credencial cadastrada ou CPF / UUID fallback
     let credencial_opt = sqlx::query_as::<_, (Uuid, bool)>(
@@ -1101,7 +1191,9 @@ pub async fn validar_acesso_perimetral(
                 acesso_permitido: false,
                 nome_aluno: None,
                 turma: None,
-                motivo_bloqueio: Some("Credencial não identificada no perímetro escolar.".to_string()),
+                motivo_bloqueio: Some(
+                    "Credencial não identificada no perímetro escolar.".to_string(),
+                ),
             }));
         }
     };
@@ -1159,7 +1251,11 @@ pub async fn validar_acesso_perimetral(
     .await?;
 
     let hora_formatada = chrono::Local::now().format("%H:%M").to_string();
-    let direcao_label = if direcao == "saida" { "saída da escola" } else { "entrada na escola" };
+    let direcao_label = if direcao == "saida" {
+        "saída da escola"
+    } else {
+        "entrada na escola"
+    };
     let titulo = format!("Controle de Portaria: {}", aluno_nome);
     let mensagem = format!(
         "Passagem confirmada: {} registrou {} às {} no ponto '{}'.",
@@ -1213,14 +1309,17 @@ pub async fn validar_acesso_perimetral(
 }
 
 pub async fn cadastrar_credencial_perimetral(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<CadastrarCredencialPerimetralDto>,
 ) -> Result<Json<PerimetroCredencial>, AppError> {
     check_roles(&auth_user, &["admin", "gestor", "secretaria"])?;
     let tenant_id = active_tenant.0;
-    let tipo = dto.tipo_identificador.unwrap_or_else(|| "rfid_ou_qrcode".to_string());
+    let tipo = dto
+        .tipo_identificador
+        .unwrap_or_else(|| "rfid_ou_qrcode".to_string());
 
     let credencial = sqlx::query_as::<_, PerimetroCredencial>(
         r#"
@@ -1343,7 +1442,8 @@ pub fn calcular_score_evasao(aluno_id: Uuid, metricas: DetalhesEvasao) -> Prediz
 }
 
 pub async fn predizer_risco_evasao(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(aluno_id): Path<Uuid>,
@@ -1461,14 +1561,17 @@ pub async fn predizer_risco_evasao(
         .await?;
 
         if !alerta_recente {
-            let titulo = format!("Alerta de Risco de Evasão: {} ({:.1}%)", aluno.1, resultado.score_risco_evasao);
+            let titulo = format!(
+                "Alerta de Risco de Evasão: {} ({:.1}%)",
+                aluno.1, resultado.score_risco_evasao
+            );
             let mensagem = format!(
                 "O aluno {} apresenta score de risco de evasão de {:.1}% (Urgência: {}). Fator principal: {}. Recomendação: {}",
                 aluno.1, resultado.score_risco_evasao, resultado.nivel_urgencia, resultado.fator_principal, resultado.recomendacao
             );
 
             let gestores = sqlx::query_scalar::<_, Uuid>(
-                "SELECT id FROM users WHERE tenant_id = $1 AND role IN ('admin', 'gestor') LIMIT 5"
+                "SELECT id FROM users WHERE tenant_id = $1 AND role IN ('admin', 'gestor') LIMIT 5",
             )
             .bind(tenant_id)
             .fetch_all(&mut *db)
@@ -1684,7 +1787,8 @@ mod tests {
         ];
 
         let digest = calcular_digest_historico(&notas);
-        let hash_original = calcular_hash_xades_diploma(tenant_id, aluno_id, curso, cpf, &digest, ts);
+        let hash_original =
+            calcular_hash_xades_diploma(tenant_id, aluno_id, curso, cpf, &digest, ts);
 
         assert!(verificar_inviolabilidade_diploma(
             tenant_id,
@@ -1704,17 +1808,14 @@ mod tests {
         let curso = "Ensino Médio Regular";
         let cpf = "123.456.789-00";
         let ts = "2026-09-25T14:30:00Z";
-        let notas = vec![
-            ("Matemática".to_string(), "1_bimestre".to_string(), 6.0),
-        ];
+        let notas = vec![("Matemática".to_string(), "1_bimestre".to_string(), 6.0)];
 
         let digest = calcular_digest_historico(&notas);
-        let hash_original = calcular_hash_xades_diploma(tenant_id, aluno_id, curso, cpf, &digest, ts);
+        let hash_original =
+            calcular_hash_xades_diploma(tenant_id, aluno_id, curso, cpf, &digest, ts);
 
         // Simulando adulteração fraudulenta de nota de 6.0 para 9.5
-        let notas_adulteradas = vec![
-            ("Matemática".to_string(), "1_bimestre".to_string(), 9.5),
-        ];
+        let notas_adulteradas = vec![("Matemática".to_string(), "1_bimestre".to_string(), 9.5)];
 
         assert!(!verificar_inviolabilidade_diploma(
             tenant_id,
@@ -1734,12 +1835,11 @@ mod tests {
         let curso = "Ensino Médio Regular";
         let cpf = "123.456.789-00";
         let ts = "2026-09-25T14:30:00Z";
-        let notas = vec![
-            ("Português".to_string(), "1_bimestre".to_string(), 8.0),
-        ];
+        let notas = vec![("Português".to_string(), "1_bimestre".to_string(), 8.0)];
 
         let digest = calcular_digest_historico(&notas);
-        let hash_original = calcular_hash_xades_diploma(tenant_id, aluno_id, curso, cpf, &digest, ts);
+        let hash_original =
+            calcular_hash_xades_diploma(tenant_id, aluno_id, curso, cpf, &digest, ts);
 
         // Tentativa de alterar curso
         assert!(!verificar_inviolabilidade_diploma(
@@ -1834,7 +1934,11 @@ mod tests {
         }];
 
         let erros = validar_consistencia_educacenso(&alunos, &turmas, &profs);
-        assert!(erros.is_empty(), "Não deve haver inconsistências para registros regulares: {:?}", erros);
+        assert!(
+            erros.is_empty(),
+            "Não deve haver inconsistências para registros regulares: {:?}",
+            erros
+        );
     }
 
     #[test]
@@ -1864,7 +1968,9 @@ mod tests {
         }];
 
         let erros = validar_consistencia_educacenso(&[], &turmas, &[]);
-        assert!(erros.iter().any(|e| e.contains("sem sala de aula física cadastrada")));
+        assert!(erros
+            .iter()
+            .any(|e| e.contains("sem sala de aula física cadastrada")));
     }
 
     #[test]
@@ -1919,7 +2025,10 @@ pub async fn listar_alertas_evasao(
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<axum::Json<Vec<crate::models::regulatorio_ia::PredizerEvasaoResponse>>, AppError> {
-    crate::middleware::rbac::check_roles(&auth_user, &["admin", "gestor", "professor", "secretaria"])?;
+    crate::middleware::rbac::check_roles(
+        &auth_user,
+        &["admin", "gestor", "professor", "secretaria"],
+    )?;
     let tenant_id = active_tenant.0;
 
     let alunos = sqlx::query_scalar::<_, Uuid>(

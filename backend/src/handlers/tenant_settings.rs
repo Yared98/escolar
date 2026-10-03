@@ -1,12 +1,12 @@
+use crate::db::TenantDb;
+use crate::error::AppError;
+use crate::middleware::{auth::AuthUser, tenant::ActiveTenant};
+use crate::AppState;
 use axum::{
     extract::{Extension, State},
     Json,
 };
 use serde::{Deserialize, Serialize};
-use crate::error::AppError;
-use crate::middleware::{auth::AuthUser, tenant::ActiveTenant};
-use crate::db::TenantDb;
-use crate::AppState;
 
 #[derive(Serialize, Deserialize)]
 pub struct BankIntegrationDto {
@@ -28,7 +28,8 @@ pub struct BankIntegrationView {
 }
 
 pub async fn get_bank_integrations(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<Vec<BankIntegrationView>>, AppError> {
@@ -42,25 +43,31 @@ pub async fn get_bank_integrations(
                is_active
         FROM tenant_bank_integrations
         WHERE tenant_id = $1
-        "#
+        "#,
     )
     .bind(active_tenant.0)
     .fetch_all(&mut *db)
     .await?;
 
-    let integrations = rows.into_iter().map(|(g, ci, has_secret, has_webhook, act)| BankIntegrationView {
-        gateway_name: g,
-        client_id: ci,
-        has_client_secret: has_secret,
-        has_webhook_secret: has_webhook,
-        is_active: act,
-    }).collect();
+    let integrations = rows
+        .into_iter()
+        .map(
+            |(g, ci, has_secret, has_webhook, act)| BankIntegrationView {
+                gateway_name: g,
+                client_id: ci,
+                has_client_secret: has_secret,
+                has_webhook_secret: has_webhook,
+                is_active: act,
+            },
+        )
+        .collect();
 
     Ok(Json(integrations))
 }
 
 pub async fn save_bank_integration(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<BankIntegrationDto>,

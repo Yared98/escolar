@@ -1,27 +1,36 @@
-use sqlx::Acquire;
 use axum::{
     extract::{Path, State},
     Extension, Json,
 };
 use serde_json::{json, Value};
+use sqlx::Acquire;
 use uuid::Uuid;
 
 use crate::{
-    config::AppState, db::TenantDb,
+    config::AppState,
+    db::TenantDb,
     error::AppError,
-    middleware::{auth::AuthUser, rbac::{can_notify_others, check_roles, log_audit, role_key}, tenant::ActiveTenant},
+    middleware::{
+        auth::AuthUser,
+        rbac::{can_notify_others, check_roles, log_audit, role_key},
+        tenant::ActiveTenant,
+    },
     models::notificacoes::{
         CreateNotificacaoDto, NotificacaoDisparoLog, NotificacaoSistema, PushSubscriptionDto,
     },
 };
 
 pub async fn criar_notificacao(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Json(dto): Json<CreateNotificacaoDto>,
 ) -> Result<Json<NotificacaoSistema>, AppError> {
-    check_roles(&auth_user, &["admin", "gestor", "secretaria", "financeiro", "professor"])?;
+    check_roles(
+        &auth_user,
+        &["admin", "gestor", "secretaria", "financeiro", "professor"],
+    )?;
     let tenant_id = active_tenant.0;
     let destinatario = dto.destinatario_id.unwrap_or(auth_user.id);
     if destinatario != auth_user.id && !can_notify_others(&auth_user.role) {
@@ -75,7 +84,8 @@ pub async fn criar_notificacao(
 }
 
 pub async fn listar_notificacoes(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<Vec<NotificacaoSistema>>, AppError> {
@@ -106,7 +116,8 @@ pub async fn listar_notificacoes(
 }
 
 pub async fn marcar_notificacao_lida(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(id): Path<Uuid>,
@@ -134,13 +145,25 @@ pub async fn marcar_notificacao_lida(
         return Err(AppError::NotFound);
     }
 
-    log_audit(&mut *db, tenant_id, Some(auth_user.id), "MARCAR_NOTIFICACAO_LIDA", "notificacoes_sistema", Some(id.to_string()), None).await;
+    log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "MARCAR_NOTIFICACAO_LIDA",
+        "notificacoes_sistema",
+        Some(id.to_string()),
+        None,
+    )
+    .await;
 
-    Ok(Json(json!({ "status": "sucesso", "mensagem": "Notificação marcada como lida" })))
+    Ok(Json(
+        json!({ "status": "sucesso", "mensagem": "Notificação marcada como lida" }),
+    ))
 }
 
 pub async fn listar_logs_disparos(
-    State(_state): State<AppState>, TenantDb(mut db): TenantDb,
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<Vec<NotificacaoDisparoLog>>, AppError> {
@@ -161,12 +184,13 @@ pub async fn listar_logs_disparos(
 pub async fn vapid_public_key(
     Extension(_auth_user): Extension<AuthUser>,
 ) -> Result<Json<Value>, AppError> {
-    let key = std::env::var("VAPID_PUBLIC_KEY").map_err(|_| {
-        AppError::ServiceUnavailable("VAPID public key not configured".into())
-    })?;
+    let key = std::env::var("VAPID_PUBLIC_KEY")
+        .map_err(|_| AppError::ServiceUnavailable("VAPID public key not configured".into()))?;
     let trimmed = key.trim();
     if trimmed.is_empty() {
-        return Err(AppError::ServiceUnavailable("VAPID public key not configured".into()));
+        return Err(AppError::ServiceUnavailable(
+            "VAPID public key not configured".into(),
+        ));
     }
     Ok(Json(json!({
         "publicKey": trimmed
@@ -181,8 +205,13 @@ pub async fn registrar_push_subscription(
     Json(dto): Json<PushSubscriptionDto>,
 ) -> Result<Json<Value>, AppError> {
     let tenant_id = active_tenant.0;
-    if dto.endpoint.trim().is_empty() || dto.keys.p256dh.trim().is_empty() || dto.keys.auth.trim().is_empty() {
-        return Err(AppError::BadRequest("Subscription Web Push inválida.".into()));
+    if dto.endpoint.trim().is_empty()
+        || dto.keys.p256dh.trim().is_empty()
+        || dto.keys.auth.trim().is_empty()
+    {
+        return Err(AppError::BadRequest(
+            "Subscription Web Push inválida.".into(),
+        ));
     }
 
     sqlx::query(

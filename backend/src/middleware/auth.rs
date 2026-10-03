@@ -1,8 +1,4 @@
-use axum::{
-    extract::Request,
-    middleware::Next,
-    response::Response,
-};
+use axum::{extract::Request, middleware::Next, response::Response};
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -24,31 +20,25 @@ pub struct AuthUser {
     pub role: String,
 }
 
-pub async fn auth_middleware(
-    mut req: Request,
-    next: Next,
-) -> Result<Response, AppError> {
+pub async fn auth_middleware(mut req: Request, next: Next) -> Result<Response, AppError> {
     let auth_header = req
         .headers()
         .get("Authorization")
         .and_then(|val| val.to_str().ok())
         .map(|s| s.to_string());
 
-    let query_token = req
-        .uri()
-        .query()
-        .and_then(|q| {
-            q.split('&').find_map(|pair| {
-                let mut parts = pair.splitn(2, '=');
-                let key = parts.next()?;
-                let val = parts.next()?;
-                if key == "access_token" || key == "token" {
-                    Some(val.to_string())
-                } else {
-                    None
-                }
-            })
-        });
+    let query_token = req.uri().query().and_then(|q| {
+        q.split('&').find_map(|pair| {
+            let mut parts = pair.splitn(2, '=');
+            let key = parts.next()?;
+            let val = parts.next()?;
+            if key == "access_token" || key == "token" {
+                Some(val.to_string())
+            } else {
+                None
+            }
+        })
+    });
 
     let token = match auth_header.as_deref() {
         Some(header) if header.starts_with("Bearer ") => header[7..].to_string(),
@@ -57,10 +47,9 @@ pub async fn auth_middleware(
         })?,
     };
 
-    let config = req
-        .extensions()
-        .get::<Config>()
-        .ok_or_else(|| AppError::InternalServerError("Config missing from extensions".to_string()))?;
+    let config = req.extensions().get::<Config>().ok_or_else(|| {
+        AppError::InternalServerError("Config missing from extensions".to_string())
+    })?;
 
     let mut validation = Validation::new(jsonwebtoken::Algorithm::EdDSA);
     validation.validate_exp = true;

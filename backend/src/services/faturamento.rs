@@ -26,14 +26,20 @@ pub struct NovaFaturaParams {
 }
 
 pub async fn tenant_nome(db: &mut PgConnection, tenant_id: Uuid) -> Result<String, AppError> {
-    Ok(sqlx::query_scalar::<_, String>("SELECT name FROM tenants WHERE id = $1")
-        .bind(tenant_id)
-        .fetch_optional(&mut *db)
-        .await?
-        .unwrap_or_else(|| "ESCOLA MODELO".to_string()))
+    Ok(
+        sqlx::query_scalar::<_, String>("SELECT name FROM tenants WHERE id = $1")
+            .bind(tenant_id)
+            .fetch_optional(&mut *db)
+            .await?
+            .unwrap_or_else(|| "ESCOLA MODELO".to_string()),
+    )
 }
 
-pub fn montar_cobranca(tenant_nome: &str, valor: f64, metodo: &str) -> (Option<String>, Option<String>) {
+pub fn montar_cobranca(
+    tenant_nome: &str,
+    valor: f64,
+    metodo: &str,
+) -> (Option<String>, Option<String>) {
     let txid = format!("ESC{}", &Uuid::new_v4().to_string().replace('-', "")[..16]);
     let pix_key = format!(
         "financeiro@{}.edu.br",
@@ -177,7 +183,8 @@ pub async fn gerar_parcelas_contrato(
         let mes = i;
         let ano = ano_letivo;
         let data_vencimento = NaiveDate::from_ymd_opt(ano, mes as u32, dia).unwrap_or_else(|| {
-            NaiveDate::from_ymd_opt(ano, mes.min(12) as u32, 28).unwrap_or(NaiveDate::from_ymd_opt(ano, 1, 10).unwrap())
+            NaiveDate::from_ymd_opt(ano, mes.min(12) as u32, 28)
+                .unwrap_or(NaiveDate::from_ymd_opt(ano, 1, 10).unwrap())
         });
 
         let fatura = inserir_fatura(

@@ -17,9 +17,7 @@ use crate::{
         rbac::{check_roles, log_audit},
         tenant::ActiveTenant,
     },
-    models::academico::{
-        EditarCardapioDto, Prato, RecorrenciaCardapioDto, UpsertPratoDto,
-    },
+    models::academico::{EditarCardapioDto, Prato, RecorrenciaCardapioDto, UpsertPratoDto},
 };
 
 #[derive(Debug, sqlx::FromRow)]
@@ -50,13 +48,19 @@ fn hoje_escola() -> NaiveDate {
 
 fn validar_vigencia(inicio: NaiveDate, fim: NaiveDate, dias: &[i16]) -> Result<(), AppError> {
     if fim < inicio {
-        return Err(AppError::BadRequest("A vigência termina antes de começar.".into()));
+        return Err(AppError::BadRequest(
+            "A vigência termina antes de começar.".into(),
+        ));
     }
     if (fim - inicio).num_days() > 180 {
-        return Err(AppError::BadRequest("A vigência aceita no máximo 180 dias.".into()));
+        return Err(AppError::BadRequest(
+            "A vigência aceita no máximo 180 dias.".into(),
+        ));
     }
     if dias.is_empty() || dias.iter().any(|dia| !(1_i16..=7).contains(dia)) {
-        return Err(AppError::BadRequest("Escolha ao menos um dia da semana, de segunda a domingo.".into()));
+        return Err(AppError::BadRequest(
+            "Escolha ao menos um dia da semana, de segunda a domingo.".into(),
+        ));
     }
     Ok(())
 }
@@ -98,7 +102,9 @@ async fn nutricionista_ativo(
     .bind(tenant_id)
     .fetch_optional(&mut *db)
     .await?
-    .ok_or_else(|| AppError::BadRequest("Nutricionista inativo ou não cadastrado no RH deste tenant.".into()))
+    .ok_or_else(|| {
+        AppError::BadRequest("Nutricionista inativo ou não cadastrado no RH deste tenant.".into())
+    })
 }
 
 async fn coberturas(
@@ -163,8 +169,12 @@ fn classificar(
     datas
         .iter()
         .map(|data| {
-            let conflito = ocupados.iter().find(|item| item.data_dia == *data && conflita(item, turma_id));
-            let feriado = coberturas.iter().find(|evento| evento.data_inicio <= *data && evento.data_fim >= *data);
+            let conflito = ocupados
+                .iter()
+                .find(|item| item.data_dia == *data && conflita(item, turma_id));
+            let feriado = coberturas
+                .iter()
+                .find(|evento| evento.data_inicio <= *data && evento.data_fim >= *data);
             let motivo = if let Some(item) = conflito {
                 Some(format!("Já existe {} nesta data.", item.titulo_menu))
             } else {
@@ -186,7 +196,16 @@ pub async fn listar_pratos(
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<Vec<Prato>>, AppError> {
-    check_roles(&auth_user, &["admin", "gestor", "nutricionista", "professor", "responsavel"])?;
+    check_roles(
+        &auth_user,
+        &[
+            "admin",
+            "gestor",
+            "nutricionista",
+            "professor",
+            "responsavel",
+        ],
+    )?;
     let pratos = sqlx::query_as::<_, Prato>(
         "SELECT * FROM pratos WHERE tenant_id = $1 AND ativo = TRUE ORDER BY titulo",
     )
@@ -221,7 +240,16 @@ pub async fn listar_recorrencias_cardapio(
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<Vec<RecorrenciaResumo>>, AppError> {
-    check_roles(&auth_user, &["admin", "gestor", "nutricionista", "professor", "responsavel"])?;
+    check_roles(
+        &auth_user,
+        &[
+            "admin",
+            "gestor",
+            "nutricionista",
+            "professor",
+            "responsavel",
+        ],
+    )?;
     let hoje = hoje_escola();
     let rows = sqlx::query_as::<_, RecorrenciaResumo>(
         r#"
@@ -273,7 +301,9 @@ pub async fn criar_prato(
 ) -> Result<Json<Prato>, AppError> {
     check_roles(&auth_user, &["admin", "gestor", "nutricionista"])?;
     if dto.titulo.trim().is_empty() || dto.descricao_ingredientes.trim().is_empty() {
-        return Err(AppError::BadRequest("Informe o nome e os ingredientes do prato.".into()));
+        return Err(AppError::BadRequest(
+            "Informe o nome e os ingredientes do prato.".into(),
+        ));
     }
     let prato = sqlx::query_as::<_, Prato>(
         r#"
@@ -315,7 +345,9 @@ pub async fn atualizar_prato(
 ) -> Result<Json<Prato>, AppError> {
     check_roles(&auth_user, &["admin", "gestor", "nutricionista"])?;
     if dto.titulo.trim().is_empty() || dto.descricao_ingredientes.trim().is_empty() {
-        return Err(AppError::BadRequest("Informe o nome e os ingredientes do prato.".into()));
+        return Err(AppError::BadRequest(
+            "Informe o nome e os ingredientes do prato.".into(),
+        ));
     }
     let tenant_id = active_tenant.0;
 
@@ -334,7 +366,10 @@ pub async fn atualizar_prato(
     .bind(tenant_id)
     .bind(dto.titulo.trim())
     .bind(dto.descricao_ingredientes.trim())
-    .bind(dto.alergicos_atencao.filter(|valor| !valor.trim().is_empty()))
+    .bind(
+        dto.alergicos_atencao
+            .filter(|valor| !valor.trim().is_empty()),
+    )
     .bind(dto.tipo_refeicao.filter(|valor| !valor.trim().is_empty()))
     .fetch_optional(&mut *db)
     .await?
@@ -367,14 +402,13 @@ pub async fn excluir_prato(
     check_roles(&auth_user, &["admin", "gestor", "nutricionista"])?;
     let tenant_id = active_tenant.0;
 
-    let prato = sqlx::query(
-        "SELECT id, titulo, ativo FROM pratos WHERE id = $1 AND tenant_id = $2",
-    )
-    .bind(prato_id)
-    .bind(tenant_id)
-    .fetch_optional(&mut *db)
-    .await?
-    .ok_or(AppError::NotFound)?;
+    let prato =
+        sqlx::query("SELECT id, titulo, ativo FROM pratos WHERE id = $1 AND tenant_id = $2")
+            .bind(prato_id)
+            .bind(tenant_id)
+            .fetch_optional(&mut *db)
+            .await?
+            .ok_or(AppError::NotFound)?;
 
     let titulo: String = prato.try_get("titulo").unwrap_or_default();
 
@@ -456,11 +490,20 @@ pub async fn prever_recorrencia_cardapio(
     validar_vigencia(dto.data_inicio, dto.data_fim, &dto.dias_semana)?;
     let datas = datas_da_vigencia(dto.data_inicio, dto.data_fim, &dto.dias_semana);
     if datas.is_empty() {
-        return Err(AppError::BadRequest("Nenhuma data da vigência cai nos dias escolhidos.".into()));
+        return Err(AppError::BadRequest(
+            "Nenhuma data da vigência cai nos dias escolhidos.".into(),
+        ));
     }
     let tenant_id = active_tenant.0;
     let ocupacao = ocupados(&mut db, tenant_id, &datas, &dto.tipo_refeicao).await?;
-    let ferias = coberturas(&mut db, tenant_id, dto.data_inicio, dto.data_fim, dto.turma_id).await?;
+    let ferias = coberturas(
+        &mut db,
+        tenant_id,
+        dto.data_inicio,
+        dto.data_fim,
+        dto.turma_id,
+    )
+    .await?;
     let dias = classificar(&datas, &ocupacao, &ferias, dto.turma_id);
     let conflitos = dias.iter().filter(|dia| dia.conflito).count();
     let feriados = dias.iter().filter(|dia| dia.feriado.is_some()).count();
@@ -482,17 +525,28 @@ pub async fn confirmar_recorrencia_cardapio(
     check_roles(&auth_user, &["admin", "gestor", "nutricionista"])?;
     validar_vigencia(dto.data_inicio, dto.data_fim, &dto.dias_semana)?;
     if dto.titulo_menu.trim().is_empty() || dto.descricao_ingredientes.trim().is_empty() {
-        return Err(AppError::BadRequest("Informe o nome e os ingredientes do prato.".into()));
+        return Err(AppError::BadRequest(
+            "Informe o nome e os ingredientes do prato.".into(),
+        ));
     }
     let datas = datas_da_vigencia(dto.data_inicio, dto.data_fim, &dto.dias_semana);
     if datas.is_empty() {
-        return Err(AppError::BadRequest("Nenhuma data da vigência cai nos dias escolhidos.".into()));
+        return Err(AppError::BadRequest(
+            "Nenhuma data da vigência cai nos dias escolhidos.".into(),
+        ));
     }
 
     let tenant_id = active_tenant.0;
     let nutricionista = nutricionista_ativo(&mut db, tenant_id, dto.nutricionista_id).await?;
     let ocupacao = ocupados(&mut db, tenant_id, &datas, &dto.tipo_refeicao).await?;
-    let ferias = coberturas(&mut db, tenant_id, dto.data_inicio, dto.data_fim, dto.turma_id).await?;
+    let ferias = coberturas(
+        &mut db,
+        tenant_id,
+        dto.data_inicio,
+        dto.data_fim,
+        dto.turma_id,
+    )
+    .await?;
     let previa = classificar(&datas, &ocupacao, &ferias, dto.turma_id);
     let pular_feriados = dto.pular_feriados.unwrap_or(false);
 
@@ -611,7 +665,9 @@ pub async fn editar_cardapio_escopo(
 ) -> Result<Json<Value>, AppError> {
     check_roles(&auth_user, &["admin", "gestor", "nutricionista"])?;
     if dto.titulo_menu.trim().is_empty() || dto.descricao_ingredientes.trim().is_empty() {
-        return Err(AppError::BadRequest("Informe o nome e os ingredientes do prato.".into()));
+        return Err(AppError::BadRequest(
+            "Informe o nome e os ingredientes do prato.".into(),
+        ));
     }
     let tenant_id = active_tenant.0;
     let atual = sqlx::query(
@@ -627,11 +683,17 @@ pub async fn editar_cardapio_escopo(
     .await?
     .ok_or(AppError::NotFound)?;
 
-    let alergicos = dto.alergicos_atencao.as_deref().map(str::trim).filter(|valor| !valor.is_empty());
+    let alergicos = dto
+        .alergicos_atencao
+        .as_deref()
+        .map(str::trim)
+        .filter(|valor| !valor.is_empty());
 
     if dto.escopo == "dia" {
         let recorrencia_id: Option<Uuid> = atual.try_get("recorrencia_id").unwrap_or(None);
-        let tipo_atual: String = atual.try_get("tipo_refeicao").map_err(|_| AppError::NotFound)?;
+        let tipo_atual: String = atual
+            .try_get("tipo_refeicao")
+            .map_err(|_| AppError::NotFound)?;
         let data_atual: NaiveDate = atual.try_get("data_dia").map_err(|_| AppError::NotFound)?;
         let tipo = dto
             .tipo_refeicao
@@ -657,7 +719,11 @@ pub async fn editar_cardapio_escopo(
             nutricionista_id = Some(id);
         }
 
-        let origem = if recorrencia_id.is_some() { "excecao" } else { "avulso" };
+        let origem = if recorrencia_id.is_some() {
+            "excecao"
+        } else {
+            "avulso"
+        };
         sqlx::query(
             r#"
             UPDATE cardapios
@@ -693,12 +759,16 @@ pub async fn editar_cardapio_escopo(
     }
 
     if dto.escopo != "seguintes" {
-        return Err(AppError::BadRequest("Escolha editar somente este dia ou este e os próximos.".into()));
+        return Err(AppError::BadRequest(
+            "Escolha editar somente este dia ou este e os próximos.".into(),
+        ));
     }
 
     let recorrencia_id: Option<Uuid> = atual.try_get("recorrencia_id").unwrap_or(None);
     let recorrencia_id = recorrencia_id.ok_or_else(|| {
-        AppError::BadRequest("Este cardápio não faz parte de uma vigência. Altere somente este dia.".into())
+        AppError::BadRequest(
+            "Este cardápio não faz parte de uma vigência. Altere somente este dia.".into(),
+        )
     })?;
     let data_dia: NaiveDate = atual.try_get("data_dia").map_err(|_| AppError::NotFound)?;
     let hoje = hoje_escola();
@@ -712,10 +782,14 @@ pub async fn editar_cardapio_escopo(
     .fetch_optional(&mut *db)
     .await?
     .ok_or(AppError::NotFound)?;
-    let data_inicio: NaiveDate = serie.try_get("data_inicio").map_err(|_| AppError::NotFound)?;
+    let data_inicio: NaiveDate = serie
+        .try_get("data_inicio")
+        .map_err(|_| AppError::NotFound)?;
     let data_fim: NaiveDate = serie.try_get("data_fim").map_err(|_| AppError::NotFound)?;
     if corte > data_fim {
-        return Err(AppError::BadRequest("Não há dias futuros nesta vigência para alterar.".into()));
+        return Err(AppError::BadRequest(
+            "Não há dias futuros nesta vigência para alterar.".into(),
+        ));
     }
 
     let mut tx = db.begin().await?;
@@ -735,12 +809,14 @@ pub async fn editar_cardapio_escopo(
     .await?;
 
     let serie_id = if corte > data_inicio {
-        sqlx::query("UPDATE cardapio_recorrencias SET data_fim = $1 WHERE id = $2 AND tenant_id = $3")
-            .bind(corte - Duration::days(1))
-            .bind(recorrencia_id)
-            .bind(tenant_id)
-            .execute(&mut *tx)
-            .await?;
+        sqlx::query(
+            "UPDATE cardapio_recorrencias SET data_fim = $1 WHERE id = $2 AND tenant_id = $3",
+        )
+        .bind(corte - Duration::days(1))
+        .bind(recorrencia_id)
+        .bind(tenant_id)
+        .execute(&mut *tx)
+        .await?;
         sqlx::query_scalar::<_, Uuid>(
             r#"
             INSERT INTO cardapio_recorrencias (
@@ -761,12 +837,14 @@ pub async fn editar_cardapio_escopo(
         .fetch_one(&mut *tx)
         .await?
     } else {
-        sqlx::query("UPDATE cardapio_recorrencias SET prato_id = $1 WHERE id = $2 AND tenant_id = $3")
-            .bind(prato_id)
-            .bind(recorrencia_id)
-            .bind(tenant_id)
-            .execute(&mut *tx)
-            .await?;
+        sqlx::query(
+            "UPDATE cardapio_recorrencias SET prato_id = $1 WHERE id = $2 AND tenant_id = $3",
+        )
+        .bind(prato_id)
+        .bind(recorrencia_id)
+        .bind(tenant_id)
+        .execute(&mut *tx)
+        .await?;
         recorrencia_id
     };
 
@@ -867,7 +945,9 @@ pub async fn excluir_cardapio_dia(
     .await;
     tx.commit().await?;
 
-    Ok(Json(json!({ "excluido": true, "id": cardapio_id, "data_dia": data_dia })))
+    Ok(Json(
+        json!({ "excluido": true, "id": cardapio_id, "data_dia": data_dia }),
+    ))
 }
 
 pub async fn encerrar_recorrencia_cardapio(
@@ -888,11 +968,15 @@ pub async fn encerrar_recorrencia_cardapio(
     .await?
     .ok_or(AppError::NotFound)?;
 
-    let data_inicio: NaiveDate = serie.try_get("data_inicio").map_err(|_| AppError::NotFound)?;
+    let data_inicio: NaiveDate = serie
+        .try_get("data_inicio")
+        .map_err(|_| AppError::NotFound)?;
     let data_fim: NaiveDate = serie.try_get("data_fim").map_err(|_| AppError::NotFound)?;
     let hoje = hoje_escola();
     if data_fim < hoje {
-        return Err(AppError::BadRequest("Esta vigência já está encerrada.".into()));
+        return Err(AppError::BadRequest(
+            "Esta vigência já está encerrada.".into(),
+        ));
     }
 
     let mut tx = db.begin().await?;
@@ -918,12 +1002,14 @@ pub async fn encerrar_recorrencia_cardapio(
         data_fim_nova = None;
     } else {
         let novo_fim = hoje - Duration::days(1);
-        sqlx::query("UPDATE cardapio_recorrencias SET data_fim = $1 WHERE id = $2 AND tenant_id = $3")
-            .bind(novo_fim)
-            .bind(recorrencia_id)
-            .bind(tenant_id)
-            .execute(&mut *tx)
-            .await?;
+        sqlx::query(
+            "UPDATE cardapio_recorrencias SET data_fim = $1 WHERE id = $2 AND tenant_id = $3",
+        )
+        .bind(novo_fim)
+        .bind(recorrencia_id)
+        .bind(tenant_id)
+        .execute(&mut *tx)
+        .await?;
         serie_removida = false;
         data_fim_nova = Some(novo_fim);
     }

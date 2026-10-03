@@ -1,8 +1,4 @@
-use axum::{
-    extract::Request,
-    middleware::Next,
-    response::Response,
-};
+use axum::{extract::Request, middleware::Next, response::Response};
 use uuid::Uuid;
 
 use crate::{error::AppError, middleware::auth::AuthUser};
@@ -10,7 +6,10 @@ use crate::{error::AppError, middleware::auth::AuthUser};
 #[derive(Clone, Debug)]
 pub struct ActiveTenant(pub Uuid);
 
-pub fn validate_tenant_match(jwt_tenant_id: Uuid, header_val: Option<&str>) -> Result<Uuid, AppError> {
+pub fn validate_tenant_match(
+    jwt_tenant_id: Uuid,
+    header_val: Option<&str>,
+) -> Result<Uuid, AppError> {
     match header_val {
         Some(val) => {
             let header_tenant_id = Uuid::parse_str(val).map_err(|_| {
@@ -19,7 +18,8 @@ pub fn validate_tenant_match(jwt_tenant_id: Uuid, header_val: Option<&str>) -> R
 
             if header_tenant_id != jwt_tenant_id {
                 return Err(AppError::Forbidden(
-                    "Violação de Multi-Tenancy: X-Tenant-ID não corresponde ao tenant autenticado.".to_string(),
+                    "Violação de Multi-Tenancy: X-Tenant-ID não corresponde ao tenant autenticado."
+                        .to_string(),
                 ));
             }
             Ok(jwt_tenant_id)
@@ -28,15 +28,15 @@ pub fn validate_tenant_match(jwt_tenant_id: Uuid, header_val: Option<&str>) -> R
     }
 }
 
-pub async fn tenant_middleware(
-    mut req: Request,
-    next: Next,
-) -> Result<Response, AppError> {
+pub async fn tenant_middleware(mut req: Request, next: Next) -> Result<Response, AppError> {
     // 1. Tenta obter o AuthUser preenchido pelo auth_middleware
     let auth_user = req.extensions().get::<AuthUser>().cloned();
 
     let tenant_id = if let Some(user) = auth_user {
-        let header_val = req.headers().get("X-Tenant-ID").and_then(|v| v.to_str().ok());
+        let header_val = req
+            .headers()
+            .get("X-Tenant-ID")
+            .and_then(|v| v.to_str().ok());
         validate_tenant_match(user.tenant_id, header_val)?
     } else {
         // Para requisições não autenticadas que utilizem tenant_middleware, exige header válido

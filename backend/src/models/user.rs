@@ -104,11 +104,23 @@ mod tests {
     fn test_user_role_from_string_case_insensitive() {
         assert_eq!(UserRole::from("SuperAdmin".to_string()), UserRole::Admin);
         assert_eq!(UserRole::from("admin".to_string()), UserRole::Admin);
-        assert_eq!(UserRole::from("GestorEscolar".to_string()), UserRole::Gestor);
+        assert_eq!(
+            UserRole::from("GestorEscolar".to_string()),
+            UserRole::Gestor
+        );
         assert_eq!(UserRole::from("gestor".to_string()), UserRole::Gestor);
-        assert_eq!(UserRole::from("Tesouraria".to_string()), UserRole::Financeiro);
-        assert_eq!(UserRole::from("financeiro".to_string()), UserRole::Financeiro);
+        assert_eq!(
+            UserRole::from("Tesouraria".to_string()),
+            UserRole::Financeiro
+        );
+        assert_eq!(
+            UserRole::from("financeiro".to_string()),
+            UserRole::Financeiro
+        );
         assert_eq!(UserRole::from("professor".to_string()), UserRole::Professor);
-        assert_eq!(UserRole::from("responsavel".to_string()), UserRole::Responsavel);
+        assert_eq!(
+            UserRole::from("responsavel".to_string()),
+            UserRole::Responsavel
+        );
     }
 }

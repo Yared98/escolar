@@ -1,15 +1,15 @@
-use axum::{
-    extract::{Path, State},
-    http::HeaderMap,
-    body::Bytes,
-    Json,
-};
-use serde::Deserialize;
-use uuid::Uuid;
 use crate::error::AppError;
 use crate::AppState;
+use axum::{
+    body::Bytes,
+    extract::{Path, State},
+    http::HeaderMap,
+    Json,
+};
 use hmac::{Hmac, Mac};
+use serde::Deserialize;
 use sha2::Sha256;
+use uuid::Uuid;
 
 #[derive(Deserialize)]
 pub struct CoraWebhookPayload {
@@ -37,7 +37,6 @@ pub async fn cora_webhook_handler(
     headers: HeaderMap,
     body: Bytes,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    
     let mut db = crate::db::acquire_tenant(&state.pool, tenant_id).await?;
 
     let creds = sqlx::query_as::<_, (Option<String>,)>(
@@ -49,17 +48,22 @@ pub async fn cora_webhook_handler(
 
     let webhook_secret = match creds {
         Some((Some(secret),)) => secret,
-        _ => return Err(AppError::Unauthorized("Webhook secret not configured for this tenant".into())),
+        _ => {
+            return Err(AppError::Unauthorized(
+                "Webhook secret not configured for this tenant".into(),
+            ))
+        }
     };
 
     // 2. Extract Cora-Signature header
-    let signature_header = headers.get("Cora-Signature")
+    let signature_header = headers
+        .get("Cora-Signature")
         .and_then(|h| h.to_str().ok())
         .ok_or_else(|| AppError::Unauthorized("Missing Cora-Signature header".into()))?;
 
-    // Cora signature header format might be "t=163000000,v1=hex_signature". For MVP, let's assume it's just the hex string, 
+    // Cora signature header format might be "t=163000000,v1=hex_signature". For MVP, let's assume it's just the hex string,
     // or if it's Stripe-like, we just validate against the raw header. Let's do a direct hex validation assuming the header contains the hex digest.
-    
+
     // 3. Compute HMAC SHA-256
     let mut mac = HmacSha256::new_from_slice(webhook_secret.as_bytes())
         .map_err(|_| AppError::InternalServerError("Invalid HMAC key length".into()))?;
@@ -68,7 +72,7 @@ pub async fn cora_webhook_handler(
     let result = mac.finalize();
     let expected_signature = hex::encode(result.into_bytes());
 
-    // Secure comparison (constant time) could be done, but for simplicity here string eq is okay if we don't have subtle timing attack vectors exposed, 
+    // Secure comparison (constant time) could be done, but for simplicity here string eq is okay if we don't have subtle timing attack vectors exposed,
     // but better to use `crypto_utils` or just direct comparison for MVP.
     if signature_header != expected_signature {
         return Err(AppError::Unauthorized("Invalid webhook signature".into()));
@@ -91,10 +95,13 @@ pub async fn cora_webhook_handler(
         .execute(&mut *db)
         .await?
         .rows_affected();
-        
+
         if rows_affected == 0 {
             // Already processed or doesn't exist
-            tracing::info!("Webhook skipped: invoice already paid or not found for tenant {}", tenant_id);
+            tracing::info!(
+                "Webhook skipped: invoice already paid or not found for tenant {}",
+                tenant_id
+            );
         }
     }
 

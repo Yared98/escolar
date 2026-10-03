@@ -1,4 +1,7 @@
-use axum::{extract::{FromRef, FromRequestParts}, http::request::Parts};
+use axum::{
+    extract::{FromRef, FromRequestParts},
+    http::request::Parts,
+};
 use sqlx::postgres::{PgPool, PgPoolOptions};
 use std::time::Duration;
 use uuid::Uuid;
@@ -90,7 +93,10 @@ pub async fn resolve_public_tenant(
             .ok_or(AppError::TenantNotFound);
     }
 
-    if let Some(header) = header_tenant.map(str::trim).filter(|value| !value.is_empty()) {
+    if let Some(header) = header_tenant
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
         let id = Uuid::parse_str(header)
             .map_err(|_| AppError::BadRequest("Header X-Tenant-ID malformado.".into()))?;
         return Box::pin(resolve_public_tenant(pool, Some(id), None, None)).await;
@@ -131,6 +137,8 @@ mod tests {
         assert!(!sql.contains("get_current_tenant() IS NULL"));
         assert!(sql.contains("FORCE ROW LEVEL SECURITY"));
         assert!(sql.contains("tenant_id = get_current_tenant()"));
-        assert!(sql.contains("SET ROLE escolar_runtime") || sql.contains("CREATE ROLE escolar_runtime"));
+        assert!(
+            sql.contains("SET ROLE escolar_runtime") || sql.contains("CREATE ROLE escolar_runtime")
+        );
     }
 }

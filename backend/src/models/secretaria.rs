@@ -14,14 +14,14 @@ pub struct Aluno {
     pub nome: String,
     pub cpf: String,
     pub data_nascimento: NaiveDate,
-    
+
     // Responsável Legal
     pub nome_responsavel: String,
     pub cpf_responsavel_legal: Option<String>,
     pub email_responsavel: String,
     pub telefone_responsavel: String,
     pub parentesco_responsavel_legal: Option<String>,
-    
+
     // Responsável Financeiro & Flag de Unificação
     pub responsavel_financeiro_igual_legal: bool,
     pub nome_responsavel_financeiro: Option<String>,
@@ -29,7 +29,7 @@ pub struct Aluno {
     pub email_responsavel_financeiro: Option<String>,
     pub telefone_responsavel_financeiro: Option<String>,
     pub parentesco_responsavel_financeiro: Option<String>,
-    
+
     // Endereço Residencial
     pub cep: Option<String>,
     pub logradouro: Option<String>,
@@ -38,13 +38,13 @@ pub struct Aluno {
     pub bairro: Option<String>,
     pub cidade: Option<String>,
     pub estado: Option<String>,
-    
+
     // Telefones de Contato & Emergência
     pub telefone_secundario: Option<String>,
     pub contato_emergencia_nome: Option<String>,
     pub contato_emergencia_telefone: Option<String>,
     pub contato_emergencia_parentesco: Option<String>,
-    
+
     pub status: String,
     pub responsavel_user_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
@@ -56,14 +56,14 @@ pub struct CreateAlunoDto {
     pub nome: String,
     pub cpf: String,
     pub data_nascimento: NaiveDate,
-    
+
     // Responsável Legal
     pub nome_responsavel: String,
     pub cpf_responsavel_legal: Option<String>,
     pub email_responsavel: String,
     pub telefone_responsavel: String,
     pub parentesco_responsavel_legal: Option<String>,
-    
+
     // Responsável Financeiro
     #[serde(default = "default_true")]
     pub responsavel_financeiro_igual_legal: bool,
@@ -72,7 +72,7 @@ pub struct CreateAlunoDto {
     pub email_responsavel_financeiro: Option<String>,
     pub telefone_responsavel_financeiro: Option<String>,
     pub parentesco_responsavel_financeiro: Option<String>,
-    
+
     // Endereço
     pub cep: Option<String>,
     pub logradouro: Option<String>,
@@ -81,18 +81,18 @@ pub struct CreateAlunoDto {
     pub bairro: Option<String>,
     pub cidade: Option<String>,
     pub estado: Option<String>,
-    
+
     // Contato & Emergência
     pub telefone_secundario: Option<String>,
     pub contato_emergencia_nome: Option<String>,
     pub contato_emergencia_telefone: Option<String>,
     pub contato_emergencia_parentesco: Option<String>,
-    
+
     pub responsavel_user_id: Option<Uuid>,
 
     /// Ciclo de vida inicial: `pre_matricula` | `ativo` (padrão `ativo`).
     pub status: Option<String>,
-    
+
     // Prontuário Inicial Opcional
     pub tipo_sanguineo: Option<String>,
     pub alergias: Option<String>,
@@ -107,20 +107,20 @@ pub struct UpdateAlunoDto {
     pub nome: Option<String>,
     pub cpf: Option<String>,
     pub data_nascimento: Option<NaiveDate>,
-    
+
     pub nome_responsavel: Option<String>,
     pub cpf_responsavel_legal: Option<String>,
     pub email_responsavel: Option<String>,
     pub telefone_responsavel: Option<String>,
     pub parentesco_responsavel_legal: Option<String>,
-    
+
     pub responsavel_financeiro_igual_legal: Option<bool>,
     pub nome_responsavel_financeiro: Option<String>,
     pub cpf_responsavel_financeiro: Option<String>,
     pub email_responsavel_financeiro: Option<String>,
     pub telefone_responsavel_financeiro: Option<String>,
     pub parentesco_responsavel_financeiro: Option<String>,
-    
+
     pub cep: Option<String>,
     pub logradouro: Option<String>,
     pub numero: Option<String>,
@@ -128,12 +128,12 @@ pub struct UpdateAlunoDto {
     pub bairro: Option<String>,
     pub cidade: Option<String>,
     pub estado: Option<String>,
-    
+
     pub telefone_secundario: Option<String>,
     pub contato_emergencia_nome: Option<String>,
     pub contato_emergencia_telefone: Option<String>,
     pub contato_emergencia_parentesco: Option<String>,
-    
+
     pub status: Option<String>,
     pub responsavel_user_id: Option<Uuid>,
 }
@@ -383,7 +383,10 @@ where
             if trimmed.is_empty() {
                 Ok(None)
             } else {
-                trimmed.parse::<i32>().map(Some).map_err(serde::de::Error::custom)
+                trimmed
+                    .parse::<i32>()
+                    .map(Some)
+                    .map_err(serde::de::Error::custom)
             }
         }
     }

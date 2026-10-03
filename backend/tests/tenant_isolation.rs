@@ -1,7 +1,9 @@
 use axum::extract::{Json, State};
 use chrono::{Duration, Utc};
 use escolar_backend::config::{development_signing_material, AppState, Config};
-use escolar_backend::handlers::auth::{hash_refresh_token, refresh_session, refresh_token_usable, RefreshDto};
+use escolar_backend::handlers::auth::{
+    hash_refresh_token, refresh_session, refresh_token_usable, RefreshDto,
+};
 use escolar_backend::handlers::financeiro::despesa_liquidada;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
@@ -75,14 +77,16 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
     let tenant_b = Uuid::new_v4();
     let user_a = Uuid::new_v4();
 
-    sqlx::query("INSERT INTO tenants (id, name, slug) VALUES ($1, 'Escola A', $2), ($3, 'Escola B', $4)")
-        .bind(tenant_a)
-        .bind(format!("escola-a-{}", &tenant_a.to_string()[..8]))
-        .bind(tenant_b)
-        .bind(format!("escola-b-{}", &tenant_b.to_string()[..8]))
-        .execute(pool)
-        .await
-        .map_err(|e| e.to_string())?;
+    sqlx::query(
+        "INSERT INTO tenants (id, name, slug) VALUES ($1, 'Escola A', $2), ($3, 'Escola B', $4)",
+    )
+    .bind(tenant_a)
+    .bind(format!("escola-a-{}", &tenant_a.to_string()[..8]))
+    .bind(tenant_b)
+    .bind(format!("escola-b-{}", &tenant_b.to_string()[..8]))
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
 
     sqlx::query(
         r#"
@@ -115,12 +119,15 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
             .fetch_one(&mut *conn)
             .await
             .map_err(|e| e.to_string())?;
-        let leaked: i64 = sqlx::query_scalar("SELECT COUNT(*)::bigint FROM alunos WHERE nome = 'Aluno B'")
-            .fetch_one(&mut *conn)
-            .await
-            .map_err(|e| e.to_string())?;
+        let leaked: i64 =
+            sqlx::query_scalar("SELECT COUNT(*)::bigint FROM alunos WHERE nome = 'Aluno B'")
+                .fetch_one(&mut *conn)
+                .await
+                .map_err(|e| e.to_string())?;
         if visible != 1 || leaked != 0 {
-            return Err(format!("RLS com tenant A retornou {visible} linhas e {leaked} do tenant B"));
+            return Err(format!(
+                "RLS com tenant A retornou {visible} linhas e {leaked} do tenant B"
+            ));
         }
 
         sqlx::query("SELECT set_config('app.current_tenant', '', false)")
@@ -163,13 +170,12 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?;
 
-    let revoked: Option<chrono::DateTime<Utc>> = sqlx::query_scalar(
-        "SELECT revoked_at FROM refresh_tokens WHERE token_hash = $1",
-    )
-    .bind(&refresh_hash)
-    .fetch_one(pool)
-    .await
-    .map_err(|e| e.to_string())?;
+    let revoked: Option<chrono::DateTime<Utc>> =
+        sqlx::query_scalar("SELECT revoked_at FROM refresh_tokens WHERE token_hash = $1")
+            .bind(&refresh_hash)
+            .fetch_one(pool)
+            .await
+            .map_err(|e| e.to_string())?;
     if refresh_token_usable(revoked, expires_at, Utc::now()) {
         return Err("refresh revogado foi considerado utilizável".into());
     }
@@ -188,17 +194,23 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
         },
         message_hub: escolar_backend::realtime::MessageHub::new(),
     };
-    if refresh_session(State(state), Json(RefreshDto { refresh_token: raw_refresh.to_string() }))
-        .await
-        .is_ok()
+    if refresh_session(
+        State(state),
+        Json(RefreshDto {
+            refresh_token: raw_refresh.to_string(),
+        }),
+    )
+    .await
+    .is_ok()
     {
         return Err("refresh revogado gerou novo access token".into());
     }
-    let tokens_after: i64 = sqlx::query_scalar("SELECT COUNT(*)::bigint FROM refresh_tokens WHERE user_id = $1")
-        .bind(user_a)
-        .fetch_one(pool)
-        .await
-        .map_err(|e| e.to_string())?;
+    let tokens_after: i64 =
+        sqlx::query_scalar("SELECT COUNT(*)::bigint FROM refresh_tokens WHERE user_id = $1")
+            .bind(user_a)
+            .fetch_one(pool)
+            .await
+            .map_err(|e| e.to_string())?;
     if tokens_after != 1 {
         return Err("refresh revogado gerou token adicional".into());
     }
@@ -256,7 +268,9 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?;
     if still_there != 1 || estorno_status != "estornada" {
-        return Err(format!("estorno não preservou a despesa ({still_there}, {estorno_status})"));
+        return Err(format!(
+            "estorno não preservou a despesa ({still_there}, {estorno_status})"
+        ));
     }
 
     let notificacao_id = Uuid::new_v4();
@@ -283,15 +297,16 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
         return Err("fila não reservou a notificação pendente".into());
     }
 
-    let (lida, processamento): (bool, String) = sqlx::query_as(
-        "SELECT lida, status_processamento FROM notificacoes_sistema WHERE id = $1",
-    )
-    .bind(notificacao_id)
-    .fetch_one(pool)
-    .await
-    .map_err(|e| e.to_string())?;
+    let (lida, processamento): (bool, String) =
+        sqlx::query_as("SELECT lida, status_processamento FROM notificacoes_sistema WHERE id = $1")
+            .bind(notificacao_id)
+            .fetch_one(pool)
+            .await
+            .map_err(|e| e.to_string())?;
     if lida || processamento != "processando" {
-        return Err(format!("reserva alterou leitura ({lida}) ou status {processamento}"));
+        return Err(format!(
+            "reserva alterou leitura ({lida}) ou status {processamento}"
+        ));
     }
 
     sqlx::query("SELECT concluir_notificacao($1, $2, 'enviada')")
@@ -301,15 +316,16 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?;
 
-    let (lida_final, status_final): (bool, String) = sqlx::query_as(
-        "SELECT lida, status_processamento FROM notificacoes_sistema WHERE id = $1",
-    )
-    .bind(notificacao_id)
-    .fetch_one(pool)
-    .await
-    .map_err(|e| e.to_string())?;
+    let (lida_final, status_final): (bool, String) =
+        sqlx::query_as("SELECT lida, status_processamento FROM notificacoes_sistema WHERE id = $1")
+            .bind(notificacao_id)
+            .fetch_one(pool)
+            .await
+            .map_err(|e| e.to_string())?;
     if lida_final || status_final != "enviada" {
-        return Err(format!("conclusão marcou lida={lida_final} status={status_final}"));
+        return Err(format!(
+            "conclusão marcou lida={lida_final} status={status_final}"
+        ));
     }
 
     Ok(())
