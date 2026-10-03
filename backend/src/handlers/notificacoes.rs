@@ -52,26 +52,18 @@ pub async fn criar_notificacao(
     .fetch_one(&mut *tx)
     .await?;
 
-    // Simulação de disparos multicanal auditáveis (WhatsApp API, Email SMTP, Push PWA)
+    // Registro de intenção de disparo em modo simulado até confirmação do adapter/worker
+    let destino = destinatario.to_string();
     sqlx::query(
         r#"
         INSERT INTO notificacoes_disparos_logs (tenant_id, notificacao_id, canal, destino, status_envio)
-        VALUES ($1, $2, 'whatsapp_business_api', '+5511999887766', 'entregue')
+        VALUES ($1, $2, $3, $4, 'simulado')
         "#,
     )
     .bind(tenant_id)
     .bind(notificacao.id)
-    .execute(&mut *tx)
-    .await?;
-
-    sqlx::query(
-        r#"
-        INSERT INTO notificacoes_disparos_logs (tenant_id, notificacao_id, canal, destino, status_envio)
-        VALUES ($1, $2, 'web_push_pwa', 'DeviceToken-iOS-2026', 'lido')
-        "#,
-    )
-    .bind(tenant_id)
-    .bind(notificacao.id)
+    .bind(&canal)
+    .bind(&destino)
     .execute(&mut *tx)
     .await?;
 
@@ -165,18 +157,21 @@ pub async fn listar_logs_disparos(
     Ok(Json(logs))
 }
 
-/// Chave VAPID pública (demo estável) para inscrição Web Push no PWA.
+/// Chave VAPID pública para inscrição Web Push no PWA.
 pub async fn vapid_public_key(
     Extension(_auth_user): Extension<AuthUser>,
 ) -> Result<Json<Value>, AppError> {
+    let key = std::env::var("VAPID_PUBLIC_KEY").map_err(|_| {
+        AppError::ServiceUnavailable("VAPID public key not configured".into())
+    })?;
+    let trimmed = key.trim();
+    if trimmed.is_empty() {
+        return Err(AppError::ServiceUnavailable("VAPID public key not configured".into()));
+    }
     Ok(Json(json!({
-        "publicKey": VAPID_PUBLIC_KEY
+        "publicKey": trimmed
     })))
 }
-
-/// Demo VAPID public key (URL-safe base64). Em produção, gerar via web-push e guardar em env.
-const VAPID_PUBLIC_KEY: &str =
-    "BPGAy_sPAM7nTTa9WWWQIHPkAe2jGjB9vgQBofz0rjhJv9XhlqC-stkuKmRM6Pii9XMjXN_kJ3P33cfprmNf-fA";
 
 pub async fn registrar_push_subscription(
     State(_state): State<AppState>,

@@ -75,17 +75,20 @@ async function pollDatabaseNotifications() {
       } else {
         try {
           await client.query("SELECT set_config('app.current_tenant', $1, false)", [row.tenant_id]);
-          await handler({
-            id: row.id,
-            tenant_id: row.tenant_id,
-            aluno_id: row.aluno_id,
-            destinatario_id: row.destinatario_id,
-            modulo: row.modulo,
-            titulo: row.titulo,
-            mensagem: row.mensagem,
-            prioridade: row.prioridade,
-          });
-          status = 'enviada';
+          const result = await handler(
+            {
+              id: row.id,
+              tenant_id: row.tenant_id,
+              aluno_id: row.aluno_id,
+              destinatario_id: row.destinatario_id,
+              modulo: row.modulo,
+              titulo: row.titulo,
+              mensagem: row.mensagem,
+              prioridade: row.prioridade,
+            },
+            { client }
+          );
+          status = result && (result.status === 'delivered' || result.status === 'sent') ? 'enviada' : 'simulada';
         } catch (err) {
           status = Number(row.tentativas) >= 3 ? 'falhou' : 'pendente';
           console.error(`[Worker] Falha ao entregar ${row.id}:`, err.message);

@@ -11,8 +11,13 @@ O módulo cobre o **Calendário Letivo com RSVP de Eventos**, a **Rotina Diária
 | Rotina Diária Infantil (alimentação, sesta, fraldas, ocorrências) | Implementado |
 | Portfólio Pedagógico de Evidências BNCC | Implementado |
 | Mensageria Escolar e Mural da Turma | Implementado |
-| Push Notifications Web VAPID | Implementado (`push_subscriptions` e worker) |
-| Disparo de WhatsApp ativo para lembretes de RSVP | **Fora de escopo MVP** (notificação via Push/In-App) |
+| Push Notifications Web VAPID | Implementado via adapter (requer `VAPID_*` no ambiente; sem chaves roda em modo simulado) |
+| Disparo de WhatsApp ativo para lembretes de RSVP / comunicados | **Stub** (simulado via `processWhatsAppWebhook`; sem envio real via Meta Cloud API) |
+
+### Limitações MVP / Detalhes de Arquitetura
+- **Web Push**: Implementado com padrão Adapter (`SimulatedPushAdapter` default, `VapidPushAdapter` ativo sob `PUSH_MODE=vapid`). O backend fornece a chave pública via `GET /api/v1/notificacoes/push/vapid-public-key` lendo `VAPID_PUBLIC_KEY` do ambiente; quando não configurada, retorna HTTP 503 ("VAPID public key not configured"). Em modo `vapid`, subscriptions inválidas ou expiradas (HTTP 404/410) são removidas da tabela `push_subscriptions`. Sem envio real confirmado, nenhum disparo recebe status `enviado` ou `delivered`, sendo registrado como `simulado`.
+- **WhatsApp**: Permanece em modo **Stub** (`{ status: 'simulated', provider: null }`), sem envio externo e sem custos de telefonia.
+- **Worker e Multi-tenancy**: O background worker Node.js (`worker/src/index.js`) consome notificações pendentes com usuário de sistema no banco, definindo `app.current_tenant` ao processar cada notificação. A fila `JobQueue` opera em memória no processo do worker.
 
 ---
 

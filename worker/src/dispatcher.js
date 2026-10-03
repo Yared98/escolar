@@ -1,6 +1,7 @@
 /**
  * Dispatcher multicanal para notificações (WhatsApp, Push PWA, Cobrança, Portaria)
  */
+import { getPushAdapter } from './adapters/push.js';
 
 export function resolveNotificationJob(canal) {
   const value = String(canal || '').toLowerCase();
@@ -11,22 +12,18 @@ export function resolveNotificationJob(canal) {
   return null;
 }
 
-export async function processPushPwaNotification(payload) {
-  const { tenant_id, aluno_id, titulo, mensagem, prioridade } = payload;
-  // Simulação de push notification com baixo overhead
-  // Em produção, aciona web-push com VAPID keys
-  const timestamp = new Date().toISOString();
-  console.log(`[Push PWA] [${timestamp}] Aluno ${aluno_id || 'N/A'}: ${titulo} - ${mensagem} (Prioridade: ${prioridade})`);
-  return { status: 'delivered', channel: 'push_pwa', timestamp };
+export async function processPushPwaNotification(payload, options = {}) {
+  const adapter = options.adapter || getPushAdapter(options.pushMode);
+  return await adapter.send(payload, options);
 }
 
 export async function processWhatsAppWebhook(payload) {
   const { telefone, texto, template } = payload;
   const timestamp = new Date().toISOString();
   // Sanitiza número de telefone
-  const cleanPhone = String(telefone).replace(/\D/g, '');
-  console.log(`[WhatsApp Dispatcher] [${timestamp}] Enviando para ${cleanPhone}: "${texto || template}"`);
-  return { status: 'sent', provider: 'whatsapp_cloud_api', phone: cleanPhone, timestamp };
+  const cleanPhone = String(telefone || '').replace(/\D/g, '');
+  console.log(`[WhatsApp Dispatcher Stub] [${timestamp}] Simulado para ${cleanPhone}: "${texto || template}"`);
+  return { status: 'simulated', provider: null, phone: cleanPhone, timestamp };
 }
 
 export async function processReguaCobranca(payload) {

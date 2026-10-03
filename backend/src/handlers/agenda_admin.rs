@@ -616,7 +616,7 @@ pub async fn enviar_mensagem_agenda(
             let _ = sqlx::query(
                 r#"
                 INSERT INTO notificacoes_disparos_logs (tenant_id, notificacao_id, canal, destino, status_envio)
-                VALUES ($1, $2, 'web_push_pwa', $3, 'enviado')
+                VALUES ($1, $2, 'web_push_pwa', $3, 'simulado')
                 "#,
             )
             .bind(tenant_id)
