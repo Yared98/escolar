@@ -44,6 +44,34 @@ pub async fn init_runtime_pool(database_url: &str) -> Result<PgPool, sqlx::Error
         .await
 }
 
+pub async fn verify_pool_security(pool: &PgPool, is_production: bool) -> Result<(), String> {
+    let row: Option<(String, Option<bool>)> = sqlx::query_as(
+        "SELECT current_user::text, (SELECT rolbypassrls OR rolsuper FROM pg_roles WHERE rolname = current_user)",
+    )
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| format!("Falha ao verificar privilégios do papel do banco: {e}"))?;
+
+    if let Some((user, is_privileged)) = row {
+        let is_bypass = is_privileged.unwrap_or(false);
+        if is_bypass {
+            let msg = format!(
+                "ALERTA CRÍTICO DE SEGURANÇA: O usuário do banco '{user}' possui privilégios de SUPERUSER ou BYPASSRLS!"
+            );
+            if is_production {
+                return Err(format!("{msg} Abortando boot em produção (fail-closed)."));
+            } else {
+                tracing::error!("{msg} Em ambiente de desenvolvimento, RLS pode não ser aplicado.");
+            }
+        } else {
+            tracing::info!(
+                "Verificação de segurança do banco OK: usuário '{user}' sem BYPASSRLS/SUPERUSER."
+            );
+        }
+    }
+    Ok(())
+}
+
 async fn apply_tenant(
     conn: &mut sqlx::pool::PoolConnection<sqlx::Postgres>,
     tenant_id: Uuid,

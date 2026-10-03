@@ -127,10 +127,15 @@ Todas as respostas HTTP do gateway injetam compulsoriamente os 6 cabeçalhos de 
 - **Tratamento Semântico Unificado (`AppError`):**
   - Implementação padronizada de `IntoResponse` para `AppError` mapeando erros para payloads JSON `{ "error": String, "status": u16 }`.
   - Proteção contra vazamento de dados sensíveis e strings de conexão em falhas internas (logs estruturados via `tracing::error!` e mensagem genérica em produção).
-- **Resiliência e Inicialização Instantânea:**
-  - PgPool com migrações automáticas em `backend/migrations/`.
-  - Fallback automático para `connect_lazy` na eventualidade do banco reiniciar, garantindo prontidão do Gateway HTTP sem crash de container.
-  - Inicialização < 1.0s e consumo de memória < 30MB em modo Release.
+- **Resiliência e Inicialização por Ambiente (Boot Fail-Closed):**
+  - **Sanitização de Logs e Segredos:** A struct `Config` implementa `Debug` manual redigindo `database_url` e `jwt_private_pem` como `***`. O log de boot do banco parseia a URL com `PgConnectOptions` e exibe unicamente `host`, `port` e `database`, impedindo o vazamento de credenciais em logs.
+  - **Modo Produção (`APP_ENV=production`):** Aplicação estrita do princípio *fail-closed*:
+    - Ausência de `DATABASE_URL` ou `JWT_ED25519_PRIVATE_PEM` retorna erro e impede o boot.
+    - Falha ao executar migrations SQLx aborta a inicialização do processo.
+    - Falha na criação do pool com `SET ROLE escolar_runtime` aborta o boot sem fallback silencioso para o pool admin.
+    - Verificação de segurança pós-pool (`SELECT current_user, (SELECT rolbypassrls OR rolsuper FROM pg_roles WHERE rolname = current_user)`): se o papel da conexão tiver `SUPERUSER` ou `BYPASSRLS`, o boot em produção aborta imediatamente.
+  - **Modo Desenvolvimento (`APP_ENV=development`):** Mantém tolerância local com emissão de alertas em log (`tracing::warn!` e `tracing::error!`) e fallback para o pool admin ou `connect_lazy` quando o banco não estiver acessível.
+  - **Docker Compose:** O arquivo `docker-compose.yml` é restrito ao desenvolvimento local. Produção deve utilizar gerenciador de segredos ou variáveis de ambiente injetadas no container.
 
 
 

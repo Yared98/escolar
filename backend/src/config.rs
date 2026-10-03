@@ -2,7 +2,7 @@ use std::env;
 
 use ring::signature::{Ed25519KeyPair, KeyPair};
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Config {
     pub database_url: String,
     pub jwt_private_pem: String,
@@ -12,6 +12,20 @@ pub struct Config {
     pub allowed_origins: String,
     #[allow(dead_code)]
     pub environment: String,
+}
+
+impl std::fmt::Debug for Config {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Config")
+            .field("database_url", &"***")
+            .field("jwt_private_pem", &"***")
+            .field("jwt_public_pem", &self.jwt_public_pem)
+            .field("jwt_public_x", &self.jwt_public_x)
+            .field("port", &self.port)
+            .field("allowed_origins", &self.allowed_origins)
+            .field("environment", &self.environment)
+            .finish()
+    }
 }
 
 const DEV_SEED: [u8; 32] = *b"escolar-dev-ed25519-seed-2026!!!";
@@ -175,6 +189,10 @@ fn base64_url(bytes: &[u8]) -> String {
 }
 
 impl Config {
+    pub fn is_production(&self) -> bool {
+        self.environment.to_lowercase() == "production"
+    }
+
     pub fn from_env() -> Result<Self, String> {
         let environment = env::var("APP_ENV")
             .or_else(|_| env::var("ENVIRONMENT"))
@@ -182,12 +200,18 @@ impl Config {
 
         let is_production = environment.to_lowercase() == "production";
 
-        let database_url = env::var("DATABASE_URL").unwrap_or_else(|_| {
-            if is_production {
-                panic!("ERRO DE SEGURANÇA: DATABASE_URL deve ser explicitamente configurada em produção!");
+        let database_url = match env::var("DATABASE_URL") {
+            Ok(url) if !url.trim().is_empty() => url,
+            _ => {
+                if is_production {
+                    return Err(
+                        "ERRO DE SEGURANÇA: DATABASE_URL deve ser explicitamente configurada em produção!"
+                            .to_string(),
+                    );
+                }
+                "postgres://escolar_app:escolar_password@localhost:5432/escolar_db".to_string()
             }
-            "postgres://escolar_app:escolar_password@localhost:5432/escolar_db".to_string()
-        });
+        };
 
         let (jwt_private_pem, jwt_public_pem, jwt_public_x) = if let Ok(pem) =
             env::var("JWT_ED25519_PRIVATE_PEM")
@@ -230,4 +254,28 @@ pub struct AppState {
     pub pool: sqlx::PgPool,
     pub config: Config,
     pub message_hub: crate::realtime::MessageHub,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_config_debug_redacts_secrets() {
+        let config = Config {
+            database_url: "postgres://escolar_app:escolar_password@localhost:5432/escolar_db".to_string(),
+            jwt_private_pem: "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC...\n-----END PRIVATE KEY-----".to_string(),
+            jwt_public_pem: "PUBLIC_PEM".to_string(),
+            jwt_public_x: "PUBLIC_X".to_string(),
+            port: 8000,
+            allowed_origins: "http://localhost:3000".to_string(),
+            environment: "development".to_string(),
+        };
+
+        let debug_repr = format!("{:?}", config);
+        assert!(!debug_repr.contains("escolar_password"));
+        assert!(!debug_repr.contains("BEGIN PRIVATE KEY"));
+        assert!(debug_repr.contains("database_url: \"***\""));
+        assert!(debug_repr.contains("jwt_private_pem: \"***\""));
+    }
 }

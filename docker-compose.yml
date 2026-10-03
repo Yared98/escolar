@@ -1,3 +1,6 @@
+# ATENÇÃO: Este docker-compose.yml é voltado exclusivamente para DESENVOLVIMENTO LOCAL.
+# Em ambientes de PRODUÇÃO, credenciais (como POSTGRES_PASSWORD e DATABASE_URL)
+# NUNCA devem ficar em texto plano e DEVEM ser injetadas via Secrets/Variáveis de Ambiente.
 services:
   # 1. Banco de Dados PostgreSQL Multi-Tenant
   postgres:
