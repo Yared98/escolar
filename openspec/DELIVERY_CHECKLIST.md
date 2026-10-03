@@ -20,6 +20,8 @@ Use antes de declarar a tarefa concluída. Se algum item aplicável falhar → *
 - [ ] `npx tsc --noEmit` (se frontend mudou)
 - [ ] `npm test` no frontend (se alterou `lib/` ou hooks)
 - [ ] `node scripts/check-agent-gates.mjs` passou
+- [ ] CI (`.github/workflows/ci.yml`): todos os jobs aplicáveis (backend, frontend, worker, navigation) e gates devem passar em push/PR
+
 
 ## Escopo
 

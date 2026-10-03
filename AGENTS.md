@@ -33,6 +33,7 @@
 | Frontend | `cd frontend && npm run typecheck`, `npm run lint`, `npm run build` |
 | Worker | `cd worker && npm test` |
 | Gate de spec | `node scripts/check-agent-gates.mjs` |
+| CI (GitHub Actions) | `.github/workflows/ci.yml` — replica backend (clippy/test com postgres), frontend (typecheck/lint/test/build), worker e navegação em push/PR |
 | Stack local | `docker compose up -d postgres` (5432); backend na 8000; frontend na 3000 |
 | `tests/e2e/` | `node tests/e2e/run_all.mjs` — é Python e analisa estaticamente a **navegação do frontend**; **não** exercita API nem banco |
 
@@ -63,7 +64,8 @@ Board: `https://kanban.yared.com.br/boards/n8ig1mf0v4u9` (workspace Escolar, MCP
 2. Se a feature for parcial, escrever **Limitações MVP** honestas (não marketing).
 3. Compilar/typecheck o que mudou (`cargo check` e/ou `npx tsc --noEmit`).
 4. Rodar gate local: `node scripts/check-agent-gates.mjs`.
-5. Percorrer `openspec/DELIVERY_CHECKLIST.md` mentalmente — se algum item falhar, a tarefa **não** está concluída.
+5. Garantir que os passos do CI (`.github/workflows/ci.yml`: backend, frontend, worker, navegação) continuam válidos e verdes.
+6. Percorrer `openspec/DELIVERY_CHECKLIST.md` mentalmente — se algum item falhar, a tarefa **não** está concluída.
 
 ## Docs que NÃO são fonte de verdade
 

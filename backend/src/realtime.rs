@@ -24,6 +24,10 @@ pub struct MessageHub {
 }
 
 impl MessageHub {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     pub fn subscribe(&self, tenant_id: Uuid) -> broadcast::Receiver<MensagemRealtimeEvent> {
         let mut map = self.inner.lock().expect("message hub lock");
         if let Some(tx) = map.get(&tenant_id) {
