@@ -18,6 +18,7 @@ Use antes de declarar a tarefa concluída. Se algum item aplicável falhar → *
 
 - [ ] `cargo check` (se backend mudou)
 - [ ] `npx tsc --noEmit` (se frontend mudou)
+- [ ] `npm test` no frontend (se alterou `lib/` ou hooks)
 - [ ] `node scripts/check-agent-gates.mjs` passou
 
 ## Escopo
