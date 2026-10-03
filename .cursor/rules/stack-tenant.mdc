@@ -1,12 +1,8 @@
 ---
-description: Stack fixa e TenantDb — sem drift arquitetural
+description: Stack fixa e TenantDb — ponteiro para o AGENTS.md
 alwaysApply: true
 ---
 
 # Stack e multi-tenant
 
-- Backend: Rust, Axum, SQLx, Postgres. Frontend: Next.js App Router PWA + Tailwind.
-- Não trocar stack sem pedido explícito do usuário.
-- Rotas de negócio: extractor `TenantDb` + RBAC. Proibido usar pool global de `AppState` em handler tenant.
-- Falha de API: UI vazia + erro. Sem CPF/aluno/fatura inventados.
-- Erros: `Result<T, AppError>`; evitar `unwrap`/`expect` em caminho de produção.
+Regras completas em `AGENTS.md` (raiz), fonte única. Resumo: Rust/Axum + SQLx + Postgres RLS e Next.js 14 PWA + Tailwind, sem trocar sem pedido; rotas de negócio usam `TenantDb` + RBAC (exceções públicas listadas no `AGENTS.md`); falha de API vira UI vazia + erro.

@@ -1,22 +1,8 @@
 ---
-description: Anti-drift OpenSpec — ler spec, sync obrigatório, sem overclaim
+description: Anti-drift OpenSpec — ponteiro para o AGENTS.md
 alwaysApply: true
 ---
 
 # OpenSpec anti-drift
 
-## Obrigatório
-
-1. Antes de implementar: ler `AGENTS.md` (raiz) + módulo em `openspec/modules/`.
-2. Antes de concluir: atualizar o OpenSpec do que mudou. Código sem sync = tarefa incompleta.
-3. Spec e UI devem refletir o **estado real**. Se for stub/MVP, diga “simulado / não enviado / local”.
-
-## Proibido
-
-- Prometer na UI/docs: “enviado à prefeitura”, “WhatsApp enviado”, “boleto registrado”, “produção PSP” sem integração real.
-- Inventar entidades/endpoints que não existem no backend.
-- Marcar done sem `cargo check` / `tsc` relevante e sem `node scripts/check-agent-gates.mjs`.
-
-## Stub externo
-
-Usar Adapter + env **ou** documentar em `## Limitações MVP` no módulo OpenSpec e copy honesto na UI.
+Regras completas em `AGENTS.md` (raiz), fonte única. Resumo: ler o módulo em `openspec/modules/` antes de implementar; atualizar o OpenSpec antes de concluir; nunca prometer na UI envio/integração que o backend só simula; rodar `node scripts/check-agent-gates.mjs`.
