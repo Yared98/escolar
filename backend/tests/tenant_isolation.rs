@@ -533,17 +533,27 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
         let sample_tables = vec![
             ("users", format!("INSERT INTO users (id, tenant_id, name, email, password_hash, role) VALUES ('{}', '{}', 'Cross User', 'cross@test.com', 'hash', 'gestor')", Uuid::new_v4(), tenant_b)),
             ("alunos", format!("INSERT INTO alunos (id, tenant_id, nome, cpf, data_nascimento, nome_responsavel, email_responsavel, telefone_responsavel) VALUES ('{}', '{}', 'Cross Aluno', '99999999999', '2015-01-01', 'Resp', 'resp@test.com', '11999999999')", Uuid::new_v4(), tenant_b)),
-            ("faturas", format!("INSERT INTO faturas (id, tenant_id, aluno_id, contrato_id, numero_parcela, valor, data_vencimento, status) VALUES ('{}', '{}', '{}', '{}', 1, 100.0, CURRENT_DATE, 'pendente')", Uuid::new_v4(), tenant_b, aluno_b_id, contrato_b_id)),
+            ("faturas", format!("INSERT INTO faturas (id, tenant_id, aluno_id, contrato_id, descricao, valor, data_vencimento, status) VALUES ('{}', '{}', '{}', '{}', 'Fatura Teste', 100.0, CURRENT_DATE, 'pendente')", Uuid::new_v4(), tenant_b, aluno_b_id, contrato_b_id)),
             ("mensagens_agenda", format!("INSERT INTO mensagens_agenda (id, tenant_id, remetente_id, destinatario_id, canal, titulo, conteudo) VALUES ('{}', '{}', '{}', '{}', 'comunicado', 'Cross Msg', 'Content')", Uuid::new_v4(), tenant_b, user_b, user_b)),
-            ("refresh_tokens", format!("INSERT INTO refresh_tokens (id, tenant_id, user_id, token_hash, expires_at) VALUES ('{}', '{}', '{}', 'crosstokenhash123456789012345678901234567890123456789012345678901', NOW() + INTERVAL '1 day')", Uuid::new_v4(), tenant_b, user_b)),
+            ("refresh_tokens", format!("INSERT INTO refresh_tokens (id, tenant_id, user_id, token_hash, expires_at) VALUES ('{}', '{}', '{}', 'crosstokenhash12345678901234567890123456789012345678901234567890', NOW() + INTERVAL '1 day')", Uuid::new_v4(), tenant_b, user_b)),
         ];
 
         for (tbl, insert_query) in sample_tables {
             let res = sqlx::query(&insert_query).execute(&mut *conn).await;
-            if res.is_ok() {
-                return Err(format!(
-                    "FALHA DE SEGURANÇA: INSERT cruzado na tabela '{tbl}' com tenant_id do Tenant B foi ACEITO sob contexto do Tenant A!"
-                ));
+            match res {
+                Ok(_) => {
+                    return Err(format!(
+                        "FALHA DE SEGURANÇA: INSERT cruzado na tabela '{tbl}' com tenant_id do Tenant B foi ACEITO sob contexto do Tenant A!"
+                    ));
+                }
+                Err(sqlx::Error::Database(err)) if err.code().as_deref() == Some("42501") => {
+                    // Bloqueado corretamente pelo RLS WITH CHECK (error 42501: insufficient_privilege / rls_policy_violation)
+                }
+                Err(e) => {
+                    return Err(format!(
+                        "INSERT cruzado na tabela '{tbl}' falhou por motivo genérico em vez de RLS violation (42501): {e}"
+                    ));
+                }
             }
         }
 
