@@ -32,7 +32,8 @@
 | Backend testes | `cd backend && cargo test` (os de integração, `tests/tenant_isolation.rs`, exigem `ESCOLAR_TEST_DATABASE_URL`: URL admin de um Postgres; o teste cria e derruba bancos próprios) |
 | Frontend | `cd frontend && npm run typecheck`, `npm run lint`, `npm run build` |
 | Worker | `cd worker && npm test` |
-| Gate de spec | `node scripts/check-agent-gates.mjs` |
+| Gate de spec | `node scripts/check-agent-gates.mjs` (modo diff local) ou `--base origin/main` (CI/PR) |
+| Testes do gate | `node --test scripts/check-agent-gates.test.mjs` |
 | CI (GitHub Actions) | `.github/workflows/ci.yml` — replica backend (clippy/test com postgres), frontend (typecheck/lint/test/build), worker e navegação em push/PR |
 | Stack local | `docker compose up -d postgres` (5432); backend na 8000; frontend na 3000 |
 | `tests/e2e/` | `node tests/e2e/run_all.mjs` — é Python e analisa estaticamente a **navegação do frontend**; **não** exercita API nem banco |
@@ -63,8 +64,8 @@ Board: `https://kanban.yared.com.br/boards/n8ig1mf0v4u9` (workspace Escolar, MCP
 1. Atualizar OpenSpec do módulo tocado (`openspec/modules/*.md` e, se preciso, `CORE_SPEC.md` / `BUSINESS_RULES.md`).
 2. Se a feature for parcial, escrever **Limitações MVP** honestas (não marketing).
 3. Compilar/typecheck o que mudou (`cargo check` e/ou `npx tsc --noEmit`).
-4. Rodar gate local: `node scripts/check-agent-gates.mjs`.
-5. Garantir que os passos do CI (`.github/workflows/ci.yml`: backend, frontend, worker, navegação) continuam válidos e verdes.
+4. Rodar gate local: `node scripts/check-agent-gates.mjs` (ou `node scripts/check-agent-gates.mjs --base <ref>` para modo diff contra uma branch). Se alterar código mapeado na tabela sem alterar a respectiva spec, o gate falhará em modo diff. Escape auditável: adicione `Spec-Sync: n/a <motivo>` no commit para liberar o par quando a alteração não tocar regras de negócio.
+5. Garantir que os passos do CI (`.github/workflows/ci.yml`: backend, frontend, worker, navegação e `.github/workflows/agent-gates.yml`) continuam válidos e verdes.
 6. Percorrer `openspec/DELIVERY_CHECKLIST.md` mentalmente — se algum item falhar, a tarefa **não** está concluída.
 
 ## Docs que NÃO são fonte de verdade
@@ -77,12 +78,13 @@ A fonte de verdade é `openspec/`. Estes arquivos da raiz são histórico ou ref
 
 | Área | Spec | Código típico |
 |---|---|---|
-| Secretaria | `openspec/modules/secretaria.md` | `backend/src/handlers/secretaria.rs`, `frontend/src/components/SecretariaSection.tsx` |
-| Financeiro | `openspec/modules/financeiro.md` | `backend/src/handlers/financeiro.rs`, `frontend/src/components/FinanceiroSection.tsx` |
-| Acadêmico | `openspec/modules/academico.md` | `backend/src/handlers/academico.rs`, `frontend/src/components/academico/`, `PedagocioNutricaoSection.tsx` (TRI) |
-| Nutrição | `openspec/modules/nutricao.md` | `backend/src/handlers/nutricao.rs`, `frontend/src/components/nutricao/CardapioPlanner.tsx` |
-| Agenda & Calendário | `openspec/modules/agenda_calendario.md` | `backend/src/handlers/agenda_admin.rs`, `AgendaDigitalSection.tsx`, `CalendarioEscolarSection.tsx` |
+| Secretaria | `openspec/modules/secretaria.md` | `backend/src/handlers/secretaria.rs`, `frontend/src/components/SecretariaSection.tsx`, `frontend/src/components/secretaria/**` |
+| Financeiro | `openspec/modules/financeiro.md` | `backend/src/handlers/financeiro.rs`, `frontend/src/components/FinanceiroSection.tsx`, `frontend/src/components/financeiro/**` |
+| Acadêmico | `openspec/modules/academico.md` | `backend/src/handlers/academico.rs`, `frontend/src/components/academico/**`, `PedagocioNutricaoSection.tsx` (TRI) |
+| Nutrição | `openspec/modules/nutricao.md` | `backend/src/handlers/nutricao.rs`, `frontend/src/components/nutricao/**` |
+| Agenda & Calendário | `openspec/modules/agenda_calendario.md` | `backend/src/handlers/agenda_admin.rs`, `AgendaDigitalSection.tsx`, `CalendarioEscolarSection.tsx`, `worker/**` |
 | CRM | `openspec/modules/crm_atendimento.md` | `backend/src/handlers/crm_lms.rs`, `frontend/src/components/CrmSection.tsx` |
 | IA Evasão | `openspec/modules/ia_preditiva.md` | `backend/src/handlers/regulatorio_ia.rs` (score), `PainelEvasao.tsx` |
 | Regulatório & LGPD | `openspec/modules/regulatorio_lgpd.md` | `backend/src/handlers/regulatorio_ia.rs`, `AdministrativoSection.tsx` (conformidade) |
 | LMS / SSO | `openspec/modules/lms_integracao.md` | `backend/src/handlers/crm_lms.rs` + auth OIDC — **sem UI dedicada no MVP** |
+| Core / Banco | `openspec/CORE_SPEC.md` | `backend/migrations/**` |

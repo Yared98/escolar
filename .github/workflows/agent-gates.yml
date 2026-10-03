@@ -10,8 +10,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Run agent gates unit tests
+        run: node --test scripts/check-agent-gates.test.mjs
       - name: Run agent / OpenSpec gates
-        run: node scripts/check-agent-gates.mjs
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            node scripts/check-agent-gates.mjs --base origin/${{ github.base_ref }}
+          else
+            node scripts/check-agent-gates.mjs
+          fi

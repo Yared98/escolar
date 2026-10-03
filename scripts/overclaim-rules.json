@@ -1,0 +1,32 @@
+[
+  {
+    "glob": "frontend/src/**/*.tsx",
+    "pattern": "enviad[ao] (?:para a|à) prefeitura|assinada e enviada para a prefeitura",
+    "label": "NFS-e alegando envio real à prefeitura"
+  },
+  {
+    "glob": "frontend/src/**/*.tsx",
+    "pattern": "WhatsApp enviado|enviadas? via WhatsApp|WhatsApp oficial conectado",
+    "label": "WhatsApp alegando envio real ou conexão oficial"
+  },
+  {
+    "glob": "frontend/src/**/*.tsx",
+    "pattern": "mensagem enviada via",
+    "label": "Mensagem alegando envio externo real"
+  },
+  {
+    "glob": "frontend/src/**/*.tsx",
+    "pattern": "boleto registrado",
+    "label": "Boleto bancário alegando registro em produção"
+  },
+  {
+    "glob": "frontend/src/**/*.tsx",
+    "pattern": "produção PSP",
+    "label": "PSP bancário alegando produção ativa"
+  },
+  {
+    "glob": "frontend/src/**/*.tsx",
+    "pattern": "push entregue",
+    "label": "Push notification alegando entrega externa confirmada"
+  }
+]
