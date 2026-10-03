@@ -58,13 +58,10 @@ export function isAllowedPlumbing(rawLine) {
   if (/^return\s*\(?$/.test(line)) return true;
   if (/^return\s+\<[A-Z][A-Za-z0-9_]*/.test(line)) return true;
 
-  // Uso do componente no Section (chamadas JSX de componentes extraídos e props multilinha simples)
-  // Ex: <NomeComponente prop={prop} /> ou prop={prop} ou prop="valor" ou prop
-  if (/^\<[A-Z][A-Za-z0-9_]*(?:\s+[a-zA-Z0-9_]+=\{[a-zA-Z0-9_\.]+\})*\s*\/?\>?$/.test(line)) return true;
-  if (/^[a-zA-Z0-9_]+=\{[a-zA-Z0-9_\.]+\},?$/.test(line)) return true;
-  if (/^[a-zA-Z0-9_]+="[^"]*",?$/.test(line)) return true;
-  if (/^[a-zA-Z0-9_]+='[^']*',?$/.test(line)) return true;
-  if (/^[a-zA-Z0-9_]+=\{[^}]+\},?$/.test(line)) return true;
+  // Uso do componente no Section (chamadas JSX de componentes extraídos e props multilinha simples com o mesmo identificador: x={x})
+  // Ex: <NomeComponente prop={prop} /> ou prop={prop}
+  if (/^\<[A-Z][A-Za-z0-9_]*(?:\s+([a-zA-Z0-9_]+)=\{\1\})*\s*\/?\>?$/.test(line)) return true;
+  if (/^([a-zA-Z0-9_]+)=\{\1\},?(?:\s*\/?\>)?$/.test(line)) return true;
 
   return false;
 }

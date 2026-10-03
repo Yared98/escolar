@@ -417,5 +417,125 @@ export function Main({ activeTab }) {
     }
   });
 
+  await t.test('(k) extração com remover={arquivar} acusa essa linha', () => {
+    const dir = createTempGitRepo();
+    try {
+      const compPath = path.join(dir, 'frontend', 'src', 'components', 'Section.tsx');
+      fs.writeFileSync(compPath, `
+export function Section() {
+  const remover = (id: string) => {};
+  const arquivar = (id: string) => {};
+  return (
+    <div>
+      <button onClick={() => remover('1')}>Remover</button>
+    </div>
+  );
+}
+      `.trim());
+
+      execSync('git add . && git commit -m "initial"', { cwd: dir });
+      execSync('git branch base-ref', { cwd: dir });
+
+      const subCompPath = path.join(dir, 'frontend', 'src', 'components', 'ItemActions.tsx');
+      fs.writeFileSync(subCompPath, `
+export interface ItemActionsProps {
+  remover: (id: string) => void;
+}
+
+export function ItemActions({
+  remover,
+}: ItemActionsProps) {
+  return (
+    <div>
+      <button onClick={() => remover('1')}>Remover</button>
+    </div>
+  );
+}
+      `.trim());
+
+      fs.writeFileSync(compPath, `
+import { ItemActions } from './ItemActions';
+
+export function Section() {
+  const remover = (id: string) => {};
+  const arquivar = (id: string) => {};
+  return (
+    <div>
+      <ItemActions
+        remover={arquivar}
+      />
+    </div>
+  );
+}
+      `.trim());
+
+      const res = analyzeRefactorMove(dir, 'base-ref', 0);
+      assert.equal(res.newLines.length, 1, 'Deveria acusar exatamente 1 linha nova');
+      assert.equal(res.newLines[0].line.includes('remover={arquivar}'), true, 'Deveria acusar a linha com remover={arquivar}');
+    } finally {
+      cleanupTempGitRepo(dir);
+    }
+  });
+
+  await t.test('(l) a mesma extração com remover={remover} tem 0 linhas novas', () => {
+    const dir = createTempGitRepo();
+    try {
+      const compPath = path.join(dir, 'frontend', 'src', 'components', 'Section.tsx');
+      fs.writeFileSync(compPath, `
+export function Section() {
+  const remover = (id: string) => {};
+  const arquivar = (id: string) => {};
+  return (
+    <div>
+      <button onClick={() => remover('1')}>Remover</button>
+    </div>
+  );
+}
+      `.trim());
+
+      execSync('git add . && git commit -m "initial"', { cwd: dir });
+      execSync('git branch base-ref', { cwd: dir });
+
+      const subCompPath = path.join(dir, 'frontend', 'src', 'components', 'ItemActions.tsx');
+      fs.writeFileSync(subCompPath, `
+export interface ItemActionsProps {
+  remover: (id: string) => void;
+}
+
+export function ItemActions({
+  remover,
+}: ItemActionsProps) {
+  return (
+    <div>
+      <button onClick={() => remover('1')}>Remover</button>
+    </div>
+  );
+}
+      `.trim());
+
+      fs.writeFileSync(compPath, `
+import { ItemActions } from './ItemActions';
+
+export function Section() {
+  const remover = (id: string) => {};
+  const arquivar = (id: string) => {};
+  return (
+    <div>
+      <ItemActions
+        remover={remover}
+      />
+    </div>
+  );
+}
+      `.trim());
+
+      const res = analyzeRefactorMove(dir, 'base-ref', 0);
+      assert.equal(res.newLines.length, 0, 'Deveria ter 0 linhas novas com remover={remover}');
+      assert.equal(res.typeDivergences.length, 0, 'Deveria ter 0 divergencias de tipos');
+    } finally {
+      cleanupTempGitRepo(dir);
+    }
+  });
+
 });
 
