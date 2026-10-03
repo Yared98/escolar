@@ -12,6 +12,7 @@ Use antes de declarar a tarefa concluída. Se algum item aplicável falhar → *
 ## Código
 
 - [ ] `TenantDb` / RBAC respeitados em handlers novos ou alterados
+- [ ] Seeds demo (tenant `escola-modelo`, usuários demo e senhas conhecidas) filtrados em `APP_ENV=production` no boot do backend
 - [ ] Sem dados fictícios na UI em caso de erro de API
 - [ ] Stubs externos explícitos (env/adapter **ou** doc+UI), sem overclaims em `.tsx` (sem alegações de envio à prefeitura, WhatsApp oficial ou produção PSP sem disclaimer estrito)
 

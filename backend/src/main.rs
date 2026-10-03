@@ -40,7 +40,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pool = match init_admin_pool(&config.database_url).await {
         Ok(admin_pool) => {
             tracing::info!("Conexão ativa com PostgreSQL estabelecida!");
-            if let Err(e) = sqlx::migrate!("./migrations").run(&admin_pool).await {
+            let migrator = escolar_backend::db::prepare_migrator(
+                sqlx::migrate!("./migrations"),
+                config.is_production(),
+            );
+            if let Err(e) = migrator.run(&admin_pool).await {
                 if config.is_production() {
                     tracing::error!("Erro fatal ao executar migrations SQLx em produção: {}", e);
                     return Err(Box::new(e) as Box<dyn std::error::Error>);
@@ -49,6 +53,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             } else {
                 tracing::info!("Migrations SQLx executadas com sucesso!");
+            }
+
+            if config.is_production() {
+                let demo_exists: Option<bool> = sqlx::query_scalar(
+                    "SELECT EXISTS(SELECT 1 FROM tenants WHERE slug = 'escola-modelo')",
+                )
+                .fetch_optional(&admin_pool)
+                .await
+                .ok()
+                .flatten();
+
+                if demo_exists == Some(true) {
+                    tracing::error!(
+                        "ALERTA DE SEGURANÇA: Tenant demo 'escola-modelo' (com senha conhecida) existe no banco em ambiente de produção!"
+                    );
+                }
             }
 
             match init_runtime_pool(&config.database_url).await {

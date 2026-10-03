@@ -157,8 +157,34 @@ where
     }
 }
 
+pub const SEEDS_DEMO: [i64; 4] = [
+    20260929180000,
+    20260929234000,
+    20260930120000,
+    20260930160000,
+];
+
+pub fn prepare_migrator(
+    mut migrator: sqlx::migrate::Migrator,
+    is_production: bool,
+) -> sqlx::migrate::Migrator {
+    if is_production {
+        let filtered: Vec<_> = migrator
+            .migrations
+            .iter()
+            .filter(|m| !SEEDS_DEMO.contains(&m.version))
+            .cloned()
+            .collect();
+        migrator.migrations = std::borrow::Cow::Owned(filtered);
+        migrator.ignore_missing = true;
+    }
+    migrator
+}
+
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn rls_migration_fails_closed_without_null_bypass() {
         let sql = include_str!("../../migrations/20260929000000_security_foundation.sql");
@@ -167,6 +193,31 @@ mod tests {
         assert!(sql.contains("tenant_id = get_current_tenant()"));
         assert!(
             sql.contains("SET ROLE escolar_runtime") || sql.contains("CREATE ROLE escolar_runtime")
+        );
+    }
+
+    #[test]
+    fn production_migrator_excludes_demo_seeds() {
+        let migrator = sqlx::migrate!("./migrations");
+        let dev_versions: Vec<i64> = migrator.migrations.iter().map(|m| m.version).collect();
+        for &version in &SEEDS_DEMO {
+            assert!(
+                dev_versions.contains(&version),
+                "Migration {version} deveria existir no conjunto completo de dev"
+            );
+        }
+
+        let prod_migrator = prepare_migrator(migrator, true);
+        let prod_versions: Vec<i64> = prod_migrator.migrations.iter().map(|m| m.version).collect();
+        for &version in &SEEDS_DEMO {
+            assert!(
+                !prod_versions.contains(&version),
+                "Migration {version} não deve estar presente no migrator de produção"
+            );
+        }
+        assert!(
+            prod_migrator.ignore_missing,
+            "ignore_missing deve ser true no migrator de produção"
         );
     }
 }

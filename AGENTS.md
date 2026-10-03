@@ -36,6 +36,7 @@
 | Testes do contrato | `node --test scripts/check-api-contract.test.mjs` |
 | Gate de spec | `node scripts/check-agent-gates.mjs` (modo diff local) ou `--base origin/main` (CI/PR) |
 | Testes do gate | `node --test scripts/check-agent-gates.test.mjs` |
+| Execução manual de seeds demo | `node scripts/seed-demo.mjs` (aplica as migrations de seed demo no DB) |
 | CI (GitHub Actions) | `.github/workflows/ci.yml` — replica backend (clippy/test com postgres), frontend (typecheck/lint/test/contrato de api/build), worker e navegação em push/PR |
 | Stack local | `docker compose up -d postgres` (5432); backend na 8000; frontend na 3000 |
 | `tests/e2e/` | `node tests/e2e/run_all.mjs` — é Python e analisa estaticamente a **navegação do frontend**; **não** exercita API nem banco |
