@@ -6,3 +6,4 @@ export * from './NovaDespesaModal';
 export * from './ReceberPanel';
 export * from './PagarPanel';
 export * from './FornecedoresPanel';
+export * from './CobrancaPanel';
