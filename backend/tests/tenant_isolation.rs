@@ -825,5 +825,72 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
         ));
     }
 
+    // Teste de isolamento de tenant na função SQL atualizar_log_disparo
+    let notif_log_a = Uuid::new_v4();
+    let notif_log_b = Uuid::new_v4();
+
+    sqlx::query(
+        r#"
+        INSERT INTO notificacoes_sistema (id, tenant_id, modulo, titulo, mensagem, canal_disparo, lida)
+        VALUES ($1, $2, 'agenda', 'Notif A Log', 'Mensagem A', 'push_pwa', false),
+               ($3, $4, 'agenda', 'Notif B Log', 'Mensagem B', 'push_pwa', false)
+        "#,
+    )
+    .bind(notif_log_a)
+    .bind(tenant_a)
+    .bind(notif_log_b)
+    .bind(tenant_b)
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let log_id_a = Uuid::new_v4();
+    let log_id_b = Uuid::new_v4();
+
+    sqlx::query(
+        r#"
+        INSERT INTO notificacoes_disparos_logs (id, tenant_id, notificacao_id, canal, destino, status_envio)
+        VALUES ($1, $2, $3, 'push_pwa', 'user-a', 'simulado'),
+               ($4, $5, $6, 'push_pwa', 'user-b', 'simulado')
+        "#,
+    )
+    .bind(log_id_a)
+    .bind(tenant_a)
+    .bind(notif_log_a)
+    .bind(log_id_b)
+    .bind(tenant_b)
+    .bind(notif_log_b)
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    // Executa atualizar_log_disparo passando tenant_a e notif_log_a
+    sqlx::query("SELECT atualizar_log_disparo($1, $2, 'push_pwa', 'enviado')")
+        .bind(tenant_a)
+        .bind(notif_log_a)
+        .execute(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let status_log_a: String =
+        sqlx::query_scalar("SELECT status_envio FROM notificacoes_disparos_logs WHERE id = $1")
+            .bind(log_id_a)
+            .fetch_one(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+
+    let status_log_b: String =
+        sqlx::query_scalar("SELECT status_envio FROM notificacoes_disparos_logs WHERE id = $1")
+            .bind(log_id_b)
+            .fetch_one(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+
+    if status_log_a != "enviado" || status_log_b != "simulado" {
+        return Err(format!(
+            "atualizar_log_disparo violou isolamento de tenant: status_a={status_log_a}, status_b={status_log_b}"
+        ));
+    }
+
     Ok(())
 }

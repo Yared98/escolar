@@ -102,6 +102,40 @@ async function runTests() {
     lastCallFailed.params[3] === 'falhou';
   console.log('Teste Log Status Falha Definitiva -> falhou:', resFailed.logStatus, failedLogPassed);
 
+  // Teste B19.4: Erro em atualizar_log_disparo não impede concluir_notificacao
+  let concluirCalled = false;
+  const mockErrClient = {
+    query: async (sql) => {
+      if (sql.includes('atualizar_log_disparo')) {
+        throw new Error('Erro simulado em atualizar_log_disparo');
+      }
+      if (sql.includes('concluir_notificacao')) {
+        concluirCalled = true;
+      }
+      return { rows: [] };
+    },
+  };
+  const rowLogErr = {
+    id: 'notif-4',
+    tenant_id: 'tenant-1',
+    canal_disparo: 'push_pwa',
+    tentativas: 1,
+    titulo: 'Teste Erro Log',
+    mensagem: 'Mensagem',
+  };
+  const mockHandlersLogErr = {
+    push_pwa: async () => ({ status: 'delivered' }),
+  };
+  const resLogErr = await processNotificationRow(rowLogErr, {
+    client: mockErrClient,
+    handlers: mockHandlersLogErr,
+  });
+  const logErrResilientPassed =
+    resLogErr.status === 'enviada' &&
+    resLogErr.logStatus === 'enviado' &&
+    concluirCalled === true;
+  console.log('Teste Log Error Resilience -> concluir_notificacao executada:', resLogErr.status, logErrResilientPassed);
+
   // Teste 1: Processamento de Push PWA (modo default simulated não retorna 'delivered')
   const simulatedResult = await processPushPwaNotification({
     aluno_id: 'test-uuid-1',
@@ -247,7 +281,8 @@ async function runTests() {
     subscription410Removed &&
     deliveredLogPassed &&
     simulatedLogPassed &&
-    failedLogPassed;
+    failedLogPassed &&
+    logErrResilientPassed;
 
   if (allPassed) {
     console.log('[SUCESSO] 100% dos testes do Worker Node.js passaram com êxito!');

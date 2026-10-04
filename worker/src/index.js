@@ -103,12 +103,16 @@ export async function processNotificationRow(row, { client, handlers: customHand
 
   if (client && client.query) {
     if (logStatus) {
-      await client.query('SELECT atualizar_log_disparo($1, $2, $3, $4)', [
-        row.tenant_id,
-        row.id,
-        row.canal_disparo,
-        logStatus,
-      ]);
+      try {
+        await client.query('SELECT atualizar_log_disparo($1, $2, $3, $4)', [
+          row.tenant_id,
+          row.id,
+          row.canal_disparo,
+          logStatus,
+        ]);
+      } catch (err) {
+        console.error(`[Worker] Falha ao atualizar log de disparo para ${row.id}:`, err.message);
+      }
     }
     await client.query('SELECT concluir_notificacao($1, $2, $3)', [row.id, row.tenant_id, status]);
   }
