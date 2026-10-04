@@ -9,6 +9,7 @@ use axum::{
 use hmac::{Hmac, Mac};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
+use sqlx::Acquire;
 use subtle::ConstantTimeEq;
 use uuid::Uuid;
 
@@ -42,18 +43,22 @@ pub struct CoraWebhookInvoice {
 }
 
 impl CoraWebhookInvoice {
+    /// Retorna o valor em Reais a partir dos campos do webhook.
+    /// Apenas campos com unidade explicitamente conhecida (`paid_amount` em reais,
+    /// `amount_cents` em centavos) realizam conversão de unidade.
+    /// Campos ambíguos (`amount`/`value`) são tratados estritamente como reais.
     pub fn get_paid_value(&self) -> Option<f64> {
         if let Some(val) = self.paid_amount {
             return Some(val);
+        }
+        if let Some(cents) = self.amount_cents {
+            return Some(cents as f64 / 100.0);
         }
         if let Some(val) = self.amount {
             return Some(val);
         }
         if let Some(val) = self.value {
             return Some(val);
-        }
-        if let Some(cents) = self.amount_cents {
-            return Some(cents as f64 / 100.0);
         }
         None
     }
@@ -136,7 +141,13 @@ pub async fn cora_webhook_handler(
     let payload: CoraWebhookPayload = serde_json::from_slice(&body)
         .map_err(|_| AppError::BadRequest("Invalid JSON payload".into()))?;
 
-    // 5. Anti-replay check via webhook_events
+    // 5. Atomic transaction for idempotency check and business processing
+    let mut tx = db.begin().await?;
+    sqlx::query("SELECT set_config('app.current_tenant', $1, true)")
+        .bind(tenant_id.to_string())
+        .execute(&mut *tx)
+        .await?;
+
     let cora_id = payload.data.invoice.id.clone();
     let event_id = payload.event_id.clone().unwrap_or_else(|| {
         headers
@@ -154,10 +165,11 @@ pub async fn cora_webhook_handler(
     .bind(tenant_id)
     .bind(&event_id)
     .bind(&payload_hash)
-    .execute(&mut *db)
+    .execute(&mut *tx)
     .await?;
 
     if insert_res.rows_affected() == 0 {
+        tx.commit().await?;
         tracing::info!(
             "Webhook event {} already processed for tenant {}",
             event_id,
@@ -168,27 +180,19 @@ pub async fn cora_webhook_handler(
         })));
     }
 
-    // 6. Process business logic
+    // 6. Process business logic inside the same transaction
     if payload.event_type == "invoice.paid" || payload.event_type == "invoice.settled" {
         let fatura_opt = sqlx::query_as::<_, (Uuid, f64, String)>(
             "SELECT id, valor, status FROM faturas WHERE tenant_id = $1 AND gateway_invoice_id = $2 AND gateway_name = 'cora'"
         )
         .bind(tenant_id)
         .bind(&cora_id)
-        .fetch_optional(&mut *db)
+        .fetch_optional(&mut *tx)
         .await?;
 
         if let Some((fatura_id, fatura_valor, status)) = fatura_opt {
             if status == "pendente" {
-                if let Some(paid_raw) = payload.data.invoice.get_paid_value() {
-                    let paid_reais = if paid_raw >= 100.0 * fatura_valor - 0.01
-                        && (paid_raw / 100.0 - fatura_valor).abs() < 0.01
-                    {
-                        paid_raw / 100.0
-                    } else {
-                        paid_raw
-                    };
-
+                if let Some(paid_reais) = payload.data.invoice.get_paid_value() {
                     if (paid_reais - fatura_valor).abs() > 0.01 {
                         sqlx::query(
                             "INSERT INTO audit_logs (tenant_id, acao, entidade, entidade_id, detalhes_json) VALUES ($1, 'webhook_valor_divergente', 'faturas', $2, $3)"
@@ -202,8 +206,10 @@ pub async fn cora_webhook_handler(
                             "gateway_name": "cora",
                             "reason": "Valor pago no webhook difere do valor cadastrado na fatura"
                         }))
-                        .execute(&mut *db)
+                        .execute(&mut *tx)
                         .await?;
+
+                        tx.commit().await?;
 
                         return Ok(Json(serde_json::json!({
                             "status": "divergent_value_flagged"
@@ -216,7 +222,7 @@ pub async fn cora_webhook_handler(
                 )
                 .bind(fatura_id)
                 .bind(tenant_id)
-                .execute(&mut *db)
+                .execute(&mut *tx)
                 .await?;
             }
         } else {
@@ -227,6 +233,8 @@ pub async fn cora_webhook_handler(
             );
         }
     }
+
+    tx.commit().await?;
 
     Ok(Json(serde_json::json!({"status": "received"})))
 }

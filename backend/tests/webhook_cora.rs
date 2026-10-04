@@ -143,6 +143,32 @@ async fn test_webhook_cora_security_idempotency_and_value_check() {
     .await
     .expect("insert fatura 2");
 
+    let fatura_cents_id = Uuid::new_v4();
+    let cora_inv_cents_id = "cora_inv_cents";
+    sqlx::query(
+        "INSERT INTO faturas (id, tenant_id, aluno_id, descricao, valor, data_vencimento, status, gateway_name, gateway_invoice_id) VALUES ($1, $2, $3, 'Fatura Cents Test', 150.0, CURRENT_DATE, 'pendente', 'cora', $4)"
+    )
+    .bind(fatura_cents_id)
+    .bind(tenant_id)
+    .bind(aluno_id)
+    .bind(cora_inv_cents_id)
+    .execute(&test_pool)
+    .await
+    .expect("insert fatura cents");
+
+    let fatura_fail_id = Uuid::new_v4();
+    let cora_inv_fail_id = "cora_inv_fail";
+    sqlx::query(
+        "INSERT INTO faturas (id, tenant_id, aluno_id, descricao, valor, data_vencimento, status, gateway_name, gateway_invoice_id) VALUES ($1, $2, $3, 'Fatura Fail Test', 300.0, CURRENT_DATE, 'pendente', 'cora', $4)"
+    )
+    .bind(fatura_fail_id)
+    .bind(tenant_id)
+    .bind(aluno_id)
+    .bind(cora_inv_fail_id)
+    .execute(&test_pool)
+    .await
+    .expect("insert fatura fail");
+
     let (pem, pub_pem, pub_x) = development_signing_material();
     let mut config = Config::default();
     config.jwt_private_pem = pem;
@@ -164,7 +190,7 @@ async fn test_webhook_cora_security_idempotency_and_value_check() {
             "invoice": {
                 "id": cora_inv1_id,
                 "status": "paid",
-                "amount": 150.0
+                "paid_amount": 150.0
             }
         }
     });
@@ -235,7 +261,7 @@ async fn test_webhook_cora_security_idempotency_and_value_check() {
             "invoice": {
                 "id": cora_inv1_id,
                 "status": "paid",
-                "amount": 150.0
+                "paid_amount": 150.0
             }
         }
     });
@@ -262,7 +288,7 @@ async fn test_webhook_cora_security_idempotency_and_value_check() {
             "invoice": {
                 "id": cora_inv2_id,
                 "status": "paid",
-                "amount": 50.0
+                "paid_amount": 50.0
             }
         }
     });
@@ -301,6 +327,211 @@ async fn test_webhook_cora_security_idempotency_and_value_check() {
     assert_eq!(
         audit_count.0, 1,
         "Deve registrar auditoria de valor divergente em audit_logs"
+    );
+
+    // 5. Conversão estrita de centavos/reais:
+    // 5a. amount_cents (15000) -> 150.0 reais -> fatura de 150.0 é baixada normalmente
+    let payload_cents = json!({
+        "event_id": "evt_test_cents",
+        "type": "invoice.paid",
+        "data": {
+            "invoice": {
+                "id": cora_inv_cents_id,
+                "status": "paid",
+                "amount_cents": 15000
+            }
+        }
+    });
+    let body_bytes_cents = serde_json::to_vec(&payload_cents).unwrap();
+    let valid_sig_cents = compute_hmac_hex(webhook_secret, &body_bytes_cents);
+
+    let req_cents = Request::builder()
+        .method("POST")
+        .uri(format!("/api/v1/webhooks/cora/{tenant_id}"))
+        .header("content-type", "application/json")
+        .header("Cora-Signature", &valid_sig_cents)
+        .body(Body::from(body_bytes_cents))
+        .unwrap();
+
+    let resp = app.clone().oneshot(req_cents).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    let fatura_cents_status: (String,) = sqlx::query_as("SELECT status FROM faturas WHERE id = $1")
+        .bind(fatura_cents_id)
+        .fetch_one(&test_pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        fatura_cents_status.0, "pago",
+        "amount_cents em centavos deve ser convertido para reais e baixar a fatura"
+    );
+
+    // 5b. amount ambíguo (15000.0) -> tratado estritamente como 15000.0 reais (sem dividir por 100) -> divergente -> não baixa fatura 2
+    let fatura_amb_id = Uuid::new_v4();
+    let cora_inv_amb_id = "cora_inv_amb";
+    sqlx::query(
+        "INSERT INTO faturas (id, tenant_id, aluno_id, descricao, valor, data_vencimento, status, gateway_name, gateway_invoice_id) VALUES ($1, $2, $3, 'Fatura Ambiguo Test', 150.0, CURRENT_DATE, 'pendente', 'cora', $4)"
+    )
+    .bind(fatura_amb_id)
+    .bind(tenant_id)
+    .bind(aluno_id)
+    .bind(cora_inv_amb_id)
+    .execute(&test_pool)
+    .await
+    .expect("insert fatura ambígua");
+
+    let payload_amb = json!({
+        "event_id": "evt_test_ambiguous",
+        "type": "invoice.paid",
+        "data": {
+            "invoice": {
+                "id": cora_inv_amb_id,
+                "status": "paid",
+                "amount": 15000.0
+            }
+        }
+    });
+    let body_bytes_amb = serde_json::to_vec(&payload_amb).unwrap();
+    let valid_sig_amb = compute_hmac_hex(webhook_secret, &body_bytes_amb);
+
+    let req_amb = Request::builder()
+        .method("POST")
+        .uri(format!("/api/v1/webhooks/cora/{tenant_id}"))
+        .header("content-type", "application/json")
+        .header("Cora-Signature", &valid_sig_amb)
+        .body(Body::from(body_bytes_amb))
+        .unwrap();
+
+    let resp = app.clone().oneshot(req_amb).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    let fatura_amb_status: (String,) = sqlx::query_as("SELECT status FROM faturas WHERE id = $1")
+        .bind(fatura_amb_id)
+        .fetch_one(&test_pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        fatura_amb_status.0, "pendente",
+        "Campo ambíguo 'amount' não deve ser dividido por 100 automaticamente e deve ser tratado como valor divergente"
+    );
+
+    // 6. Teste de Transação Atômica e Rollback no caso de falha no processamento:
+    // Criar trigger para forçar erro no UPDATE de faturas quando gateway_invoice_id = 'cora_inv_fail'
+    sqlx::query(
+        r#"
+        CREATE OR REPLACE FUNCTION fail_faturas_update() RETURNS trigger AS $$
+        BEGIN
+            RAISE EXCEPTION 'Simulated DB failure during fatura baixa';
+        END;
+        $$ LANGUAGE plpgsql;
+        "#,
+    )
+    .execute(&test_pool)
+    .await
+    .expect("criação da funcao de falha forçada");
+
+    sqlx::query(
+        r#"
+        CREATE TRIGGER trg_fail_fatura_update
+        BEFORE UPDATE ON faturas
+        FOR EACH ROW
+        WHEN (NEW.gateway_invoice_id = 'cora_inv_fail')
+        EXECUTE FUNCTION fail_faturas_update();
+        "#,
+    )
+    .execute(&test_pool)
+    .await
+    .expect("criação do trigger de falha forçada");
+
+    let payload_fail = json!({
+        "event_id": "evt_test_rollback_001",
+        "type": "invoice.paid",
+        "data": {
+            "invoice": {
+                "id": cora_inv_fail_id,
+                "status": "paid",
+                "paid_amount": 300.0
+            }
+        }
+    });
+    let body_bytes_fail = serde_json::to_vec(&payload_fail).unwrap();
+    let valid_sig_fail = compute_hmac_hex(webhook_secret, &body_bytes_fail);
+
+    let req_fail = Request::builder()
+        .method("POST")
+        .uri(format!("/api/v1/webhooks/cora/{tenant_id}"))
+        .header("content-type", "application/json")
+        .header("Cora-Signature", &valid_sig_fail)
+        .body(Body::from(body_bytes_fail.clone()))
+        .unwrap();
+
+    // Primeira tentativa com erro no banco de dados -> 500 Internal Server Error
+    let resp_fail = app.clone().oneshot(req_fail).await.unwrap();
+    assert_eq!(
+        resp_fail.status(),
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "Falha no UPDATE deve retornar 500"
+    );
+
+    // Verificar que o evento NUNCA foi gravado em webhook_events (rollback funcionou)
+    let event_fail_count: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM webhook_events WHERE tenant_id = $1 AND event_id = 'evt_test_rollback_001'",
+    )
+    .bind(tenant_id)
+    .fetch_one(&test_pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        event_fail_count.0, 0,
+        "Devido ao rollback da transacao, webhook_events NAO deve ter registrado o evento"
+    );
+
+    // Remover o trigger de erro forçado (simulando restabelecimento do sistema)
+    sqlx::query("DROP TRIGGER trg_fail_fatura_update ON faturas;")
+        .execute(&test_pool)
+        .await
+        .expect("remover trigger de falha");
+    sqlx::query("DROP FUNCTION fail_faturas_update();")
+        .execute(&test_pool)
+        .await
+        .expect("remover funcao de falha");
+
+    // Reenvio do exato mesmo evento -> deve conseguir processar e baixar a fatura normalmente
+    let req_retry = Request::builder()
+        .method("POST")
+        .uri(format!("/api/v1/webhooks/cora/{tenant_id}"))
+        .header("content-type", "application/json")
+        .header("Cora-Signature", &valid_sig_fail)
+        .body(Body::from(body_bytes_fail))
+        .unwrap();
+
+    let resp_retry = app.clone().oneshot(req_retry).await.unwrap();
+    assert_eq!(
+        resp_retry.status(),
+        StatusCode::OK,
+        "Reenvio apos correcao deve retornar 200 OK"
+    );
+
+    let fatura_fail_status: (String,) = sqlx::query_as("SELECT status FROM faturas WHERE id = $1")
+        .bind(fatura_fail_id)
+        .fetch_one(&test_pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        fatura_fail_status.0, "pago",
+        "Reenvio bem-sucedido deve ter baixado a fatura"
+    );
+
+    let event_success_count: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM webhook_events WHERE tenant_id = $1 AND event_id = 'evt_test_rollback_001'",
+    )
+    .bind(tenant_id)
+    .fetch_one(&test_pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        event_success_count.0, 1,
+        "No reenvio bem-sucedido, webhook_events deve ter registrado o evento"
     );
 
     test_pool.close().await;
