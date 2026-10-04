@@ -18,6 +18,8 @@ import {
   ContratosPanel,
   NovaTurmaModal,
   TurmaAlunosModal,
+  EnderecoContatosTab,
+  ProntuarioInicialTab,
   labelStatusAluno,
   statusAlunoBadgeClass,
   proximasAcoesStatus,
@@ -1872,310 +1874,51 @@ export function SecretariaSection() {
 
               {/* TAB 3: ENDEREÇO & CONTATOS DE EMERGÊNCIA */}
               {modalTab === 'endereco_contato' && (
-                <div className="space-y-4">
-                  {/* Endereço Residencial */}
-                  <div className="p-3 bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl space-y-3">
-                    <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center space-x-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-salvia-700 dark:text-salvia-400" />
-                      <span>Endereço Residencial</span>
-                    </h4>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                          CEP
-                        </label>
-                        <input
-                          type="text"
-                          maxLength={9}
-                          value={cep}
-                          onChange={(e) => setCep(formatCep(e.target.value))}
-                          placeholder="00000-000"
-                          className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-mono"
-                        />
-                      </div>
-                      <div className="sm:col-span-2">
-                        <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                          Logradouro (Rua, Avenida...)
-                        </label>
-                        <input
-                          type="text"
-                          value={logradouro}
-                          onChange={(e) => setLogradouro(e.target.value)}
-                          placeholder="Ex: Av. Paulista"
-                          className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                          Número
-                        </label>
-                        <input
-                          type="text"
-                          value={numero}
-                          onChange={(e) => setNumero(e.target.value)}
-                          placeholder="Ex: 1000"
-                          className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                          Complemento
-                        </label>
-                        <input
-                          type="text"
-                          value={complemento}
-                          onChange={(e) => setComplemento(e.target.value)}
-                          placeholder="Apto, Bloco..."
-                          className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                          Bairro
-                        </label>
-                        <input
-                          type="text"
-                          value={bairro}
-                          onChange={(e) => setBairro(e.target.value)}
-                          placeholder="Bairro"
-                          className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                          Cidade
-                        </label>
-                        <input
-                          type="text"
-                          value={cidade}
-                          onChange={(e) => setCidade(e.target.value)}
-                          placeholder="Cidade"
-                          className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                          Estado (UF)
-                        </label>
-                        <input
-                          type="text"
-                          maxLength={2}
-                          value={estado}
-                          onChange={(e) => setEstado(e.target.value.toUpperCase())}
-                          placeholder="SP"
-                          className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-mono uppercase"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Telefones de Contato & Emergência */}
-                  <div className="p-3 bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl space-y-3">
-                    <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center space-x-1.5">
-                      <Phone className="w-3.5 h-3.5 text-salvia-700 dark:text-salvia-400" />
-                      <span>Telefones Adicionais & Contato de Emergência</span>
-                    </h4>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                          Telefone Secundário / Recado
-                        </label>
-                        <input
-                          type="text"
-                          value={telefoneSecundario}
-                          onChange={(e) => setTelefoneSecundario(formatPhone(e.target.value))}
-                          placeholder="(11) 3333-4444"
-                          className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-mono"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                          Contato de Emergência (Nome)
-                        </label>
-                        <input
-                          type="text"
-                          value={contatoEmergenciaNome}
-                          onChange={(e) => setContatoEmergenciaNome(e.target.value)}
-                          placeholder="Ex: Vovó Helena"
-                          className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                          Telefone Emergência
-                        </label>
-                        <input
-                          type="text"
-                          value={contatoEmergenciaTelefone}
-                          onChange={(e) => setContatoEmergenciaTelefone(formatPhone(e.target.value))}
-                          placeholder="(11) 91111-2222"
-                          className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-mono"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                          Parentesco
-                        </label>
-                        <input
-                          type="text"
-                          value={contatoEmergenciaParentesco}
-                          onChange={(e) => setContatoEmergenciaParentesco(e.target.value)}
-                          placeholder="Ex: Avó"
-                          className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 flex justify-between">
-                    <button
-                      type="button"
-                      onClick={() => setModalTab('responsaveis')}
-                      className="text-xs text-slate-600 dark:text-slate-400 font-bold hover:underline"
-                    >
-                      ← Voltar para Responsáveis
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setModalTab('prontuario')}
-                      className="bg-salvia-700 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-salvia-800"
-                    >
-                      Avançar para Prontuário Médico →
-                    </button>
-                  </div>
-                </div>
+                <EnderecoContatosTab
+                  cep={cep}
+                  setCep={setCep}
+                  logradouro={logradouro}
+                  setLogradouro={setLogradouro}
+                  numero={numero}
+                  setNumero={setNumero}
+                  complemento={complemento}
+                  setComplemento={setComplemento}
+                  bairro={bairro}
+                  setBairro={setBairro}
+                  cidade={cidade}
+                  setCidade={setCidade}
+                  estado={estado}
+                  setEstado={setEstado}
+                  telefoneSecundario={telefoneSecundario}
+                  setTelefoneSecundario={setTelefoneSecundario}
+                  contatoEmergenciaNome={contatoEmergenciaNome}
+                  setContatoEmergenciaNome={setContatoEmergenciaNome}
+                  contatoEmergenciaTelefone={contatoEmergenciaTelefone}
+                  setContatoEmergenciaTelefone={setContatoEmergenciaTelefone}
+                  contatoEmergenciaParentesco={contatoEmergenciaParentesco}
+                  setContatoEmergenciaParentesco={setContatoEmergenciaParentesco}
+                  setModalTab={setModalTab}
+                />
               )}
 
               {/* TAB 4: PRONTUÁRIO MÉDICO INICIAL */}
               {modalTab === 'prontuario' && (
-                <div className="space-y-4">
-                  <div className="p-3 bg-rose-50/40 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 rounded-xl space-y-3">
-                    <h4 className="text-xs font-bold text-rose-900 dark:text-rose-300 flex items-center space-x-1.5">
-                      <HeartPulse className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-                      <span>Ficha Médica & Prontuário de Cuidado Clínico</span>
-                    </h4>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                          Tipo Sanguíneo
-                        </label>
-                        <select
-                          value={tipoSanguineo}
-                          onChange={(e) => setTipoSanguineo(e.target.value)}
-                          className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-semibold"
-                        >
-                          <option value="A+">A+</option>
-                          <option value="A-">A-</option>
-                          <option value="B+">B+</option>
-                          <option value="B-">B-</option>
-                          <option value="AB+">AB+</option>
-                          <option value="AB-">AB-</option>
-                          <option value="O+">O+</option>
-                          <option value="O-">O-</option>
-                          <option value="Não informado">Não informado</option>
-                        </select>
-                      </div>
-
-                      <div className="sm:col-span-2">
-                        <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                          Alergias Conhecidas (Medicamentosa, Insetos, etc.)
-                        </label>
-                        <input
-                          type="text"
-                          value={alergias}
-                          onChange={(e) => setAlergias(e.target.value)}
-                          placeholder="Ex: Dipirona, picada de abelha, pólen..."
-                          className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                          Restrições Alimentares (Glúten, Lactose...)
-                        </label>
-                        <input
-                          type="text"
-                          value={restricoesAlimentares}
-                          onChange={(e) => setRestricoesAlimentares(e.target.value)}
-                          placeholder="Ex: Intolerância à lactose severa"
-                          className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                          Medicamentos de Uso Contínuo
-                        </label>
-                        <input
-                          type="text"
-                          value={medicamentosContinuos}
-                          onChange={(e) => setMedicamentosContinuos(e.target.value)}
-                          placeholder="Ex: Bombinha para asma se necessário"
-                          className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Cuidados Especiais & Recomendações Clínicas
-                      </label>
-                      <input
-                        type="text"
-                        value={cuidadosEspeciais}
-                        onChange={(e) => setCuidadosEspeciais(e.target.value)}
-                        placeholder="Ex: Usar óculos em sala de aula, evitar sol direto..."
-                        className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Histórico Pedagógico & Observações Comportamentais
-                      </label>
-                      <textarea
-                        rows={2}
-                        value={historicoObservacoes}
-                        onChange={(e) => setHistoricoObservacoes(e.target.value)}
-                        placeholder="Observações comportamentais, necessidades pedagógicas adaptadas ou histórico anterior."
-                        className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 resize-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="pt-2 flex justify-between items-center">
-                    <button
-                      type="button"
-                      onClick={() => setModalTab('endereco_contato')}
-                      className="text-xs text-slate-600 dark:text-slate-400 font-bold hover:underline"
-                    >
-                      ← Voltar para Endereço
-                    </button>
-                    <div className="flex space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => setShowModal(false)}
-                        className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold hover:bg-slate-200"
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        type="submit"
-                        className="px-5 py-2 bg-salvia-700 dark:bg-salvia-600 hover:bg-salvia-800 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center space-x-1.5"
-                      >
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span>Confirmar Matrícula Integral</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <ProntuarioInicialTab
+                  tipoSanguineo={tipoSanguineo}
+                  setTipoSanguineo={setTipoSanguineo}
+                  alergias={alergias}
+                  setAlergias={setAlergias}
+                  restricoesAlimentares={restricoesAlimentares}
+                  setRestricoesAlimentares={setRestricoesAlimentares}
+                  medicamentosContinuos={medicamentosContinuos}
+                  setMedicamentosContinuos={setMedicamentosContinuos}
+                  cuidadosEspeciais={cuidadosEspeciais}
+                  setCuidadosEspeciais={setCuidadosEspeciais}
+                  historicoObservacoes={historicoObservacoes}
+                  setHistoricoObservacoes={setHistoricoObservacoes}
+                  setModalTab={setModalTab}
+                  setShowModal={setShowModal}
+                />
               )}
             </form>
           </div>
