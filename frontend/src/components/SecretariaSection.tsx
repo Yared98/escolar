@@ -18,6 +18,8 @@ import {
   ContratosPanel,
   NovaTurmaModal,
   TurmaAlunosModal,
+  DadosAlunoTab,
+  ResponsaveisTab,
   EnderecoContatosTab,
   ProntuarioInicialTab,
   labelStatusAluno,
@@ -50,8 +52,6 @@ import {
   MoreVertical,
   MapPin,
   Phone,
-  CheckSquare,
-  Square,
   FileText,
   BookOpen,
   CheckCircle2,
@@ -1576,300 +1576,46 @@ export function SecretariaSection() {
             <form onSubmit={handleMatricular} className="space-y-4">
               {/* TAB 1: DADOS DO ALUNO */}
               {modalTab === 'dados_aluno' && (
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Nome Completo do Aluno *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={nome}
-                      onChange={(e) => setNome(e.target.value)}
-                      placeholder="Ex: Gabriel Souza Silva"
-                      className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-salvia-600 font-medium"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        CPF do Aluno (Módulo 11) *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        maxLength={14}
-                        value={cpf}
-                        onChange={(e) => setCpf(formatCpf(e.target.value))}
-                        placeholder="000.000.000-00"
-                        className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-salvia-600 font-mono"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Data de Nascimento *
-                      </label>
-                      <input
-                        type="date"
-                        required
-                        value={dataNascimento}
-                        onChange={(e) => setDataNascimento(e.target.value)}
-                        className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-salvia-600 font-medium"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Situação inicial da matrícula
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setStatusInicialMatricula('ativo')}
-                        className={`rounded-xl border px-3 py-2 text-left text-[11px] transition ${
-                          statusInicialMatricula === 'ativo'
-                            ? 'border-salvia-600 bg-salvia-50 dark:bg-salvia-950/40 text-salvia-900 dark:text-salvia-200'
-                            : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
-                        }`}
-                      >
-                        <span className="font-bold block">Matrícula ativa</span>
-                        Aluno já confirmado e apto a ensalar.
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setStatusInicialMatricula('pre_matricula')}
-                        className={`rounded-xl border px-3 py-2 text-left text-[11px] transition ${
-                          statusInicialMatricula === 'pre_matricula'
-                            ? 'border-sky-600 bg-sky-50 dark:bg-sky-950/40 text-sky-900 dark:text-sky-200'
-                            : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
-                        }`}
-                      >
-                        <span className="font-bold block">Pré-matrícula</span>
-                        Aguardando documentos ou confirmação final.
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="pt-3 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => setModalTab('responsaveis')}
-                      className="bg-salvia-700 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-salvia-800"
-                    >
-                      Avançar para Responsáveis →
-                    </button>
-                  </div>
-                </div>
+                <DadosAlunoTab
+                  nome={nome}
+                  setNome={setNome}
+                  cpf={cpf}
+                  setCpf={setCpf}
+                  dataNascimento={dataNascimento}
+                  setDataNascimento={setDataNascimento}
+                  statusInicialMatricula={statusInicialMatricula}
+                  setStatusInicialMatricula={setStatusInicialMatricula}
+                  setModalTab={setModalTab}
+                />
               )}
 
               {/* TAB 2: RESPONSÁVEL LEGAL & FINANCEIRO */}
               {modalTab === 'responsaveis' && (
-                <div className="space-y-4">
-                  {/* Responsável Legal */}
-                  <div className="p-3 bg-salvia-50/60 dark:bg-salvia-950/30 border border-salvia-200 dark:border-salvia-800/80 rounded-xl space-y-3">
-                    <h4 className="text-xs font-bold text-salvia-900 dark:text-salvia-300 flex items-center space-x-1.5">
-                      <Shield className="w-3.5 h-3.5" />
-                      <span>Responsável Legal (Pátrio Poder / Guarda)</span>
-                    </h4>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                      <div className="sm:col-span-2">
-                        <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                          Nome do Responsável Legal *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={nomeResponsavel}
-                          onChange={(e) => setNomeResponsavel(e.target.value)}
-                          placeholder="Ex: Mariana Souza"
-                          className="w-full bg-white dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-salvia-600 font-medium"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                          Parentesco
-                        </label>
-                        <select
-                          value={parentescoResponsavelLegal}
-                          onChange={(e) => setParentescoResponsavelLegal(e.target.value)}
-                          className="w-full bg-white dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-salvia-600"
-                        >
-                          <option value="Mãe">Mãe</option>
-                          <option value="Pai">Pai</option>
-                          <option value="Tutor Legal">Tutor Legal</option>
-                          <option value="Avó/Avô">Avó/Avô</option>
-                          <option value="Outro">Outro</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                          CPF Responsável Legal
-                        </label>
-                        <input
-                          type="text"
-                          maxLength={14}
-                          value={cpfResponsavelLegal}
-                          onChange={(e) => setCpfResponsavelLegal(formatCpf(e.target.value))}
-                          placeholder="000.000.000-00"
-                          className="w-full bg-white dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-mono"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                          Telefone / WhatsApp *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={telefoneResponsavel}
-                          onChange={(e) => setTelefoneResponsavel(formatPhone(e.target.value))}
-                          placeholder="(11) 98765-4321"
-                          className="w-full bg-white dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-mono"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                          E-mail *
-                        </label>
-                        <input
-                          type="email"
-                          required
-                          value={emailResponsavel}
-                          onChange={(e) => setEmailResponsavel(e.target.value)}
-                          placeholder="responsavel@email.com"
-                          className="w-full bg-white dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Flag de Unificação de Responsável */}
-                  <div
-                    onClick={() => setResponsavelFinanceiroIgualLegal(!responsavelFinanceiroIgualLegal)}
-                    className="p-3 bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl flex items-center space-x-3 cursor-pointer hover:border-salvia-500 transition-all select-none"
-                  >
-                    <div className="text-salvia-700 dark:text-salvia-400">
-                      {responsavelFinanceiroIgualLegal ? (
-                        <CheckSquare className="w-5 h-5" />
-                      ) : (
-                        <Square className="w-5 h-5 text-slate-400" />
-                      )}
-                    </div>
-                    <div>
-                      <span className="text-xs font-bold text-slate-900 dark:text-slate-100 block">
-                        Responsável financeiro é a mesma pessoa que o responsável legal
-                      </span>
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                        Marque esta opção caso um único pai/mãe ou tutor assuma tanto a representação legal quanto o pagamento das mensalidades.
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Responsável Financeiro Distinto (se flag for falsa) */}
-                  {!responsavelFinanceiroIgualLegal && (
-                    <div className="p-3 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-700/60 rounded-xl space-y-3 animate-fadeIn">
-                      <h4 className="text-xs font-bold text-amber-900 dark:text-amber-300 flex items-center space-x-1.5">
-                        <FileText className="w-3.5 h-3.5" />
-                        <span>Responsável Financeiro (Pagador / Emissão de Boletos e NFS-e)</span>
-                      </h4>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                        <div className="sm:col-span-2">
-                          <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                            Nome do Responsável Financeiro *
-                          </label>
-                          <input
-                            type="text"
-                            required={!responsavelFinanceiroIgualLegal}
-                            value={nomeResponsavelFinanceiro}
-                            onChange={(e) => setNomeResponsavelFinanceiro(e.target.value)}
-                            placeholder="Ex: Carlos Roberto Silva"
-                            className="w-full bg-white dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-salvia-600 font-medium"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                            Parentesco
-                          </label>
-                          <select
-                            value={parentescoResponsavelFinanceiro}
-                            onChange={(e) => setParentescoResponsavelFinanceiro(e.target.value)}
-                            className="w-full bg-white dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                          >
-                            <option value="Pai">Pai</option>
-                            <option value="Mãe">Mãe</option>
-                            <option value="Padrasto/Madrasta">Padrasto/Madrasta</option>
-                            <option value="Avó/Avô">Avó/Avô</option>
-                            <option value="Outro Patrocinador">Outro Patrocinador</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                        <div>
-                          <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                            CPF Responsável Financeiro
-                          </label>
-                          <input
-                            type="text"
-                            maxLength={14}
-                            value={cpfResponsavelFinanceiro}
-                            onChange={(e) => setCpfResponsavelFinanceiro(formatCpf(e.target.value))}
-                            placeholder="000.000.000-00"
-                            className="w-full bg-white dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-mono"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                            Telefone / WhatsApp Financeiro
-                          </label>
-                          <input
-                            type="text"
-                            value={telefoneResponsavelFinanceiro}
-                            onChange={(e) => setTelefoneResponsavelFinanceiro(formatPhone(e.target.value))}
-                            placeholder="(11) 99999-8888"
-                            className="w-full bg-white dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-mono"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                            E-mail Financeiro (Faturas & DRE)
-                          </label>
-                          <input
-                            type="email"
-                            value={emailResponsavelFinanceiro}
-                            onChange={(e) => setEmailResponsavelFinanceiro(e.target.value)}
-                            placeholder="financeiro.aluno@email.com"
-                            className="w-full bg-white dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="pt-2 flex justify-between">
-                    <button
-                      type="button"
-                      onClick={() => setModalTab('dados_aluno')}
-                      className="text-xs text-slate-600 dark:text-slate-400 font-bold hover:underline"
-                    >
-                      ← Voltar para Aluno
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setModalTab('endereco_contato')}
-                      className="bg-salvia-700 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-salvia-800"
-                    >
-                      Avançar para Endereço →
-                    </button>
-                  </div>
-                </div>
+                <ResponsaveisTab
+                  nomeResponsavel={nomeResponsavel}
+                  setNomeResponsavel={setNomeResponsavel}
+                  parentescoResponsavelLegal={parentescoResponsavelLegal}
+                  setParentescoResponsavelLegal={setParentescoResponsavelLegal}
+                  cpfResponsavelLegal={cpfResponsavelLegal}
+                  setCpfResponsavelLegal={setCpfResponsavelLegal}
+                  telefoneResponsavel={telefoneResponsavel}
+                  setTelefoneResponsavel={setTelefoneResponsavel}
+                  emailResponsavel={emailResponsavel}
+                  setEmailResponsavel={setEmailResponsavel}
+                  responsavelFinanceiroIgualLegal={responsavelFinanceiroIgualLegal}
+                  setResponsavelFinanceiroIgualLegal={setResponsavelFinanceiroIgualLegal}
+                  nomeResponsavelFinanceiro={nomeResponsavelFinanceiro}
+                  setNomeResponsavelFinanceiro={setNomeResponsavelFinanceiro}
+                  parentescoResponsavelFinanceiro={parentescoResponsavelFinanceiro}
+                  setParentescoResponsavelFinanceiro={setParentescoResponsavelFinanceiro}
+                  cpfResponsavelFinanceiro={cpfResponsavelFinanceiro}
+                  setCpfResponsavelFinanceiro={setCpfResponsavelFinanceiro}
+                  telefoneResponsavelFinanceiro={telefoneResponsavelFinanceiro}
+                  setTelefoneResponsavelFinanceiro={setTelefoneResponsavelFinanceiro}
+                  emailResponsavelFinanceiro={emailResponsavelFinanceiro}
+                  setEmailResponsavelFinanceiro={setEmailResponsavelFinanceiro}
+                  setModalTab={setModalTab}
+                />
               )}
 
               {/* TAB 3: ENDEREÇO & CONTATOS DE EMERGÊNCIA */}
