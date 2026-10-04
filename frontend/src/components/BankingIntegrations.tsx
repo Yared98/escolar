@@ -9,6 +9,7 @@ interface BankIntegration {
   has_client_secret?: boolean;
   has_webhook_secret?: boolean;
   is_active: boolean;
+  modo_gateway?: string;
 }
 
 export function BankingIntegrations() {
@@ -31,9 +32,13 @@ export function BankingIntegrations() {
       })
       .catch((err: unknown) => {
         setMsg(err instanceof Error ? err.message : 'Não foi possível carregar integrações.');
+        setIntegrations([]);
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const coraIntegration = integrations.find((i) => i.gateway_name === 'cora');
+  const modoGateway = coraIntegration?.modo_gateway || 'mock';
 
   const handleSave = async () => {
     setMsg(null);
@@ -73,9 +78,20 @@ export function BankingIntegrations() {
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#141d17] p-4 space-y-3">
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Cora Bank</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Cora Bank</h3>
+              {modoGateway === 'mock' ? (
+                <span className="inline-flex items-center rounded-md bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-200">
+                  Simulado (modo mock)
+                </span>
+              ) : (
+                <span className="inline-flex items-center rounded-md bg-rose-100 dark:bg-rose-900/40 px-2 py-0.5 text-[10px] font-semibold text-rose-800 dark:text-rose-200">
+                  modo não suportado ainda
+                </span>
+              )}
+            </div>
             <p className="text-[10px] text-slate-500">
-              {integrations.find((i) => i.gateway_name === 'cora')?.has_client_secret
+              {coraIntegration?.has_client_secret
                 ? 'Client secret cadastrado'
                 : 'Sem client secret'}
             </p>
@@ -100,7 +116,7 @@ export function BankingIntegrations() {
           />
         </label>
         <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400">
-          Client Secret {integrations.find((i) => i.gateway_name === 'cora')?.has_client_secret ? '(deixe em branco para manter)' : ''}
+          Client Secret {coraIntegration?.has_client_secret ? '(deixe em branco para manter)' : ''}
           <input
             type="password"
             value={coraClientSecret}

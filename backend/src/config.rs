@@ -2,6 +2,38 @@ use std::env;
 
 use ring::signature::{Ed25519KeyPair, KeyPair};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CoraMode {
+    Mock,
+    Sandbox,
+    Production,
+}
+
+impl std::fmt::Display for CoraMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CoraMode::Mock => write!(f, "mock"),
+            CoraMode::Sandbox => write!(f, "sandbox"),
+            CoraMode::Production => write!(f, "production"),
+        }
+    }
+}
+
+pub fn parse_cora_mode(val: Option<&str>) -> Result<CoraMode, String> {
+    match val {
+        Some(s) if !s.trim().is_empty() => match s.trim().to_lowercase().as_str() {
+            "mock" => Ok(CoraMode::Mock),
+            "sandbox" => Ok(CoraMode::Sandbox),
+            "production" => Ok(CoraMode::Production),
+            _ => Err(format!(
+                "Configuração inválida: CORA_MODE='{s}'. Valores permitidos: mock, sandbox, production."
+            )),
+        },
+        _ => Ok(CoraMode::Mock),
+    }
+}
+
 #[derive(Clone)]
 pub struct Config {
     pub database_url: String,
@@ -16,6 +48,7 @@ pub struct Config {
     pub rate_limit_public_rpm: u32,
     pub account_lock_max_attempts: i64,
     pub account_lock_window_minutes: i64,
+    pub cora_mode: CoraMode,
 }
 
 impl std::fmt::Debug for Config {
@@ -35,6 +68,7 @@ impl std::fmt::Debug for Config {
                 "account_lock_window_minutes",
                 &self.account_lock_window_minutes,
             )
+            .field("cora_mode", &self.cora_mode)
             .finish()
     }
 }
@@ -271,6 +305,8 @@ impl Config {
             .and_then(|p| p.parse().ok())
             .unwrap_or(15);
 
+        let cora_mode = parse_cora_mode(env::var("CORA_MODE").ok().as_deref())?;
+
         Ok(Config {
             database_url,
             jwt_private_pem,
@@ -283,6 +319,7 @@ impl Config {
             rate_limit_public_rpm,
             account_lock_max_attempts,
             account_lock_window_minutes,
+            cora_mode,
         })
     }
 }
@@ -301,6 +338,7 @@ impl Default for Config {
             rate_limit_public_rpm: 60,
             account_lock_max_attempts: 5,
             account_lock_window_minutes: 15,
+            cora_mode: CoraMode::Mock,
         }
     }
 }
@@ -318,6 +356,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_cora_mode_parsing() {
+        assert_eq!(parse_cora_mode(None).unwrap(), CoraMode::Mock);
+        assert_eq!(parse_cora_mode(Some("")).unwrap(), CoraMode::Mock);
+        assert_eq!(parse_cora_mode(Some("mock")).unwrap(), CoraMode::Mock);
+        assert_eq!(parse_cora_mode(Some("MOCK")).unwrap(), CoraMode::Mock);
+        assert_eq!(parse_cora_mode(Some("sandbox")).unwrap(), CoraMode::Sandbox);
+        assert_eq!(parse_cora_mode(Some("Sandbox")).unwrap(), CoraMode::Sandbox);
+        assert_eq!(
+            parse_cora_mode(Some("production")).unwrap(),
+            CoraMode::Production
+        );
+        assert_eq!(
+            parse_cora_mode(Some("PRODUCTION")).unwrap(),
+            CoraMode::Production
+        );
+        let err = parse_cora_mode(Some("banana")).unwrap_err();
+        assert!(err.contains("Configuração inválida: CORA_MODE='banana'"));
+    }
+
+    #[test]
     fn test_config_debug_redacts_secrets() {
         let config = Config {
             database_url: "postgres://escolar_app:escolar_password@localhost:5432/escolar_db".to_string(),
@@ -331,6 +389,7 @@ mod tests {
             rate_limit_public_rpm: 60,
             account_lock_max_attempts: 5,
             account_lock_window_minutes: 15,
+            cora_mode: CoraMode::Mock,
         };
 
         let debug_repr = format!("{:?}", config);

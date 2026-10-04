@@ -112,6 +112,7 @@ async fn run_revocation_checks(pool: &PgPool) -> Result<(), String> {
         rate_limit_public_rpm: 60,
         account_lock_max_attempts: 5,
         account_lock_window_minutes: 15,
+        cora_mode: escolar_backend::config::CoraMode::Mock,
     };
 
     let app_state = AppState {

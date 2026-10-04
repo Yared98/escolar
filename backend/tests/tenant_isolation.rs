@@ -687,6 +687,7 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
             rate_limit_public_rpm: 60,
             account_lock_max_attempts: 5,
             account_lock_window_minutes: 15,
+            cora_mode: escolar_backend::config::CoraMode::Mock,
         },
         message_hub: escolar_backend::realtime::MessageHub::new(),
         ip_rate_limiter: escolar_backend::middleware::security::IpRateLimiter::default(),

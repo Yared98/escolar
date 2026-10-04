@@ -1,5 +1,5 @@
+use crate::config::CoraMode;
 use crate::error::AppError;
-use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -16,20 +16,20 @@ pub struct CoraAuthResponse {
     pub expires_in: i32,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Debug)]
 pub struct CoraCustomer {
     pub name: String,
     pub email: String,
     pub document: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Debug)]
 pub struct CoraBankSlipOption {
     pub name: String,
     pub value: i32, // in cents
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Debug)]
 pub struct CoraBankSlip {
     #[serde(rename = "type")]
     pub payment_type: String, // "BOLETO"
@@ -42,7 +42,7 @@ pub struct CoraBankSlip {
     pub interest: Option<CoraBankSlipOption>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Debug)]
 pub struct CoraCreateInvoiceRequest {
     pub request_id: String,
     pub name: String,
@@ -51,97 +51,141 @@ pub struct CoraCreateInvoiceRequest {
     pub payment_terms: Vec<CoraBankSlip>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone, Debug)]
 pub struct CoraPaymentTermResponse {
     pub id: String,
     #[serde(rename = "type")]
     pub payment_type: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone, Debug)]
 pub struct CoraInvoiceResponse {
     pub id: String,
     pub url: String,
     pub payment_terms: Vec<CoraPaymentTermResponse>,
 }
 
-#[allow(dead_code)]
-pub struct CoraClient {
-    http_client: Client,
-    base_url: String,
-}
-
-impl Default for CoraClient {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl CoraClient {
-    pub fn new() -> Self {
-        Self {
-            http_client: Client::new(),
-            base_url: "https://api.sandbox.cora.com.br/v2".to_string(), // In production, use "https://api.cora.com.br/v2"
-        }
-    }
-
-    pub async fn get_token(
+#[axum::async_trait]
+pub trait BankGateway: Send + Sync {
+    async fn get_token(&self, client_id: &str, client_secret: &str) -> Result<String, AppError>;
+    async fn create_invoice(
         &self,
-        client_id: &str,
-        client_secret: &str,
-    ) -> Result<String, AppError> {
-        // NOTE: In Cora v2, authentication requires mTLS or standard Basic Auth for Sandbox
-        // For simplicity in this ERP, we mock the auth logic to return a dummy token in testing,
-        // but construct the real request structure.
+        token: &str,
+        invoice: CoraCreateInvoiceRequest,
+    ) -> Result<CoraInvoiceResponse, AppError>;
+}
 
-        let _payload = [
-            ("grant_type", "client_credentials"),
-            ("client_id", client_id),
-            ("client_secret", client_secret),
-        ];
+#[derive(Default)]
+pub struct CoraMock;
 
-        /* Real request:
-        let response = self.http_client.post("https://api.sandbox.cora.com.br/token")
-            .form(&payload)
-            .send()
-            .await
-            .map_err(|e| AppError::InternalServerError(e.to_string()))?;
+impl CoraMock {
+    pub fn new() -> Self {
+        Self
+    }
+}
 
-        let auth_resp: CoraAuthResponse = response.json().await.map_err(|e| AppError::InternalServerError(e.to_string()))?;
-        Ok(auth_resp.access_token)
-        */
-
-        // Mocked for MVP to avoid strict mTLS setup
+#[axum::async_trait]
+impl BankGateway for CoraMock {
+    async fn get_token(&self, _client_id: &str, _client_secret: &str) -> Result<String, AppError> {
         Ok("mocked_bearer_token_for_cora".to_string())
     }
 
-    pub async fn create_invoice(
+    async fn create_invoice(
         &self,
         _token: &str,
         _invoice: CoraCreateInvoiceRequest,
     ) -> Result<CoraInvoiceResponse, AppError> {
-        /* Real request:
-        let response = self.http_client.post(&format!("{}/invoices", self.base_url))
-            .bearer_auth(token)
-            .json(&invoice)
-            .send()
-            .await
-            .map_err(|e| AppError::InternalServerError(e.to_string()))?;
-
-        if !response.status().is_success() {
-            let error_text = response.text().await.unwrap_or_default();
-            return Err(AppError::BadRequest(format!("Erro na Cora: {}", error_text)));
-        }
-
-        let cora_resp: CoraInvoiceResponse = response.json().await.map_err(|e| AppError::InternalServerError(e.to_string()))?;
-        Ok(cora_resp)
-        */
-
-        // Mocked response for ERP testing without real banking keys
         Ok(CoraInvoiceResponse {
             id: format!("cora_{}", Uuid::new_v4().simple()),
             url: format!("https://boletos.cora.com.br/{}", Uuid::new_v4().simple()),
             payment_terms: vec![],
         })
+    }
+}
+
+pub type CoraClient = CoraMock;
+
+pub struct CoraUnsupportedGateway {
+    mode: CoraMode,
+}
+
+#[axum::async_trait]
+impl BankGateway for CoraUnsupportedGateway {
+    async fn get_token(&self, _client_id: &str, _client_secret: &str) -> Result<String, AppError> {
+        Err(AppError::ServiceUnavailable(format!(
+            "Cora {} ainda não suportado; use CORA_MODE=mock",
+            self.mode
+        )))
+    }
+
+    async fn create_invoice(
+        &self,
+        _token: &str,
+        _invoice: CoraCreateInvoiceRequest,
+    ) -> Result<CoraInvoiceResponse, AppError> {
+        Err(AppError::ServiceUnavailable(format!(
+            "Cora {} ainda não suportado; use CORA_MODE=mock",
+            self.mode
+        )))
+    }
+}
+
+pub fn gateway_for(mode: CoraMode) -> Box<dyn BankGateway> {
+    match mode {
+        CoraMode::Mock => Box::new(CoraMock),
+        CoraMode::Sandbox | CoraMode::Production => Box::new(CoraUnsupportedGateway { mode }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_gateway_for_mock() {
+        let gateway = gateway_for(CoraMode::Mock);
+        let token = gateway.get_token("client", "secret").await.unwrap();
+        assert_eq!(token, "mocked_bearer_token_for_cora");
+    }
+
+    #[tokio::test]
+    async fn test_gateway_for_sandbox_returns_unsupported_error() {
+        let gateway = gateway_for(CoraMode::Sandbox);
+        let err = gateway.get_token("client", "secret").await.unwrap_err();
+        match err {
+            AppError::ServiceUnavailable(msg) => {
+                assert_eq!(msg, "Cora sandbox ainda não suportado; use CORA_MODE=mock");
+            }
+            other => panic!("Esperado ServiceUnavailable, recebido: {:?}", other),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_gateway_for_production_returns_unsupported_error() {
+        let gateway = gateway_for(CoraMode::Production);
+        let dummy_invoice = CoraCreateInvoiceRequest {
+            request_id: "req-123".to_string(),
+            name: "Fatura Teste".to_string(),
+            description: "Descrição".to_string(),
+            customer: CoraCustomer {
+                name: "Aluno Teste".to_string(),
+                email: "aluno@teste.com".to_string(),
+                document: "12345678901".to_string(),
+            },
+            payment_terms: vec![],
+        };
+        let err = gateway
+            .create_invoice("token", dummy_invoice)
+            .await
+            .unwrap_err();
+        match err {
+            AppError::ServiceUnavailable(msg) => {
+                assert_eq!(
+                    msg,
+                    "Cora production ainda não suportado; use CORA_MODE=mock"
+                );
+            }
+            other => panic!("Esperado ServiceUnavailable, recebido: {:?}", other),
+        }
     }
 }

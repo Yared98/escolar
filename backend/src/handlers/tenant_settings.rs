@@ -25,10 +25,11 @@ pub struct BankIntegrationView {
     pub has_client_secret: bool,
     pub has_webhook_secret: bool,
     pub is_active: bool,
+    pub modo_gateway: String,
 }
 
 pub async fn get_bank_integrations(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
@@ -49,6 +50,8 @@ pub async fn get_bank_integrations(
     .fetch_all(&mut *db)
     .await?;
 
+    let modo_gateway = state.config.cora_mode.to_string();
+
     let integrations = rows
         .into_iter()
         .map(
@@ -58,6 +61,7 @@ pub async fn get_bank_integrations(
                 has_client_secret: has_secret,
                 has_webhook_secret: has_webhook,
                 is_active: act,
+                modo_gateway: modo_gateway.clone(),
             },
         )
         .collect();

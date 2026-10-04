@@ -16,7 +16,7 @@ Não é, ainda, um ERP de cobrança bancária/fiscal completo.
 | Aging operacional AR (0–30 / 31–60 / 60+ dias) | Implementado (visão operacional de tesouraria; não contábil) |
 | Conciliação com matching por valor/data (OFX upload na UI) | Parcial |
 | NFS-e | Stub (número/URL simulados; sem ABRASF/prefeitura) |
-| Gateway Cora / Asaas / Pagar.me | Config + webhook Cora; emissão via API mock / desconectada |
+| Gateway Cora / Asaas / Pagar.me | Adapter BankGateway com CORA_MODE=mock\|sandbox\|production (apenas mock funcional no MVP; sandbox/production retornam 503); webhook Cora; exibição de modo_gateway e selo "Simulado (modo mock)" na UI |
 | Boleto registrado Febraban / cartão recorrente | Não operacional |
 | CNAB 240/400 | Ausente |
 | Plano de contas | Schema apenas |
@@ -28,6 +28,7 @@ Não é, ainda, um ERP de cobrança bancária/fiscal completo.
 - **Pix**: payload EMVCo + CRC16 local (`gerar_pix_emvco`). Chave sintética do tenant — **não** é cobrança de PSP.
 - **Boleto**: linha digitável sintética Febraban para demonstração — **não** registrada em banco.
 - **Cartão recorrente**: apenas valor de enum; sem gateway.
+- **Integração Bancária / Gateway Cora (`CORA_MODE`)**: o backend provê o trait `BankGateway` com o factory `gateway_for(mode)`. O modo é configurado via variável de ambiente `CORA_MODE` (`mock` [padrão], `sandbox`, `production`). No modo `mock`, operações retornam dados simulados. Nos modos `sandbox` e `production`, operações retornam `AppError::ServiceUnavailable("Cora <modo> ainda não suportado; use CORA_MODE=mock")` sem panic e sem chamadas de rede. O endpoint `GET /api/tenant/integrations/banking` expõe o campo `modo_gateway` ("mock" | "sandbox" | "production") no DTO JSON, permitindo que a interface exiba o selo visual "Simulado (modo mock)" ou o aviso "modo não suportado ainda".
 - **Webhook Gateway Cora**: `/webhooks/cora/:tenant_id` e `/api/webhooks/cora/:tenant_id`. Validação de assinatura HMAC-SHA256 em tempo constante (`subtle::ConstantTimeEq`), tolerância de timestamp (5 min em modo `t_v1`), idempotência e anti-replay via tabela `webhook_events` com RLS por tenant (`UNIQUE (tenant_id, gateway_name, event_id)`). Todo o processamento (registro em `webhook_events`, baixa da fatura e `audit_logs`) é executado em uma única transação SQL atômica com RLS configurado (`set_config('app.current_tenant', ...)`). Na conversão de valores, apenas campos com unidade explicitamente conhecida (`paid_amount` em reais, `amount_cents` em centavos) realizam conversão de unidade; campos ambíguos (`amount`/`value`) são tratados estritamente como reais (sem divisão automática por 100) e, em caso de divergência com o valor cadastrado da fatura, acionam a sinalização em `audit_logs` (`acao = 'webhook_valor_divergente'`) sem baixar a fatura. Formato da assinatura configurável via `CORA_WEBHOOK_SIGNATURE_FORMAT=hex|t_v1` (padrão `hex`, pendente de confirmação final na documentação oficial da Cora: https://developers.cora.com.br).
 - **Demais contratos REST** (GET/PUT/DELETE faturas; despesas; estorno; banking settings): mantidos.
 
