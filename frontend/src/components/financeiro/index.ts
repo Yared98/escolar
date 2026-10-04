@@ -1,3 +1,5 @@
 export * from './types';
 export * from './NovoFornecedorModal';
 export * from './NovaFaturaModal';
+export * from './PixModal';
+export * from './NovaDespesaModal';
