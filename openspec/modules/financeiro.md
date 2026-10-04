@@ -28,6 +28,7 @@ Não é, ainda, um ERP de cobrança bancária/fiscal completo.
 - **Pix**: payload EMVCo + CRC16 local (`gerar_pix_emvco`). Chave sintética do tenant — **não** é cobrança de PSP.
 - **Boleto**: linha digitável sintética Febraban para demonstração — **não** registrada em banco.
 - **Cartão recorrente**: apenas valor de enum; sem gateway.
+- **Webhook Gateway Cora**: `/webhooks/cora/:tenant_id` e `/api/webhooks/cora/:tenant_id`. Validação de assinatura HMAC-SHA256 em tempo constante (`subtle::ConstantTimeEq`), tolerância de timestamp (5 min em modo `t_v1`), idempotência e anti-replay via tabela `webhook_events` com RLS por tenant (`UNIQUE (tenant_id, gateway_name, event_id)`), e validação do valor pago com criação de registro em `audit_logs` (`acao = 'webhook_valor_divergente'`) em caso de divergência sem baixar a fatura. Formato da assinatura configurável via `CORA_WEBHOOK_SIGNATURE_FORMAT=hex|t_v1` (padrão `hex`, pendente de confirmação final na documentação oficial da Cora: https://developers.cora.com.br).
 - **Demais contratos REST** (GET/PUT/DELETE faturas; despesas; estorno; banking settings): mantidos.
 
 Campos relevantes em `faturas`: `contrato_id`, `parcela_numero`/`parcela_total`, `valor_original`, `desconto_percentual`, `multa_percentual`, `juros_mora_mes_percentual`, `gateway_*` (quando houver PSP).
