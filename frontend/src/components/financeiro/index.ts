@@ -4,3 +4,5 @@ export * from './NovaFaturaModal';
 export * from './PixModal';
 export * from './NovaDespesaModal';
 export * from './ReceberPanel';
+export * from './PagarPanel';
+export * from './FornecedoresPanel';
