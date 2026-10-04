@@ -2,3 +2,5 @@ export * from './types';
 export * from './TriPanel';
 export * from './NovoSimuladoModal';
 export * from './MatrizPanel';
+export * from './NovaDisciplinaModal';
+export * from './AdicionarMatrizModal';
