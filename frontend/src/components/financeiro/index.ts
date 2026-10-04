@@ -7,3 +7,5 @@ export * from './ReceberPanel';
 export * from './PagarPanel';
 export * from './FornecedoresPanel';
 export * from './CobrancaPanel';
+export * from './NfsePanel';
+export * from './BiPanel';
