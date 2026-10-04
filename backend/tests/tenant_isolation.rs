@@ -232,10 +232,10 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?;
 
-        // Garantir que as 61 tabelas com tenant_id estejam presentes no schema
-        if tables_with_tenant.len() != 61 {
+        // Garantir que as 62 tabelas com tenant_id estejam presentes no schema
+        if tables_with_tenant.len() != 62 {
             return Err(format!(
-                "Esperado 61 tabelas com tenant_id no schema public, encontrado {}",
+                "Esperado 62 tabelas com tenant_id no schema public, encontrado {}",
                 tables_with_tenant.len()
             ));
         }
@@ -416,6 +416,7 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
                 "lead_interacoes" => format!("INSERT INTO {tbl} (id, tenant_id, lead_id, tipo, descricao) VALUES ($1, $2, '{lead_b_id}', 'whatsapp', 'Interação B')"),
                 "leads" => format!("INSERT INTO {tbl} (id, tenant_id, nome, email, telefone, canal_aquisicao, estagio_funil) VALUES ($1, $2, 'Lead Test B', 'leadtestb@test.com', '11955555555', 'site', 'novo_lead') ON CONFLICT DO NOTHING"),
                 "lgpd_termos" => format!("INSERT INTO {tbl} (id, tenant_id, aluno_id, consentimento_responsavel) VALUES ($1, $2, '{aluno_b_id}', true)"),
+                "login_attempts" => format!("INSERT INTO {tbl} (id, tenant_id, email, ip, success) VALUES ($1, $2, 'userb@test.com', '127.0.0.1', false)"),
                 "lms_configs" => format!("INSERT INTO {tbl} (id, tenant_id, lms_type, client_id, platform_url) VALUES ($1, $2, 'moodle', 'client_b_123', 'https://moodle.b.com') ON CONFLICT DO NOTHING"),
                 "lms_grade_sync_logs" => format!("INSERT INTO {tbl} (id, tenant_id, aluno_id, disciplina_nome, atividade_nome, nota) VALUES ($1, $2, '{aluno_b_id}', 'Matemática', 'Prova 1', 8.5)"),
                 "mensagens_agenda" => format!("INSERT INTO {tbl} (id, tenant_id, remetente_id, destinatario_id, canal, titulo, conteudo) VALUES ($1, $2, '{user_b}', '{user_b}', 'comunicado', 'Msg B', 'Texto B')"),
@@ -681,8 +682,13 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
             port: 8000,
             allowed_origins: "*".into(),
             environment: "test".into(),
+            trusted_proxy: false,
+            rate_limit_public_rpm: 60,
+            account_lock_max_attempts: 5,
+            account_lock_window_minutes: 15,
         },
         message_hub: escolar_backend::realtime::MessageHub::new(),
+        ip_rate_limiter: escolar_backend::middleware::security::IpRateLimiter::default(),
     };
     if refresh_session(
         State(state),

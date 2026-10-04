@@ -131,6 +131,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         pool,
         config: config.clone(),
         message_hub: escolar_backend::realtime::MessageHub::default(),
+        ip_rate_limiter: escolar_backend::middleware::security::IpRateLimiter::default(),
     };
 
     let app = create_router(state);

@@ -242,6 +242,7 @@ pub async fn register_tenant(
 
 pub async fn login(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(dto): Json<LoginDto>,
 ) -> Result<Json<AuthResponseDto>, AppError> {
     let clean_slug = dto.tenant_slug.trim().to_lowercase();
@@ -255,7 +256,60 @@ pub async fn login(
             .ok_or(AppError::TenantNotFound)?;
 
     let mut db = crate::db::acquire_tenant(&state.pool, tenant.id).await?;
+    let client_ip =
+        crate::middleware::security::extract_client_ip_from_req(&headers, None, &state.config);
 
+    // 1. Checar tentativas de login com falha na janela de tempo
+    let failed_attempts: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)::bigint FROM login_attempts
+        WHERE tenant_id = $1
+          AND email = $2
+          AND success = false
+          AND created_at > COALESCE(
+              (SELECT MAX(created_at) FROM login_attempts WHERE tenant_id = $1 AND email = $2 AND success = true),
+              '1970-01-01 00:00:00+00'::timestamptz
+          )
+          AND created_at > NOW() - ($3 || ' minutes')::INTERVAL
+        "#,
+    )
+    .bind(tenant.id)
+    .bind(&clean_email)
+    .bind(state.config.account_lock_window_minutes)
+    .fetch_one(&mut *db)
+    .await?;
+
+    if failed_attempts >= state.config.account_lock_max_attempts {
+        sqlx::query(
+            "INSERT INTO login_attempts (tenant_id, email, ip, success) VALUES ($1, $2, $3, false)",
+        )
+        .bind(tenant.id)
+        .bind(&clean_email)
+        .bind(&client_ip)
+        .execute(&mut *db)
+        .await?;
+
+        log_audit(
+            &mut *db,
+            tenant.id,
+            None,
+            "LOGIN_BLOQUEADO",
+            "users",
+            None,
+            Some(serde_json::json!({
+                "email": clean_email,
+                "ip": client_ip,
+                "reason": "excesso_tentativas_invalidas"
+            })),
+        )
+        .await;
+
+        return Err(AppError::TooManyRequests(
+            "Muitas tentativas incorretas. Conta bloqueada temporariamente. Tente novamente mais tarde.".to_string(),
+        ));
+    }
+
+    // 2. Consultar usuário
     let user_opt =
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE tenant_id = $1 AND email = $2")
             .bind(tenant.id)
@@ -266,7 +320,21 @@ pub async fn login(
     let user = match user_opt {
         Some(u) => u,
         None => {
-            // Auditoria contra ataques de força bruta / credential stuffing (NITPICK-01)
+            sqlx::query(
+                "INSERT INTO login_attempts (tenant_id, email, ip, success) VALUES ($1, $2, $3, false)",
+            )
+            .bind(tenant.id)
+            .bind(&clean_email)
+            .bind(&client_ip)
+            .execute(&mut *db)
+            .await?;
+
+            let dummy_hash =
+                "$argon2id$v=19$m=19456,t=2,p=1$c29tZXNhbHQ$dummyhashdummyhashdummyhash";
+            if let Ok(parsed_dummy) = PasswordHash::new(dummy_hash) {
+                let _ = Argon2::default().verify_password(dto.password.as_bytes(), &parsed_dummy);
+            }
+
             log_audit(
                 &mut *db,
                 tenant.id,
@@ -284,6 +352,7 @@ pub async fn login(
         }
     };
 
+    // 3. Verificar senha
     let parsed_hash = PasswordHash::new(&user.password_hash);
     let verify_res = match parsed_hash {
         Ok(hash) => Argon2::default().verify_password(dto.password.as_bytes(), &hash),
@@ -291,7 +360,15 @@ pub async fn login(
     };
 
     if verify_res.is_err() {
-        // Auditoria contra senha incorreta (NITPICK-01)
+        sqlx::query(
+            "INSERT INTO login_attempts (tenant_id, email, ip, success) VALUES ($1, $2, $3, false)",
+        )
+        .bind(tenant.id)
+        .bind(&clean_email)
+        .bind(&client_ip)
+        .execute(&mut *db)
+        .await?;
+
         log_audit(
             &mut *db,
             tenant.id,
@@ -308,7 +385,24 @@ pub async fn login(
         return Err(AppError::InvalidCredentials);
     }
 
-    // Registro indelével de auditoria para login bem-sucedido
+    // 4. Sucesso: insere tentativa positiva e zera contador de falhas
+    sqlx::query(
+        "INSERT INTO login_attempts (tenant_id, email, ip, success) VALUES ($1, $2, $3, true)",
+    )
+    .bind(tenant.id)
+    .bind(&clean_email)
+    .bind(&client_ip)
+    .execute(&mut *db)
+    .await?;
+
+    sqlx::query(
+        "DELETE FROM login_attempts WHERE tenant_id = $1 AND email = $2 AND success = false",
+    )
+    .bind(tenant.id)
+    .bind(&clean_email)
+    .execute(&mut *db)
+    .await?;
+
     log_audit(
         &mut *db,
         tenant.id,

@@ -497,7 +497,11 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/regulatorio/diploma-digital/validar/:codigo",
             get(validar_diploma_digital_publico),
-        );
+        )
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            crate::middleware::security::ip_rate_limit_middleware,
+        ));
 
     let allowed_origins: Vec<_> = state
         .config

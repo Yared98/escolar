@@ -108,12 +108,17 @@ async fn run_revocation_checks(pool: &PgPool) -> Result<(), String> {
         jwt_public_x: public_x,
         allowed_origins: "http://localhost:3000".to_string(),
         environment: "development".to_string(),
+        trusted_proxy: false,
+        rate_limit_public_rpm: 60,
+        account_lock_max_attempts: 5,
+        account_lock_window_minutes: 15,
     };
 
     let app_state = AppState {
         pool: pool.clone(),
         config,
         message_hub: MessageHub::new(),
+        ip_rate_limiter: escolar_backend::middleware::security::IpRateLimiter::default(),
     };
 
     let app = create_router(app_state);

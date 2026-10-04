@@ -12,6 +12,10 @@ pub struct Config {
     pub allowed_origins: String,
     #[allow(dead_code)]
     pub environment: String,
+    pub trusted_proxy: bool,
+    pub rate_limit_public_rpm: u32,
+    pub account_lock_max_attempts: i64,
+    pub account_lock_window_minutes: i64,
 }
 
 impl std::fmt::Debug for Config {
@@ -24,6 +28,13 @@ impl std::fmt::Debug for Config {
             .field("port", &self.port)
             .field("allowed_origins", &self.allowed_origins)
             .field("environment", &self.environment)
+            .field("trusted_proxy", &self.trusted_proxy)
+            .field("rate_limit_public_rpm", &self.rate_limit_public_rpm)
+            .field("account_lock_max_attempts", &self.account_lock_max_attempts)
+            .field(
+                "account_lock_window_minutes",
+                &self.account_lock_window_minutes,
+            )
             .finish()
     }
 }
@@ -237,6 +248,29 @@ impl Config {
             .and_then(|p| p.parse().ok())
             .unwrap_or(8000);
 
+        let trusted_proxy = env::var("TRUSTED_PROXY")
+            .map(|v| {
+                let s = v.trim().to_lowercase();
+                s == "true" || s == "1" || s == "yes"
+            })
+            .unwrap_or(false);
+
+        let rate_limit_public_rpm = env::var("RATE_LIMIT_PUBLIC_RPM")
+            .or_else(|_| env::var("RATE_LIMIT_PER_MINUTE"))
+            .ok()
+            .and_then(|p| p.parse().ok())
+            .unwrap_or(60);
+
+        let account_lock_max_attempts = env::var("ACCOUNT_LOCK_MAX_ATTEMPTS")
+            .ok()
+            .and_then(|p| p.parse().ok())
+            .unwrap_or(5);
+
+        let account_lock_window_minutes = env::var("ACCOUNT_LOCK_WINDOW_MINUTES")
+            .ok()
+            .and_then(|p| p.parse().ok())
+            .unwrap_or(15);
+
         Ok(Config {
             database_url,
             jwt_private_pem,
@@ -245,7 +279,29 @@ impl Config {
             port,
             allowed_origins,
             environment,
+            trusted_proxy,
+            rate_limit_public_rpm,
+            account_lock_max_attempts,
+            account_lock_window_minutes,
         })
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            database_url: String::new(),
+            jwt_private_pem: String::new(),
+            jwt_public_pem: String::new(),
+            jwt_public_x: String::new(),
+            port: 8000,
+            allowed_origins: "http://localhost:3000".to_string(),
+            environment: "development".to_string(),
+            trusted_proxy: false,
+            rate_limit_public_rpm: 60,
+            account_lock_max_attempts: 5,
+            account_lock_window_minutes: 15,
+        }
     }
 }
 
@@ -254,6 +310,7 @@ pub struct AppState {
     pub pool: sqlx::PgPool,
     pub config: Config,
     pub message_hub: crate::realtime::MessageHub,
+    pub ip_rate_limiter: crate::middleware::security::IpRateLimiter,
 }
 
 #[cfg(test)]
@@ -270,6 +327,10 @@ mod tests {
             port: 8000,
             allowed_origins: "http://localhost:3000".to_string(),
             environment: "development".to_string(),
+            trusted_proxy: false,
+            rate_limit_public_rpm: 60,
+            account_lock_max_attempts: 5,
+            account_lock_window_minutes: 15,
         };
 
         let debug_repr = format!("{:?}", config);
