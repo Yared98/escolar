@@ -32,79 +32,10 @@ import {
 } from 'lucide-react';
 import { BankingIntegrations } from './BankingIntegrations';
 
-interface Fatura {
-  id: string;
-  aluno_id?: string;
-  descricao: string;
-  valor: number;
-  data_vencimento: string;
-  metodo_pagamento: string;
-  status: string;
-  qr_code_pix?: string;
-  parcela_numero?: number | null;
-  parcela_total?: number | null;
-  multa_percentual?: number;
-  juros_mora_mes_percentual?: number;
-}
-
-interface Despesa {
-  id: string;
-  descricao: string;
-  categoria: string;
-  valor: number;
-  data_vencimento: string;
-  metodo_pagamento?: string;
-  status: string;
-  tipo: string;
-  fornecedor_id?: string;
-  fornecedor_nome?: string;
-}
-
-interface Fornecedor {
-  id: string;
-  razao_social: string;
-  cnpj: string;
-  ramo_atividade?: string;
-  email?: string;
-  telefone?: string;
-  status?: string;
-}
-
-interface DreReport {
-  receita_bruta: number;
-  despesas_totais: number;
-  resultado_liquido: number;
-  inadimplencia_total: number;
-  total_faturas_pagas: number;
-  total_faturas_pendentes: number;
-  dfc_caixa_projetado: number;
-}
-
-interface AlunoOpcao {
-  id: string;
-  nome: string;
-}
-
-interface NfseItem {
-  id: string;
-  fatura_id: string;
-  numero_nfse?: string;
-  valor_servico: number;
-  status: string;
-  created_at?: string;
-}
-
-interface ReguaLog {
-  id: string;
-  fatura_id: string;
-  canal: string;
-  tipo_evento: string;
-  status_envio: string;
-  mensagem_corpo?: string;
-  enviado_em: string;
-}
-
-export type AgingRange = '0-30' | '31-60' | '60+' | null;
+import { Fatura, Despesa, Fornecedor, DreReport, AlunoOpcao, NfseItem, ReguaLog, AgingRange } from './financeiro/types';
+export { type AgingRange } from './financeiro/types';
+import { NovoFornecedorModal } from './financeiro/NovoFornecedorModal';
+import { NovaFaturaModal } from './financeiro/NovaFaturaModal';
 
 export const calcularDiasAtrasoFatura = (dataVencimentoStr: string): number => {
   if (!dataVencimentoStr) return 0;
@@ -1513,126 +1444,23 @@ export function FinanceiroSection() {
       )}
 
       {showFornecedorModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleCriarFornecedor} className="bg-white dark:bg-salvia-900 border border-salvia-200 dark:border-salvia-800 rounded-2xl p-6 max-w-md w-full space-y-3 shadow-xl text-xs">
-            <div className="flex items-center justify-between pb-3 border-b border-salvia-100 dark:border-salvia-800">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-salvia-50">Cadastrar fornecedor</h3>
-              <button type="button" onClick={() => setShowFornecedorModal(false)} className="text-salvia-400"><X className="w-5 h-5" /></button>
-            </div>
-            <input required placeholder="Razão social" value={novoFornecedor.razao_social} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, razao_social: e.target.value })} className="w-full p-2 rounded-xl border border-salvia-200 dark:border-salvia-700 bg-white dark:bg-salvia-950" />
-            <div className="grid grid-cols-2 gap-2">
-              <input required placeholder="CNPJ" value={novoFornecedor.cnpj} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, cnpj: e.target.value })} className="w-full p-2 rounded-xl border border-salvia-200 dark:border-salvia-700 bg-white dark:bg-salvia-950 font-mono" />
-              <input required placeholder="Ramo" value={novoFornecedor.ramo_atividade} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, ramo_atividade: e.target.value })} className="w-full p-2 rounded-xl border border-salvia-200 dark:border-salvia-700 bg-white dark:bg-salvia-950" />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <input required type="email" placeholder="E-mail" value={novoFornecedor.email} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, email: e.target.value })} className="w-full p-2 rounded-xl border border-salvia-200 dark:border-salvia-700 bg-white dark:bg-salvia-950" />
-              <input required placeholder="Telefone" value={novoFornecedor.telefone} onChange={(e) => setNovoFornecedor({ ...novoFornecedor, telefone: e.target.value })} className="w-full p-2 rounded-xl border border-salvia-200 dark:border-salvia-700 bg-white dark:bg-salvia-950" />
-            </div>
-            <div className="flex justify-end space-x-2 pt-2">
-              <button type="button" onClick={() => setShowFornecedorModal(false)} className="px-3 py-1.5 rounded-xl border border-salvia-200 dark:border-salvia-700">Cancelar</button>
-              <button type="submit" className="bg-salvia-700 text-white px-4 py-1.5 rounded-xl font-bold">Salvar</button>
-            </div>
-          </form>
-        </div>
+        <NovoFornecedorModal
+          setShowFornecedorModal={setShowFornecedorModal}
+          handleCriarFornecedor={handleCriarFornecedor}
+          novoFornecedor={novoFornecedor}
+          setNovoFornecedor={setNovoFornecedor}
+        />
       )}
 
       {/* Modal Nova Fatura */}
       {showNovaFaturaModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-salvia-900 border border-salvia-200 dark:border-salvia-800 rounded-2xl p-6 max-w-md w-full shadow-xl">
-            <div className="flex items-center justify-between pb-3 border-b border-salvia-100 dark:border-salvia-800 mb-4">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-salvia-50">Nova Fatura / Mensalidade</h3>
-              <button type="button" onClick={() => setShowNovaFaturaModal(false)}>
-                <X className="w-5 h-5 text-salvia-400" />
-              </button>
-            </div>
-            <form onSubmit={handleCriarFatura} className="space-y-3 text-xs">
-              <label className="block font-semibold text-salvia-700 dark:text-salvia-300">
-                Aluno
-                <select
-                  required
-                  value={novaFatura.aluno_id}
-                  onChange={(e) => setNovaFatura({ ...novaFatura, aluno_id: e.target.value })}
-                  className="mt-1 w-full rounded-xl border border-salvia-200 dark:border-salvia-700 bg-white dark:bg-salvia-950 p-2"
-                >
-                  <option value="">Selecione...</option>
-                  {alunosOpcoes.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.nome}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block font-semibold text-salvia-700 dark:text-salvia-300">
-                Descrição
-                <input
-                  required
-                  value={novaFatura.descricao}
-                  onChange={(e) => setNovaFatura({ ...novaFatura, descricao: e.target.value })}
-                  className="mt-1 w-full rounded-xl border border-salvia-200 dark:border-salvia-700 bg-white dark:bg-salvia-950 p-2"
-                  placeholder="Mensalidade Março/2026"
-                />
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="block font-semibold text-salvia-700 dark:text-salvia-300">
-                  Valor (R$)
-                  <input
-                    required
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    value={novaFatura.valor}
-                    onChange={(e) => setNovaFatura({ ...novaFatura, valor: e.target.value })}
-                    className="mt-1 w-full rounded-xl border border-salvia-200 dark:border-salvia-700 bg-white dark:bg-salvia-950 p-2 font-mono"
-                  />
-                </label>
-                <label className="block font-semibold text-salvia-700 dark:text-salvia-300">
-                  Desconto (%)
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={novaFatura.desconto_percentual}
-                    onChange={(e) => setNovaFatura({ ...novaFatura, desconto_percentual: e.target.value })}
-                    className="mt-1 w-full rounded-xl border border-salvia-200 dark:border-salvia-700 bg-white dark:bg-salvia-950 p-2 font-mono"
-                  />
-                </label>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="block font-semibold text-salvia-700 dark:text-salvia-300">
-                  Vencimento
-                  <input
-                    type="date"
-                    required
-                    value={novaFatura.data_vencimento}
-                    onChange={(e) => setNovaFatura({ ...novaFatura, data_vencimento: e.target.value })}
-                    className="mt-1 w-full rounded-xl border border-salvia-200 dark:border-salvia-700 bg-white dark:bg-salvia-950 p-2"
-                  />
-                </label>
-                <label className="block font-semibold text-salvia-700 dark:text-salvia-300">
-                  Método
-                  <select
-                    value={novaFatura.metodo_pagamento}
-                    onChange={(e) => setNovaFatura({ ...novaFatura, metodo_pagamento: e.target.value })}
-                    className="mt-1 w-full rounded-xl border border-salvia-200 dark:border-salvia-700 bg-white dark:bg-salvia-950 p-2"
-                  >
-                    <option value="pix">Pix</option>
-                    <option value="boleto">Boleto (sintético)</option>
-                  </select>
-                </label>
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setShowNovaFaturaModal(false)} className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold">
-                  Cancelar
-                </button>
-                <button type="submit" className="px-3 py-1.5 rounded-xl bg-salvia-700 text-white font-bold">
-                  Gerar fatura
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <NovaFaturaModal
+          setShowNovaFaturaModal={setShowNovaFaturaModal}
+          handleCriarFatura={handleCriarFatura}
+          novaFatura={novaFatura}
+          setNovaFatura={setNovaFatura}
+          alunosOpcoes={alunosOpcoes}
+        />
       )}
 
       {/* Modal Nova Despesa */}
