@@ -296,5 +296,188 @@ async fn run_throttle_checks(pool: &PgPool) -> Result<(), String> {
         ));
     }
 
+    // 4. Testar que apos a janela expirar (simulado com UPDATE created_at), a conta e desbloqueada
+    sqlx::query(
+        "UPDATE login_attempts SET created_at = NOW() - INTERVAL '20 minutes' WHERE tenant_id = $1 AND email = $2",
+    )
+    .bind(tenant_id)
+    .bind(email)
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let req_after_window = Request::builder()
+        .method("POST")
+        .uri("/api/v1/auth/login")
+        .header("content-type", "application/json")
+        .body(Body::from(serde_json::to_vec(&body_senha_correta).unwrap()))
+        .unwrap();
+
+    let res_after_window = app
+        .clone()
+        .oneshot(req_after_window)
+        .await
+        .map_err(|e| e.to_string())?;
+    if res_after_window.status() != StatusCode::OK {
+        return Err(format!(
+            "Apos expirar a janela de bloqueio, esperado 200 OK, obtido {}",
+            res_after_window.status()
+        ));
+    }
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_ip_rate_limiter_buckets_and_trusted_proxy() {
+    let Some(admin_url) = std::env::var("ESCOLAR_TEST_DATABASE_URL")
+        .ok()
+        .filter(|url| !url.trim().is_empty())
+    else {
+        eprintln!("ESCOLAR_TEST_DATABASE_URL ausente; teste de ip_rate_limiter ignorado.");
+        return;
+    };
+
+    let db_name = format!("escolar_ip_buckets_{}", Uuid::new_v4().simple());
+    let admin = PgPoolOptions::new()
+        .max_connections(2)
+        .connect(&admin_url)
+        .await
+        .expect("conexão administrativa");
+
+    sqlx::query(&format!("CREATE DATABASE {db_name}"))
+        .execute(&admin)
+        .await
+        .expect("criação do database descartável");
+
+    let test_pool = PgPoolOptions::new()
+        .max_connections(4)
+        .connect(&database_url_for(&admin_url, &db_name))
+        .await
+        .expect("conexão do database de teste");
+
+    let result = run_ip_bucket_checks(&test_pool).await;
+    test_pool.close().await;
+    drop_database(&admin, &db_name).await;
+    result.expect("teste de baldes de IP e trusted_proxy");
+}
+
+async fn run_ip_bucket_checks(pool: &PgPool) -> Result<(), String> {
+    sqlx::migrate!("./migrations")
+        .run(pool)
+        .await
+        .map_err(|e| format!("migrations: {e}"))?;
+
+    let (pem, pub_pem, pub_x) = development_signing_material();
+    let mut config = Config::default();
+    config.jwt_private_pem = pem;
+    config.jwt_public_pem = pub_pem;
+    config.jwt_public_x = pub_x;
+    config.rate_limit_public_rpm = 60;
+    config.trusted_proxy = true;
+
+    let app_state = AppState {
+        pool: pool.clone(),
+        config: config.clone(),
+        message_hub: escolar_backend::realtime::MessageHub::default(),
+        ip_rate_limiter: escolar_backend::middleware::security::IpRateLimiter::new(),
+    };
+
+    let app = create_router(app_state);
+
+    // 1. 60 requisições do IP A (10.0.0.1 via X-Forwarded-For ultimo item)
+    for i in 1..=60 {
+        let req = Request::builder()
+            .method("GET")
+            .uri("/api/v1/health")
+            .header("x-forwarded-for", "192.168.1.1, 10.0.0.1")
+            .body(Body::empty())
+            .unwrap();
+
+        let res = app.clone().oneshot(req).await.map_err(|e| e.to_string())?;
+        if res.status() != StatusCode::OK {
+            return Err(format!(
+                "Requisicao {i} do IP A esperava 200, obtido {}",
+                res.status()
+            ));
+        }
+    }
+
+    // 61ª requisição do IP A deve levar 429
+    let req_a_61 = Request::builder()
+        .method("GET")
+        .uri("/api/v1/health")
+        .header("x-forwarded-for", "192.168.1.1, 10.0.0.1")
+        .body(Body::empty())
+        .unwrap();
+
+    let res_a_61 = app
+        .clone()
+        .oneshot(req_a_61)
+        .await
+        .map_err(|e| e.to_string())?;
+    if res_a_61.status() != StatusCode::TOO_MANY_REQUESTS {
+        return Err(format!(
+            "61ª requisicao do IP A esperava 429, obtido {}",
+            res_a_61.status()
+        ));
+    }
+
+    // 2. IP B (10.0.0.2 via X-Forwarded-For) deve continuar com status 200 (balde separado)
+    let req_b = Request::builder()
+        .method("GET")
+        .uri("/api/v1/health")
+        .header("x-forwarded-for", "192.168.1.1, 10.0.0.2")
+        .body(Body::empty())
+        .unwrap();
+
+    let res_b = app
+        .clone()
+        .oneshot(req_b)
+        .await
+        .map_err(|e| e.to_string())?;
+    if res_b.status() != StatusCode::OK {
+        return Err(format!(
+            "Requisicao do IP B esperava 200 OK (balde isolado), obtido {}",
+            res_b.status()
+        ));
+    }
+
+    // 3. Testar TRUSTED_PROXY=false: ignora X-Forwarded-For e usa SocketAddr ConnectInfo
+    let mut config_untrusted = config.clone();
+    config_untrusted.trusted_proxy = false;
+
+    let app_state_untrusted = AppState {
+        pool: pool.clone(),
+        config: config_untrusted,
+        message_hub: escolar_backend::realtime::MessageHub::default(),
+        ip_rate_limiter: escolar_backend::middleware::security::IpRateLimiter::new(),
+    };
+    let app_untrusted = create_router(app_state_untrusted);
+
+    // Requisicao enviando X-Forwarded-For contendo o IP A (bloqueado anteriormente), mas com ConnectInfo de IP C
+    let mut req_untrusted = Request::builder()
+        .method("GET")
+        .uri("/api/v1/health")
+        .header("x-forwarded-for", "192.168.1.1, 10.0.0.1")
+        .body(Body::empty())
+        .unwrap();
+    req_untrusted
+        .extensions_mut()
+        .insert(axum::extract::ConnectInfo(
+            "172.16.0.5:54321".parse::<std::net::SocketAddr>().unwrap(),
+        ));
+
+    let res_untrusted = app_untrusted
+        .oneshot(req_untrusted)
+        .await
+        .map_err(|e| e.to_string())?;
+    if res_untrusted.status() != StatusCode::OK {
+        return Err(format!(
+            "Com TRUSTED_PROXY=false, X-Forwarded-For deve ser ignorado e usar SocketAddr (esperado 200, obtido {})",
+            res_untrusted.status()
+        ));
+    }
+
     Ok(())
 }

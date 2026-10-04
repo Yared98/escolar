@@ -24,6 +24,9 @@ use crate::{
     services::audit::log_audit,
 };
 
+pub const DUMMY_ARGON2_HASH: &str =
+    "$argon2id$v=19$m=19456,t=2,p=1$c29tZXNhbHRzb21lc2FsdA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+
 #[derive(Debug, Deserialize)]
 pub struct RegisterTenantDto {
     pub school_name: String,
@@ -280,15 +283,6 @@ pub async fn login(
     .await?;
 
     if failed_attempts >= state.config.account_lock_max_attempts {
-        sqlx::query(
-            "INSERT INTO login_attempts (tenant_id, email, ip, success) VALUES ($1, $2, $3, false)",
-        )
-        .bind(tenant.id)
-        .bind(&clean_email)
-        .bind(&client_ip)
-        .execute(&mut *db)
-        .await?;
-
         log_audit(
             &mut *db,
             tenant.id,
@@ -329,9 +323,7 @@ pub async fn login(
             .execute(&mut *db)
             .await?;
 
-            let dummy_hash =
-                "$argon2id$v=19$m=19456,t=2,p=1$c29tZXNhbHQ$dummyhashdummyhashdummyhash";
-            if let Ok(parsed_dummy) = PasswordHash::new(dummy_hash) {
+            if let Ok(parsed_dummy) = PasswordHash::new(DUMMY_ARGON2_HASH) {
                 let _ = Argon2::default().verify_password(dto.password.as_bytes(), &parsed_dummy);
             }
 
@@ -1219,5 +1211,16 @@ mod tests {
         .unwrap();
         assert!(!token.is_empty());
         assert_eq!(token.split('.').count(), 3);
+    }
+
+    #[test]
+    fn test_dummy_argon2_hash_validity() {
+        let parsed = PasswordHash::new(DUMMY_ARGON2_HASH);
+        assert!(
+            parsed.is_ok(),
+            "DUMMY_ARGON2_HASH deve ser aceito por PasswordHash::new"
+        );
+        let verify_res = Argon2::default().verify_password(b"any_password", &parsed.unwrap());
+        assert!(verify_res.is_err());
     }
 }

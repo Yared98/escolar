@@ -36,9 +36,13 @@ impl IpRateLimiter {
         let now = Instant::now();
         let mut map = self.requests.lock().await;
 
-        let timestamps = map.entry(ip.to_string()).or_insert_with(Vec::new);
-        timestamps.retain(|&t| now.duration_since(t) < window);
+        // Limpeza automatica (GC) de registros expirados e remocao de chaves sem timestamps
+        map.retain(|_, timestamps| {
+            timestamps.retain(|&t| now.duration_since(t) < window);
+            !timestamps.is_empty()
+        });
 
+        let timestamps = map.entry(ip.to_string()).or_insert_with(Vec::new);
         if timestamps.len() >= limit_per_minute as usize {
             false
         } else {
@@ -62,6 +66,24 @@ impl IpRateLimiter {
         }
         60
     }
+
+    pub async fn gc(&self) {
+        let window = Duration::from_secs(60);
+        let now = Instant::now();
+        let mut map = self.requests.lock().await;
+        map.retain(|_, timestamps| {
+            timestamps.retain(|&t| now.duration_since(t) < window);
+            !timestamps.is_empty()
+        });
+    }
+
+    pub async fn len(&self) -> usize {
+        self.requests.lock().await.len()
+    }
+
+    pub async fn is_empty(&self) -> bool {
+        self.len().await == 0
+    }
 }
 
 pub fn extract_client_ip_from_req(
@@ -71,8 +93,8 @@ pub fn extract_client_ip_from_req(
 ) -> String {
     if config.trusted_proxy {
         if let Some(xff) = headers.get("x-forwarded-for").and_then(|h| h.to_str().ok()) {
-            if let Some(first_ip) = xff.split(',').next() {
-                let trimmed = first_ip.trim();
+            if let Some(last_ip) = xff.split(',').next_back() {
+                let trimmed = last_ip.trim();
                 if !trimmed.is_empty() {
                     return trimmed.to_string();
                 }
@@ -148,4 +170,57 @@ pub async fn opensec_security_headers_middleware(req: Request, next: Next) -> Re
     );
 
     response
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_ip_rate_limiter_gc() {
+        let limiter = IpRateLimiter::new();
+        assert_eq!(limiter.len().await, 0);
+
+        limiter.check_and_record("10.0.0.1", 5).await;
+        limiter.check_and_record("10.0.0.2", 5).await;
+        assert_eq!(limiter.len().await, 2);
+
+        limiter.gc().await;
+        // Entradas recentes continuam no mapa
+        assert_eq!(limiter.len().await, 2);
+    }
+
+    #[test]
+    fn test_extract_client_ip_from_req_trusted_proxy_last_item() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "x-forwarded-for",
+            HeaderValue::from_static("203.0.113.195, 70.41.3.18, 150.172.238.178"),
+        );
+
+        let mut config = crate::config::Config::default();
+        config.trusted_proxy = true;
+
+        let ip = extract_client_ip_from_req(&headers, None, &config);
+        // Deve extrair o ultimo IP (adicionado pelo proxy confiavel mais proximo)
+        assert_eq!(ip, "150.172.238.178");
+    }
+
+    #[test]
+    fn test_extract_client_ip_from_req_untrusted_proxy_uses_socket() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "x-forwarded-for",
+            HeaderValue::from_static("203.0.113.195, 150.172.238.178"),
+        );
+
+        let mut config = crate::config::Config::default();
+        config.trusted_proxy = false;
+
+        let socket_addr: std::net::SocketAddr = "192.168.1.100:8080".parse().unwrap();
+        let ip = extract_client_ip_from_req(&headers, Some(&socket_addr), &config);
+
+        // TRUSTED_PROXY=false deve ignorar X-Forwarded-For e usar o IP do socket
+        assert_eq!(ip, "192.168.1.100");
+    }
 }
