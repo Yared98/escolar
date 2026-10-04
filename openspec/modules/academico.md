@@ -104,3 +104,11 @@ O processo avaliativo opera pelo lançamento de notas por período letivo e falt
 - **Seletor de Dependentes**: Alternância ágil entre filhos cadastrados via `GET /api/v1/secretaria/alunos/meus`.
 - **Boletim & Desempenho**: Exibição das notas, frequência calculada e pareceres bimestrais.
 - **Grade de Horários**: Visualização da agenda semanal de aulas do estudante.
+
+## 5. Mapa de código (frontend)
+
+Organização após o refactor B12 (só moveu código, sem mudança de regra):
+
+- `PedagocioNutricaoSection.tsx` orquestra o Pedagógico (estado, carregamento, handlers, abas); `frontend/src/components/pedagogico/` só exibe, via props: `MatrizPanel`, `HorariosPanel`, `TriPanel`, `ProjetosPanel` e os modais `NovaDisciplinaModal`, `AdicionarMatrizModal`, `AtribuirProfessorModal`, `NovoHorarioModal`, `NovoSimuladoModal`.
+- `PortalAlunoSection.tsx` orquestra o Portal do Aluno; `frontend/src/components/portal_aluno/` só exibe: `BoletimTab`, `DiplomaTab`, `FinanceiroTab`, `RotinaTab` e `PixModal` (separado do Pix do Financeiro).
+- O gate de spec (`scripts/check-agent-gates.mjs`) associa `pedagogico/**` e `portal_aluno/**` a este módulo.

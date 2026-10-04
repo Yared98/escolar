@@ -69,3 +69,10 @@ Portal da família: Mensalidades (2ª via Pix com filtros e confirmação de pag
 5. Aging de contas a pagar (AP), conciliação bancária automática CNAB retorno (aging AR operacional implementado)  
 6. Estorno/cancelamento fiscal de fatura paga  
 7. Cartão recorrente operacional  
+
+## 6. Mapa de código (frontend)
+
+Organização após o refactor B12 (só moveu código, sem mudança de regra):
+
+- `frontend/src/components/FinanceiroSection.tsx` orquestra: estado, carregamento, handlers (incluindo `handleOFXUpload`) e abas. Concentra todas as chamadas `apiFetch` do Financeiro.
+- `frontend/src/components/financeiro/` só exibe, via props: abas (`ReceberPanel`, `PagarPanel`, `FornecedoresPanel`, `CobrancaPanel`, `NfsePanel`, `BiPanel`), modais (`NovaFaturaModal`, `NovaDespesaModal`, `NovoFornecedorModal`, `PixModal`) e `types.ts`. O `PixModal` do Financeiro é independente do `portal_aluno/PixModal.tsx`.

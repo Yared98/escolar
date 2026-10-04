@@ -43,3 +43,11 @@ O módulo cobre o **Calendário Letivo com RSVP de Eventos**, a **Rotina Diária
   - Bloqueio: Aluno registrado com falta na chamada da turma não recebe rotina (HTTP 400).
 - **Consulta da Rotina da Família**:
   - `GET /api/v1/agenda/diario-infantil/:aluno_id?data=YYYY-MM-DD` consolidando presença, cardápio consumido e anotações dos educadores.
+
+## 3. Mapa de código (frontend)
+
+Organização após o refactor B12 (só moveu código, sem mudança de regra):
+
+- `AgendaDigitalSection.tsx` orquestra: estado, carregamento, tempo real (`useMensagensRealtime`) e abas.
+- `frontend/src/components/agenda/` só exibe, via props: `ComunicacaoPanel`, `WhatsappPanel`, `ComposerModal`, além de `types.ts` e `utils.ts`.
+- O gate de spec associa `agenda/**` a este módulo.

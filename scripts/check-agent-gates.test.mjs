@@ -113,6 +113,32 @@ test('Regra 1 (Extensões canônicas): worker/** exige agenda_calendario.md e mi
   assert.equal(resMigPass.passed, true);
 });
 
+test('Regra 1 (Pastas do B12): agenda/, pedagogico/ e portal_aluno/ exigem o spec do módulo', () => {
+  const casos = [
+    ['frontend/src/components/agenda/ComposerModal.tsx', 'openspec/modules/agenda_calendario.md'],
+    ['frontend/src/components/pedagogico/MatrizPanel.tsx', 'openspec/modules/academico.md'],
+    ['frontend/src/components/portal_aluno/BoletimTab.tsx', 'openspec/modules/academico.md'],
+    ['frontend/src/components/financeiro/ReceberPanel.tsx', 'openspec/modules/financeiro.md'],
+    ['frontend/src/components/secretaria/matricula/DadosAlunoTab.tsx', 'openspec/modules/secretaria.md'],
+  ];
+  for (const [arquivo, spec] of casos) {
+    const falha = checkSpecSync({
+      changedFiles: [arquivo],
+      commitMessages: ['refactor: mover painel'],
+      codeToSpecRules: DEFAULT_CODE_TO_SPEC_RULES,
+    });
+    assert.equal(falha.passed, false, arquivo);
+    assert.equal(falha.violations[0].expectedSpec, spec, arquivo);
+
+    const ok = checkSpecSync({
+      changedFiles: [arquivo, spec],
+      commitMessages: ['refactor: mover painel documentado'],
+      codeToSpecRules: DEFAULT_CODE_TO_SPEC_RULES,
+    });
+    assert.equal(ok.passed, true, arquivo);
+  }
+});
+
 // -----------------------------------------------------------------------------
 // Regra 2: Escape Spec-Sync: n/a <módulo>: <motivo>
 // -----------------------------------------------------------------------------

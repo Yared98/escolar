@@ -129,3 +129,11 @@ O módulo cobre o **ciclo de vida completo do estudante** (matrícula com duplo 
 - **Gestão de Salas Físicas (`salas`)**:
   - Endpoints `GET /api/v1/secretaria/salas`, `POST /api/v1/secretaria/salas`, `DELETE /api/v1/secretaria/salas/:sala_id` para catalogação e controle dos espaços escolares com capacidade nominal.
 - **UI Secretaria e lotação**: o carregamento de alunos/turmas/salas/professores é independente (`Promise.allSettled`); falha em um recurso não zera os demais. Lotação exibida usa apenas `alunos_matriculados` / `vagas_restantes` da API (sem fallbacks fictícios). Diário e Secretaria compartilham `GET /secretaria/turmas`.
+
+## 7. Mapa de código (frontend)
+
+Organização após o refactor B12 (só moveu código, sem mudança de regra):
+
+- `frontend/src/components/SecretariaSection.tsx` orquestra: estado, carregamento (`loadTurmas`, `loadAlunos`, `loadCatalogo`), handlers (matrícula, turma, chamada, transferência, prontuário, status) e abas. Concentra todas as chamadas `apiFetch` da Secretaria.
+- `frontend/src/components/secretaria/` só exibe, via props: `AlunosPanel`, `TurmasPanel`, `NovaTurmaModal`, `TurmaAlunosModal`, `MatriculaModal` (moldura). `ContratosPanel`, `EnsalamentoModal` e `ProntuarioModal` já existiam e têm lógica própria.
+- `frontend/src/components/secretaria/matricula/`: as 4 abas do formulário de matrícula (`DadosAlunoTab`, `ResponsaveisTab`, `EnderecoContatosTab`, `ProntuarioInicialTab`).

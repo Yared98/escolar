@@ -60,7 +60,7 @@ export const DEFAULT_CODE_TO_SPEC_RULES = [
   // Acadêmico
   {
     pattern:
-      /^(backend\/src\/handlers\/academico\.rs|frontend\/src\/components\/(?:academico\/.*|PedagocioNutricaoSection\.tsx))$/,
+      /^(backend\/src\/handlers\/academico\.rs|frontend\/src\/components\/(?:academico\/.*|pedagogico\/.*|portal_aluno\/.*|PedagocioNutricaoSection\.tsx))$/,
     spec: 'openspec/modules/academico.md',
     label: 'Acadêmico',
   },
@@ -74,7 +74,7 @@ export const DEFAULT_CODE_TO_SPEC_RULES = [
   // Agenda & Calendário / Notificações (inclui worker)
   {
     pattern:
-      /^(backend\/src\/handlers\/agenda_admin\.rs|frontend\/src\/components\/(?:AgendaDigitalSection\.tsx|CalendarioEscolarSection\.tsx)|worker\/.*)$/,
+      /^(backend\/src\/handlers\/agenda_admin\.rs|frontend\/src\/components\/(?:agenda\/.*|AgendaDigitalSection\.tsx|CalendarioEscolarSection\.tsx)|worker\/.*)$/,
     spec: 'openspec/modules/agenda_calendario.md',
     label: 'Agenda & Calendário / Notificações',
   },
