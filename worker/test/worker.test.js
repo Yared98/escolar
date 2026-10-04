@@ -8,6 +8,8 @@ import {
 } from '../src/dispatcher.js';
 import { VapidPushAdapter, SimulatedPushAdapter, getPushAdapter } from '../src/adapters/push.js';
 
+import { processNotificationRow } from '../src/index.js';
+
 async function runTests() {
   console.log('--- Executando Testes Unitários do Worker Node.js ---');
 
@@ -17,6 +19,88 @@ async function runTests() {
   queue.registerHandler('whatsapp', processWhatsAppWebhook);
   queue.registerHandler('regua_cobranca', processReguaCobranca);
   queue.registerHandler('perimetro_alerta', processPerimetroAlert);
+
+  // Testes de Atualização de Log de Disparo (atualizar_log_disparo)
+  const logCalls = [];
+  const mockLogClient = {
+    query: async (sql, params) => {
+      if (sql.includes('atualizar_log_disparo')) {
+        logCalls.push({ sql, params });
+      }
+      return { rows: [] };
+    },
+  };
+
+  // Teste B19.1: Delivered -> enviado
+  const rowDelivered = {
+    id: 'notif-1',
+    tenant_id: 'tenant-1',
+    canal_disparo: 'push_pwa',
+    tentativas: 1,
+    titulo: 'Teste',
+    mensagem: 'Mensagem',
+  };
+  const mockHandlersDelivered = {
+    push_pwa: async () => ({ status: 'delivered' }),
+  };
+  const resDelivered = await processNotificationRow(rowDelivered, {
+    client: mockLogClient,
+    handlers: mockHandlersDelivered,
+  });
+  const lastCallDelivered = logCalls[logCalls.length - 1];
+  const deliveredLogPassed =
+    resDelivered.logStatus === 'enviado' &&
+    lastCallDelivered &&
+    lastCallDelivered.params[3] === 'enviado';
+  console.log('Teste Log Status Delivered -> enviado:', resDelivered.logStatus, deliveredLogPassed);
+
+  // Teste B19.2: Simulated -> simulado
+  const rowSimulated = {
+    id: 'notif-2',
+    tenant_id: 'tenant-1',
+    canal_disparo: 'push_pwa',
+    tentativas: 1,
+    titulo: 'Teste',
+    mensagem: 'Mensagem',
+  };
+  const mockHandlersSimulated = {
+    push_pwa: async () => ({ status: 'simulated' }),
+  };
+  const resSimulated = await processNotificationRow(rowSimulated, {
+    client: mockLogClient,
+    handlers: mockHandlersSimulated,
+  });
+  const lastCallSimulated = logCalls[logCalls.length - 1];
+  const simulatedLogPassed =
+    resSimulated.logStatus === 'simulado' &&
+    lastCallSimulated &&
+    lastCallSimulated.params[3] === 'simulado';
+  console.log('Teste Log Status Simulated -> simulado:', resSimulated.logStatus, simulatedLogPassed);
+
+  // Teste B19.3: Falha definitiva (tentativas >= 3) -> falhou
+  const rowFailed = {
+    id: 'notif-3',
+    tenant_id: 'tenant-1',
+    canal_disparo: 'push_pwa',
+    tentativas: 3,
+    titulo: 'Teste',
+    mensagem: 'Mensagem',
+  };
+  const mockHandlersFailed = {
+    push_pwa: async () => {
+      throw new Error('Falha de rede definitiva');
+    },
+  };
+  const resFailed = await processNotificationRow(rowFailed, {
+    client: mockLogClient,
+    handlers: mockHandlersFailed,
+  });
+  const lastCallFailed = logCalls[logCalls.length - 1];
+  const failedLogPassed =
+    resFailed.logStatus === 'falhou' &&
+    lastCallFailed &&
+    lastCallFailed.params[3] === 'falhou';
+  console.log('Teste Log Status Falha Definitiva -> falhou:', resFailed.logStatus, failedLogPassed);
 
   // Teste 1: Processamento de Push PWA (modo default simulated não retorna 'delivered')
   const simulatedResult = await processPushPwaNotification({
@@ -160,7 +244,10 @@ async function runTests() {
     simulatedDoesNotDeliver &&
     whatsAppIsStub &&
     vapidDelivered &&
-    subscription410Removed;
+    subscription410Removed &&
+    deliveredLogPassed &&
+    simulatedLogPassed &&
+    failedLogPassed;
 
   if (allPassed) {
     console.log('[SUCESSO] 100% dos testes do Worker Node.js passaram com êxito!');
@@ -172,3 +259,4 @@ async function runTests() {
 }
 
 runTests();
+

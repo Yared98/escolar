@@ -52,6 +52,70 @@ try {
   console.warn('[Worker PG Pool] Inicializando em modo standalone:', err.message);
 }
 
+export async function processNotificationRow(row, { client, handlers: customHandlers }) {
+  const activeHandlers = customHandlers || handlers;
+  const jobType = resolveNotificationJob(row.canal_disparo);
+  const handler = jobType ? activeHandlers[jobType] : null;
+  let status = 'pendente';
+  let logStatus = null;
+
+  if (!handler) {
+    if (Number(row.tentativas) >= 3) {
+      status = 'falhou';
+      logStatus = 'falhou';
+    }
+    console.error(`[Worker] Canal sem handler recuperável: ${row.canal_disparo} (${row.id})`);
+  } else {
+    try {
+      if (client && client.query) {
+        await client.query("SELECT set_config('app.current_tenant', $1, false)", [row.tenant_id]);
+      }
+      const result = await handler(
+        {
+          id: row.id,
+          tenant_id: row.tenant_id,
+          aluno_id: row.aluno_id,
+          destinatario_id: row.destinatario_id,
+          modulo: row.modulo,
+          titulo: row.titulo,
+          mensagem: row.mensagem,
+          prioridade: row.prioridade,
+        },
+        { client }
+      );
+      if (result && (result.status === 'delivered' || result.status === 'sent')) {
+        status = 'enviada';
+        logStatus = 'enviado';
+      } else {
+        status = 'simulada';
+        logStatus = 'simulado';
+      }
+    } catch (err) {
+      if (Number(row.tentativas) >= 3) {
+        status = 'falhou';
+        logStatus = 'falhou';
+      } else {
+        status = 'pendente';
+      }
+      console.error(`[Worker] Falha ao entregar ${row.id}:`, err.message);
+    }
+  }
+
+  if (client && client.query) {
+    if (logStatus) {
+      await client.query('SELECT atualizar_log_disparo($1, $2, $3, $4)', [
+        row.tenant_id,
+        row.id,
+        row.canal_disparo,
+        logStatus,
+      ]);
+    }
+    await client.query('SELECT concluir_notificacao($1, $2, $3)', [row.id, row.tenant_id, status]);
+  }
+
+  return { status, logStatus };
+}
+
 async function pollDatabaseNotifications() {
   if (!pool) return;
   let client;
@@ -65,37 +129,7 @@ async function pollDatabaseNotifications() {
     );
 
     for (const row of claimed.rows) {
-      const jobType = resolveNotificationJob(row.canal_disparo);
-      const handler = jobType ? handlers[jobType] : null;
-      let status = 'pendente';
-
-      if (!handler) {
-        status = Number(row.tentativas) >= 3 ? 'falhou' : 'pendente';
-        console.error(`[Worker] Canal sem handler recuperável: ${row.canal_disparo} (${row.id})`);
-      } else {
-        try {
-          await client.query("SELECT set_config('app.current_tenant', $1, false)", [row.tenant_id]);
-          const result = await handler(
-            {
-              id: row.id,
-              tenant_id: row.tenant_id,
-              aluno_id: row.aluno_id,
-              destinatario_id: row.destinatario_id,
-              modulo: row.modulo,
-              titulo: row.titulo,
-              mensagem: row.mensagem,
-              prioridade: row.prioridade,
-            },
-            { client }
-          );
-          status = result && (result.status === 'delivered' || result.status === 'sent') ? 'enviada' : 'simulada';
-        } catch (err) {
-          status = Number(row.tentativas) >= 3 ? 'falhou' : 'pendente';
-          console.error(`[Worker] Falha ao entregar ${row.id}:`, err.message);
-        }
-      }
-
-      await client.query('SELECT concluir_notificacao($1, $2, $3)', [row.id, row.tenant_id, status]);
+      await processNotificationRow(row, { client, handlers });
     }
   } catch (err) {
     console.error('[Worker] Falha ao reservar notificações:', err.message);
@@ -115,4 +149,5 @@ setInterval(() => {
   console.log(`[Worker Health] Jobs Processados: ${stats.processed} | Pendentes: ${stats.pending} | Ativos: ${stats.active} | Falhas: ${stats.failed}`);
 }, 30000);
 
-export { queue, pool };
+export { queue, pool, handlers, pollDatabaseNotifications };
+

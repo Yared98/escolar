@@ -46,11 +46,12 @@ O ecossistema é construído como um SaaS Educacional Multi-Tenant com Backend e
   - `tenants`: Cadastro e resolução global de escolas por slug/subdomínio.
   - `opensec_security_rules`: Regras perimetrais globais de segurança/WAF da infraestrutura SaaS.
   - `whatsapp_webhook_logs`: Registros de entrada de webhooks brutos do WhatsApp antes do roteamento por tenant.
-- **Funções `SECURITY DEFINER` para Operações Pré-Autenticação**:
-  - Para fluxos pré-sessão onde a conexão ainda não conhece o `tenant_id` (e portanto `get_current_tenant()` retornaria nulo), a consulta segura ao banco é realizada através de funções `SECURITY DEFINER` restritas:
+- **Funções `SECURITY DEFINER` para Operações Pré-Autenticação e Background Processing**:
+  - Para fluxos pré-sessão e workers de background onde o contexto de tenant é controlado no banco, a consulta e atualização segura são realizadas através de funções `SECURITY DEFINER` restritas:
     - `validar_refresh_token_publico(p_hash)`: Utilizada em `POST /api/v1/auth/refresh` para obter `user_id` e `tenant_id` a partir do hash do refresh token.
     - `validar_oauth_code_publico(p_code, p_client_id)`: Utilizada em `POST /api/v1/auth/oauth/token` para validação prévia de código de autorização SSO.
     - `validar_diploma_publico(p_codigo)`: Utilizada para validação pública de código/hash de diploma digital MEC.
+    - `claim_notificacoes_pendentes(p_limit)`, `concluir_notificacao(p_id, p_tenant, p_status)` e `atualizar_log_disparo(p_tenant, p_notificacao, p_canal, p_status)`: Utilizadas pelo worker Node.js (`escolar_runtime`) para reservar notificações, concluir o processamento do sistema e atualizar a tabela `notificacoes_disparos_logs` com status `enviado`, `simulado` ou `falhou`.
 
 ---
 
