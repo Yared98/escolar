@@ -102,6 +102,10 @@ jobs:
           node scripts/check-api-contract.mjs --compare-snapshot --strict-allowlist
           node --test scripts/check-api-contract.test.mjs
 
+      - name: Run Rust refactor move checker unit tests
+        working-directory: .
+        run: node --test scripts/check-refactor-move-rust.test.mjs
+
       - name: Build Next.js application
         run: npm run build
 
