@@ -6,3 +6,5 @@ export * from './NovaDisciplinaModal';
 export * from './AdicionarMatrizModal';
 export * from './HorariosPanel';
 export * from './ProjetosPanel';
+export * from './AtribuirProfessorModal';
+export * from './NovoHorarioModal';
