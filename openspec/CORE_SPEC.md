@@ -144,6 +144,7 @@ Todas as respostas HTTP do gateway injetam compulsoriamente os 6 cabeçalhos de 
   - Proteção contra vazamento de dados sensíveis e strings de conexão em falhas internas (logs estruturados via `tracing::error!` e mensagem genérica em produção).
 - **Resiliência e Inicialização por Ambiente (Boot Fail-Closed):**
   - **Sanitização de Logs e Segredos:** A struct `Config` implementa `Debug` manual redigindo `database_url` e `jwt_private_pem` como `***`. O log de boot do banco parseia a URL com `PgConnectOptions` e exibe unicamente `host`, `port` e `database`, impedindo o vazamento de credenciais em logs.
+  - **Redação de token no log de requisições (B22):** o `TraceLayer` usa `RedactedMakeSpan` (`backend/src/middleware/log_redaction.rs`), que registra método, caminho e versão com os valores de `access_token` e `token` da query string trocados por `***` (o SSE da agenda envia `?access_token=`). Sem `RUST_LOG`, o filtro padrão é `escolar_backend=info,tower_http=info` com `APP_ENV=production` (nenhuma linha `debug`) e `debug` nos demais ambientes. Limitação: a redação cobre apenas esses dois nomes de parâmetro e só o log do `TraceLayer`; o transporte do token na query continua como está (mudança é assunto do B10).
   - **Modo Produção (`APP_ENV=production`):** Aplicação estrita do princípio *fail-closed*:
     - Ausência de `DATABASE_URL` ou `JWT_ED25519_PRIVATE_PEM` retorna erro e impede o boot.
     - Falha ao executar migrations SQLx aborta a inicialização do processo.

@@ -6,6 +6,8 @@ use axum::{
 use serde_json::json;
 use tower_http::{limit::RequestBodyLimitLayer, trace::TraceLayer};
 
+use crate::middleware::log_redaction::RedactedMakeSpan;
+
 use crate::{
     config::AppState,
     handlers::{
@@ -527,7 +529,7 @@ pub fn create_router(state: AppState) -> Router {
             "/downloads/censo_escolar_2026_inep.txt",
             get(baixar_educacenso),
         )
-        .layer(TraceLayer::new_for_http())
+        .layer(TraceLayer::new_for_http().make_span_with(RedactedMakeSpan))
         .layer(RequestBodyLimitLayer::new(10 * 1024 * 1024))
         .layer(middleware::from_fn(opensec_security_headers_middleware))
         .layer(cors)
