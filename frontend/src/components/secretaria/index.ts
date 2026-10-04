@@ -4,6 +4,7 @@ export * from './EnsalamentoModal';
 export * from './ContratosPanel';
 export * from './NovaTurmaModal';
 export * from './TurmaAlunosModal';
+export * from './MatriculaModal';
 export * from './matricula/DadosAlunoTab';
 export * from './matricula/ResponsaveisTab';
 export * from './matricula/EnderecoContatosTab';
