@@ -4,3 +4,5 @@ export * from './NovoSimuladoModal';
 export * from './MatrizPanel';
 export * from './NovaDisciplinaModal';
 export * from './AdicionarMatrizModal';
+export * from './HorariosPanel';
+export * from './ProjetosPanel';
