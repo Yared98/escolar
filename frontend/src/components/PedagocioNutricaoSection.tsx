@@ -5,7 +5,6 @@ import { useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import {
   BookOpen,
-  BrainCircuit,
   CheckCircle,
   Plus,
   Calendar,
@@ -20,102 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { CardapioPlanner } from './nutricao/CardapioPlanner';
-
-// --- INTERFACES ---
-
-interface Disciplina {
-  id: string;
-  codigo: string;
-  nome: string;
-  area_conhecimento: string;
-  carga_horaria_semanal: number;
-  carga_horaria_anual: number;
-  descricao?: string;
-  status: string;
-}
-
-interface Turma {
-  id: string;
-  nome: string;
-  codigo?: string;
-  etapa_ensino?: string;
-  serie?: string;
-  turno?: string;
-  ano_letivo: number;
-  capacidade_maxima: number;
-  alunos_matriculados?: number;
-  vagas_restantes?: number;
-  sala_nome?: string;
-  professor_regente_nome?: string;
-}
-
-interface TurmaDisciplinaDetalhada {
-  id: string;
-  turma_id: string;
-  disciplina_id: string;
-  disciplina_codigo: string;
-  disciplina_nome: string;
-  area_conhecimento: string;
-  carga_horaria_semanal: number;
-  carga_horaria_anual: number;
-  professor_id?: string;
-  professor_nome?: string;
-}
-
-interface HorarioTurmaDetalhado {
-  id: string;
-  turma_id: string;
-  disciplina_id: string;
-  disciplina_nome: string;
-  professor_id?: string;
-  professor_nome?: string;
-  sala_id?: string;
-  sala_nome?: string;
-  dia_semana: number;
-  hora_inicio: string;
-  hora_fim: string;
-}
-
-interface ProfessorItem {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-}
-
-interface SalaItem {
-  id: string;
-  nome: string;
-  capacidade: number;
-}
-
-interface SimuladoTri {
-  id: string;
-  titulo: string;
-  descricao?: string;
-  disciplina: string;
-  data_aplicacao: string;
-  total_itens: number;
-}
-
-interface ProjetoEducacional {
-  id: string;
-  titulo: string;
-  objetivo: string;
-  habilidades_bncc?: string;
-  data_inicio: string;
-  data_fim: string;
-  status: string;
-}
-
-/** Mesmo contrato de GET /secretaria/turmas/:id/alunos (vínculo ativo + aluno ativo). */
-interface AlunoTurmaRoster {
-  id: string;
-  aluno_id: string;
-  nome: string;
-  numero_chamada?: number | null;
-  status: string;
-}
+import { Disciplina, Turma, TurmaDisciplinaDetalhada, HorarioTurmaDetalhado, ProfessorItem, SalaItem, SimuladoTri, ProjetoEducacional, AlunoTurmaRoster, TriPanel, NovoSimuladoModal } from './pedagogico';
 
 export function PedagocioNutricaoSection() {
   const searchParams = useSearchParams();
@@ -511,54 +415,10 @@ export function PedagocioNutricaoSection() {
       
       {/* ABA: MOTOR TRI E IA PREDITIVA */}
       {activeTab === 'tri' && (
-        <div className="animate-fade-in p-6 bg-white dark:bg-salvia-900 rounded-b-2xl">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-            <div>
-              <h3 className="text-lg font-bold text-salvia-900 dark:text-salvia-100 flex items-center space-x-2">
-                <BrainCircuit className="w-5 h-5 text-indigo-500" />
-                <span>Simulados Preditivos (Teoria da Resposta ao Item)</span>
-              </h3>
-              <p className="text-sm text-salvia-600 dark:text-salvia-400 max-w-2xl mt-1">
-                A tecnologia TRI cruza o histórico do aluno com os parâmetros de dificuldade (b), discriminação (a) e acerto casual (c). O painel gera análises de proficiência para o ENEM e exporta diretamente para o EducaCenso.
-              </p>
-            </div>
-            <button
-              onClick={() => setShowModalSimulado(true)}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center space-x-2 transition-all shadow-sm"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Novo Simulado</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {simulados.map((s) => (
-              <div key={s.id} className="bg-salvia-50 dark:bg-salvia-800/50 p-5 rounded-2xl border border-salvia-200 dark:border-salvia-700">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide">
-                    {s.disciplina}
-                  </span>
-                  <span className="text-xs text-salvia-500 flex items-center">
-                    <Calendar className="w-3.5 h-3.5 mr-1" /> {s.data_aplicacao}
-                  </span>
-                </div>
-                <h4 className="font-bold text-salvia-900 dark:text-salvia-50 mb-1">{s.titulo}</h4>
-                <p className="text-xs text-salvia-600 dark:text-salvia-400 line-clamp-2 mb-4">
-                  {s.descricao || "Simulado preparatório para exames nacionais."}
-                </p>
-                <div className="flex justify-between items-center text-xs font-semibold text-salvia-500 pt-3 border-t border-salvia-200 dark:border-salvia-700">
-                  <span>{s.total_itens} Itens TRI</span>
-                  <button className="text-indigo-600 dark:text-indigo-400 hover:underline">Exportar Censo</button>
-                </div>
-              </div>
-            ))}
-            {simulados.length === 0 && (
-              <div className="col-span-full p-8 text-center text-salvia-500 bg-salvia-50/50 dark:bg-salvia-900/30 rounded-2xl border border-dashed border-salvia-300 dark:border-salvia-700">
-                Nenhum simulado cadastrado.
-              </div>
-            )}
-          </div>
-        </div>
+        <TriPanel
+          simulados={simulados}
+          setShowModalSimulado={setShowModalSimulado}
+        />
       )}
 
       {/* ABA 1: DISCIPLINAS & MATRIZ CURRICULAR DA TURMA */}
@@ -1051,75 +911,12 @@ export function PedagocioNutricaoSection() {
       
       {/* MODAL: CRIAR SIMULADO TRI */}
       {showModalSimulado && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-salvia-900/40 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-salvia-900 border border-salvia-200 dark:border-salvia-800 p-6 rounded-2xl w-full max-w-md shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-salvia-900 dark:text-salvia-100 flex items-center space-x-2">
-                <BrainCircuit className="w-5 h-5 text-indigo-500" />
-                <span>Cadastrar Simulado (TRI)</span>
-              </h3>
-              <button onClick={() => setShowModalSimulado(false)} className="text-slate-400 hover:text-slate-900 p-1">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleCriarSimulado} className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold mb-1">Título do Exame</label>
-                <input
-                  type="text"
-                  required
-                  value={novoSimulado.titulo}
-                  onChange={(e) => setNovoSimulado({ ...novoSimulado, titulo: e.target.value })}
-                  className="w-full bg-salvia-50 dark:bg-salvia-950 border border-salvia-200 dark:border-salvia-800 rounded-xl px-3 py-2 text-sm"
-                  placeholder="Ex: Simulado Geral Enem"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold mb-1">Área / Disciplina</label>
-                  <select
-                    value={novoSimulado.disciplina}
-                    onChange={(e) => setNovoSimulado({ ...novoSimulado, disciplina: e.target.value })}
-                    className="w-full bg-salvia-50 dark:bg-salvia-950 border border-salvia-200 dark:border-salvia-800 rounded-xl px-3 py-2 text-sm"
-                  >
-                    <option>Matemática</option>
-                    <option>Linguagens</option>
-                    <option>Ciências da Natureza</option>
-                    <option>Geral (Múltiplas)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-1">Data Aplicação</label>
-                  <input
-                    type="date"
-                    required
-                    value={novoSimulado.data_aplicacao}
-                    onChange={(e) => setNovoSimulado({ ...novoSimulado, data_aplicacao: e.target.value })}
-                    className="w-full bg-salvia-50 dark:bg-salvia-950 border border-salvia-200 dark:border-salvia-800 rounded-xl px-3 py-2 text-sm"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold mb-1">Descrição</label>
-                <textarea
-                  value={novoSimulado.descricao}
-                  onChange={(e) => setNovoSimulado({ ...novoSimulado, descricao: e.target.value })}
-                  className="w-full bg-salvia-50 dark:bg-salvia-950 border border-salvia-200 dark:border-salvia-800 rounded-xl px-3 py-2 text-sm"
-                  rows={2}
-                />
-              </div>
-              <p className="text-[10px] text-salvia-500 italic">
-                * Os parâmetros (a, b, c) dos itens serão gerados aleatoriamente pelo Motor IA nesta demonstração.
-              </p>
-              <button
-                type="submit"
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl font-bold transition-all"
-              >
-                Ativar Modelo Preditivo
-              </button>
-            </form>
-          </div>
-        </div>
+        <NovoSimuladoModal
+          setShowModalSimulado={setShowModalSimulado}
+          handleCriarSimulado={handleCriarSimulado}
+          novoSimulado={novoSimulado}
+          setNovoSimulado={setNovoSimulado}
+        />
       )}
 
       {/* MODAL: VINCULAR DISCIPLINA À MATRIZ DA TURMA */}
