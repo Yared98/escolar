@@ -910,7 +910,7 @@ export function SecretariaSection() {
       </div>
 
       {/* Abas Superiores de Navegação */}
-      <div className="flex border-b border-slate-200 dark:border-slate-800 mb-6 gap-2">
+      <div className="flex border-b border-slate-200 dark:border-slate-800 mb-6 gap-2 max-sm:flex-wrap">
         <button
           type="button"
           onClick={() => handleTabChange('alunos')}
