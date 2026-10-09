@@ -371,10 +371,16 @@ export function PedagocioNutricaoSection() {
         <div>
           <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center space-x-2">
             <BookOpen className="w-5 h-5 text-salvia-700 dark:text-salvia-400" />
-            <span>Gestão Pedagógica, Matriz Curricular & Lotação</span>
+            <span>
+              {activeTab === 'nutricao'
+                ? 'Nutrição & Cardápios'
+                : 'Gestão Pedagógica, Matriz Curricular & Lotação'}
+            </span>
           </h2>
           <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-            Cadastro de Componentes Curriculares (BNCC), Matrizes por Turma, Atribuição Docente e Grade Semanal sem Choques.
+            {activeTab === 'nutricao'
+              ? 'Planejamento de cardápios, vigências de recorrências e atenção a restrições alimentares.'
+              : 'Cadastro de Componentes Curriculares (BNCC), Matrizes por Turma, Atribuição Docente e Grade Semanal sem Choques.'}
           </p>
         </div>
       </div>

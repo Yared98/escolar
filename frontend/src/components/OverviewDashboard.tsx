@@ -132,7 +132,7 @@ export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
               <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             </div>
             <p className="text-2xl font-bold text-slate-900 dark:text-salvia-50 font-mono">—</p>
-            <span className="text-[10px] text-salvia-500 font-medium mt-1 block">Frequência não carregada</span>
+            <span className="text-[10px] text-salvia-500 font-medium mt-1 block">Sem chamada registrada hoje</span>
           </div>
 
           <div className="bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 p-4 rounded-xl">
@@ -159,10 +159,10 @@ export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
         >
           <div className="flex items-center space-x-2">
             <Award className="w-5 h-5 text-salvia-700 dark:text-salvia-300" />
-            <h3 className="font-bold text-slate-900 dark:text-salvia-50 text-sm">Diploma Digital MEC XAdES (Portaria 70/2025)</h3>
+            <h3 className="font-bold text-slate-900 dark:text-salvia-50 text-sm">Diploma Digital MEC (Portaria 70/2025)</h3>
           </div>
           <p className="text-xs text-salvia-600 dark:text-salvia-400">
-            Assinatura imutável ICP-Brasil A3 com geração de QR Code e RVDD PDF para formandos do ensino fundamental/médio.
+            Emissão em modo simulado; assinatura ICP-Brasil A3 não integrada no MVP. Verificação interna por hash SHA-256 e QR Code.
           </p>
         </div>
 

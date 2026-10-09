@@ -235,14 +235,14 @@ export function AdministrativoSection() {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                <h3 className="text-sm font-bold text-slate-900 dark:text-salvia-50">Auditoria LGPD & Motor de Segurança OpenSec</h3>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-salvia-50">Auditoria LGPD & Segurança</h3>
               </div>
-              <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-500/40 text-emerald-900 dark:text-emerald-300 rounded-full text-xs font-bold font-mono">
-                OpenSec Protection: 100% Enforced
+              <span className="px-3 py-1 bg-salvia-100 dark:bg-salvia-950/80 border border-salvia-300 dark:border-salvia-700 text-salvia-900 dark:text-salvia-300 rounded-full text-xs font-bold font-mono">
+                Auditoria de eventos (MVP)
               </span>
             </div>
             <p className="text-xs text-salvia-600 dark:text-salvia-400">
-              Auditoria imutável de políticas OWASP Top 10, isolamento multi-tenant PostgreSQL e conformidade LGPD.
+              Isolamento de tenants no banco, permissões validadas no servidor e trilha de auditoria conforme OpenSpec.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -250,21 +250,21 @@ export function AdministrativoSection() {
                 <span className="text-[10px] uppercase tracking-wider font-bold text-salvia-500 block">Isolamento Multi-Tenant</span>
                 <span className="font-bold text-slate-900 dark:text-salvia-50 flex items-center space-x-1 text-emerald-600 dark:text-emerald-400">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>SEC-001 Ativo (PostgreSQL)</span>
+                  <span>Isolamento por escola (RLS) no banco</span>
                 </span>
               </div>
               <div className="p-3 bg-white dark:bg-salvia-900 border border-salvia-200 dark:border-salvia-800 rounded-xl text-xs space-y-1">
                 <span className="text-[10px] uppercase tracking-wider font-bold text-salvia-500 block">RBAC & Proteção de Rotas</span>
                 <span className="font-bold text-slate-900 dark:text-salvia-50 flex items-center space-x-1 text-emerald-600 dark:text-emerald-400">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>SEC-002 Ativo (Axum Claims)</span>
+                  <span>Permissões por perfil validadas no servidor</span>
                 </span>
               </div>
               <div className="p-3 bg-white dark:bg-salvia-900 border border-salvia-200 dark:border-salvia-800 rounded-xl text-xs space-y-1">
                 <span className="text-[10px] uppercase tracking-wider font-bold text-salvia-500 block">Headers OWASP & SQL Shield</span>
                 <span className="font-bold text-slate-900 dark:text-salvia-50 flex items-center space-x-1 text-emerald-600 dark:text-emerald-400">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>SEC-003 a 005 Enforced</span>
+                  <span>Auditoria de eventos (MVP)</span>
                 </span>
               </div>
             </div>
@@ -296,7 +296,7 @@ export function AdministrativoSection() {
             )}
 
             <div className="space-y-2 pt-2 border-t border-salvia-200 dark:border-salvia-800">
-              <h4 className="text-xs font-bold text-slate-900 dark:text-salvia-100 uppercase tracking-wider">Tabela de Regras OpenSec em Execução</h4>
+              <h4 className="text-xs font-bold text-slate-900 dark:text-salvia-100 uppercase tracking-wider">Tabela de Regras de Segurança</h4>
               <div className="overflow-x-auto rounded-xl border border-salvia-200 dark:border-salvia-800">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-salvia-100 dark:bg-salvia-800 text-slate-900 dark:text-salvia-100 uppercase font-bold text-[10px] tracking-wider">
