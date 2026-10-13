@@ -50,3 +50,7 @@ html.dark body {
 html.dark ::-webkit-scrollbar-thumb {
   background: #28382F;
 }
+
+/* Rolagem horizontal sem barra visível (ex.: filtros em chips no celular). */
+.scrollbar-hide { scrollbar-width: none; -ms-overflow-style: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }

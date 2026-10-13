@@ -131,7 +131,8 @@ export function ComunicacaoPanel({
             </button>
           </div>
         ) : (
-          <div className="fixed inset-x-0 top-[env(safe-area-inset-top)] bottom-[env(safe-area-inset-bottom)] z-30 flex flex-col bg-white dark:bg-salvia-900 lg:static lg:z-auto lg:block">
+          <div className="fixed inset-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] z-[60] flex flex-col bg-white dark:bg-salvia-900 lg:static lg:z-auto lg:block">
+            {/* Dentro de uma conversa o chat cobre a tela inteira, inclusive a barra inferior (como no WhatsApp). */}
             <div className="flex-1 min-h-0">
               <ConversaChat
                 thread={threadAtiva}

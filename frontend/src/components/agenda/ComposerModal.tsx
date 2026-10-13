@@ -61,7 +61,7 @@ export function ComposerModal({
       >
         <div className="flex justify-between items-center">
           <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-            {tipoEnvio === 'familia' ? 'Mensagem à escola' : 'Novo comunicado'}
+            {tipoEnvio === 'familia' ? 'Mensagem à escola' : 'Novo recado'}
           </h3>
           <button type="button" onClick={() => setComposerAberto(false)} aria-label="Fechar">
             <X className="w-4 h-4" />

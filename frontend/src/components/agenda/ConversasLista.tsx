@@ -50,7 +50,7 @@ export function ConversasLista({
             className="hidden lg:inline-flex items-center gap-1.5 bg-salvia-700 text-white px-3 py-2 rounded-xl text-xs font-bold hover:bg-salvia-800 disabled:opacity-50"
           >
             <Plus className="w-3.5 h-3.5" />
-            {isResponsavel ? 'Nova mensagem' : 'Novo comunicado'}
+            {isResponsavel ? 'Nova mensagem' : 'Novo recado'}
           </button>
         </div>
 

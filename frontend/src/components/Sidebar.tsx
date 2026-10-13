@@ -138,7 +138,7 @@ export const MENU_ITEMS: NavItem[] = [
   },
   {
     id: 'agenda',
-    label: 'Comunicados',
+    label: 'Recados',
     icon: Smartphone,
     defaultTab: 'comunicacao',
     subItems: [

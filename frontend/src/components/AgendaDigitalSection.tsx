@@ -46,7 +46,22 @@ export function AgendaDigitalSection() {
 
   const [filtroCanal, setFiltroCanal] = useState<FiltroCanal>('todos');
   const [busca, setBusca] = useState('');
-  const [threadIdAtiva, setThreadIdAtiva] = useState<string | null>(null);
+  // A conversa aberta mora só na URL (&conversa=<id>): o botão voltar do celular funciona e não
+  // há estado duplicado para ficar brigando com a URL. Abrir empilha no histórico; fechar substitui.
+  const conversaUrl = searchParams ? searchParams.get('conversa') : null;
+  const setThreadIdAtiva = useCallback(
+    (id: string | null) => {
+      const params = new URLSearchParams(window.location.search);
+      if (id) params.set('conversa', id);
+      else params.delete('conversa');
+      const q = params.toString();
+      const target = q ? `${pathname}?${q}` : pathname;
+      if (target === `${window.location.pathname}${window.location.search}`) return;
+      if (id) router.push(target, { scroll: false });
+      else router.replace(target, { scroll: false });
+    },
+    [pathname, router],
+  );
 
   const [composerAberto, setComposerAberto] = useState(false);
   const [tipoEnvio, setTipoEnvio] = useState<TipoEnvio>('mural');
@@ -103,9 +118,7 @@ export function AgendaDigitalSection() {
           '/?route=agenda&tab=comunicacao',
         );
       }
-      if (payload.thread_id) {
-        setThreadIdAtiva(payload.thread_id);
-      }
+      // Mensagem nova só atualiza a lista: não troca a conversa que a pessoa está lendo.
     },
     onResync: () => {
       void loadAgendaData({ silent: true });
@@ -150,45 +163,13 @@ export function AgendaDigitalSection() {
     });
   }, [mensagens, filtroCanal, busca]);
 
+  // Conversa aberta = a da URL; sem ela, o desktop mostra a primeira e o celular mostra a lista.
+  const threadIdAtiva = conversaUrl ?? (!isMobile && threads.length > 0 ? threads[0].id : null);
+
   const threadAtiva = useMemo(() => {
     if (!threadIdAtiva) return null;
     return threads.find((t) => t.id === threadIdAtiva) || null;
   }, [threads, threadIdAtiva]);
-
-  // Sincroniza conversa aberta com a URL (&conversa=<id>)
-  const queryString = searchParams ? searchParams.toString() : '';
-  useEffect(() => {
-    const params = new URLSearchParams(queryString);
-    const idFromUrl = params.get('conversa');
-
-    if (idFromUrl && threads.some((t) => t.id === idFromUrl)) {
-      setThreadIdAtiva(idFromUrl);
-    } else if (!idFromUrl) {
-      // No desktop mantém auto-seleção da primeira conversa; no celular fica vazio.
-      if (!isMobile && threads.length > 0) {
-        setThreadIdAtiva(threads[0].id);
-      } else {
-        setThreadIdAtiva(null);
-      }
-    } else {
-      setThreadIdAtiva(null);
-    }
-  }, [queryString, threads, isMobile]);
-
-  useEffect(() => {
-    if (!router || !searchParams) return;
-    const params = new URLSearchParams(searchParams.toString());
-    if (threadIdAtiva) {
-      params.set('conversa', threadIdAtiva);
-    } else {
-      params.delete('conversa');
-    }
-    const targetUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
-    const currentUrl = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
-    if (targetUrl !== currentUrl) {
-      router.replace(targetUrl, { scroll: false });
-    }
-  }, [threadIdAtiva, router, searchParams, pathname]);
 
   const protocolosFiltrados = useMemo(() => {
     if (filtroZap === 'todos') return protocolos;
@@ -236,7 +217,6 @@ export function AgendaDigitalSection() {
           anexo_url: null,
         }),
       });
-      setAviso('Resposta enviada na thread.');
       setRespostaTexto('');
       const tid = threadAtiva.id;
       await loadAgendaData();
@@ -345,26 +325,17 @@ export function AgendaDigitalSection() {
             ) : (
               <Megaphone className="w-6 h-6 text-salvia-600 dark:text-salvia-400" />
             )}
-            <span>{activeTab === 'whatsapp' ? 'WhatsApp' : 'Comunicados'}</span>
+            <span>{activeTab === 'whatsapp' ? 'WhatsApp' : 'Recados'}</span>
           </h2>
           <p className="text-xs sm:text-sm text-salvia-700 dark:text-salvia-300 mt-1 max-w-2xl">
             {activeTab === 'whatsapp'
               ? 'Fila de atendimento transferida pelo chatbot para resposta humana.'
               : isResponsavel
-                ? 'Escolha uma conversa à esquerda e acompanhe as mensagens à direita.'
-                : 'Conversas à esquerda; mensagens completas à direita.'}
+                ? 'Mensagens com a escola e avisos da turma.'
+                : 'Avisos para as turmas e conversas com as famílias.'}
           </p>
         </div>
-        {activeTab === 'comunicacao' && (
-          <button
-            type="button"
-            onClick={() => abrirComposer(isResponsavel ? 'familia' : 'mural')}
-            className="bg-salvia-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-salvia-800 flex items-center gap-1.5 shadow-sm"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            {isResponsavel ? 'Nova mensagem à escola' : 'Novo comunicado'}
-          </button>
-        )}
+        {/* Novo recado fica no topo da lista (desktop) e no botão + flutuante (celular), dentro do painel. */}
       </div>
 
       {agendaErro && <p className="text-xs font-semibold text-rose-700 dark:text-rose-300">{agendaErro}</p>}
