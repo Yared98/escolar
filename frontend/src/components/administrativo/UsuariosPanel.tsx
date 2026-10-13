@@ -266,10 +266,12 @@ export function UsuariosPanel({
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             placeholder="Buscar por nome ou e-mail"
+            aria-label="Buscar usuário por nome ou e-mail"
             className="w-full bg-salvia-50 dark:bg-salvia-950 border border-salvia-200 dark:border-salvia-800 rounded-xl pl-9 pr-4 py-2.5 text-sm text-slate-900 dark:text-salvia-50 focus:outline-none focus:border-salvia-600 font-medium placeholder-salvia-400"
           />
         </div>
         <select
+          aria-label="Filtrar por perfil"
           value={perfilFiltro}
           onChange={(e) => setPerfilFiltro(e.target.value)}
           className="bg-salvia-50 dark:bg-salvia-950 border border-salvia-200 dark:border-salvia-800 rounded-xl px-3 py-2.5 text-sm text-slate-900 dark:text-salvia-50 focus:outline-none focus:border-salvia-600 font-medium"
@@ -354,6 +356,7 @@ export function UsuariosPanel({
                         onClick={() => setModalEditar(u)}
                         className="p-2 rounded-lg bg-salvia-100 dark:bg-salvia-800 text-salvia-700 dark:text-salvia-300 hover:bg-salvia-200 dark:hover:bg-salvia-700"
                         title="Editar"
+                        aria-label={`Editar ${u.nome}`}
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
@@ -361,6 +364,7 @@ export function UsuariosPanel({
                         onClick={() => handleToggleAtivo(u)}
                         className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-salvia-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                         title={u.ativo ? 'Desativar' : 'Ativar'}
+                        aria-label={`${u.ativo ? 'Desativar' : 'Ativar'} ${u.nome}`}
                       >
                         {u.ativo ? <PowerOff className="w-3.5 h-3.5" /> : <Power className="w-3.5 h-3.5" />}
                       </button>
@@ -368,6 +372,7 @@ export function UsuariosPanel({
                         onClick={() => handleRedefinir(u)}
                         className="p-2 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900/60"
                         title="Redefinir senha"
+                        aria-label={`Redefinir senha de ${u.nome}`}
                       >
                         <RefreshCw className="w-3.5 h-3.5" />
                       </button>
@@ -408,6 +413,7 @@ export function UsuariosPanel({
               <h3 className="text-sm font-bold text-slate-900 dark:text-salvia-50">Senha temporária</h3>
               <button
                 onClick={() => setModalSenha(null)}
+                aria-label="Fechar"
                 className="p-1.5 rounded-lg hover:bg-salvia-100 dark:hover:bg-salvia-800 text-salvia-500"
               >
                 <X className="w-4 h-4" />
@@ -424,6 +430,7 @@ export function UsuariosPanel({
                 onClick={copiarSenha}
                 className="shrink-0 p-2 rounded-lg bg-salvia-200 dark:bg-salvia-800 text-salvia-800 dark:text-salvia-200 hover:bg-salvia-300 dark:hover:bg-salvia-700"
                 title="Copiar"
+                aria-label="Copiar senha"
               >
                 {copiado ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
               </button>
@@ -464,6 +471,7 @@ function UsuarioFormModal({ titulo, usuario, alunos, onFechar, onSubmit, submitt
           <h3 className="text-sm font-bold text-slate-900 dark:text-salvia-50">{titulo}</h3>
           <button
             onClick={onFechar}
+            aria-label="Fechar"
             className="p-1.5 rounded-lg hover:bg-salvia-100 dark:hover:bg-salvia-800 text-salvia-500"
           >
             <X className="w-4 h-4" />
@@ -471,8 +479,9 @@ function UsuarioFormModal({ titulo, usuario, alunos, onFechar, onSubmit, submitt
         </div>
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-salvia-800 dark:text-salvia-200 mb-1">Nome</label>
+            <label className="block text-xs font-semibold text-salvia-800 dark:text-salvia-200 mb-1" htmlFor="usuario-nome">Nome</label>
             <input
+              id="usuario-nome"
               name="nome"
               type="text"
               required
@@ -481,8 +490,9 @@ function UsuarioFormModal({ titulo, usuario, alunos, onFechar, onSubmit, submitt
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-salvia-800 dark:text-salvia-200 mb-1">E-mail</label>
+            <label className="block text-xs font-semibold text-salvia-800 dark:text-salvia-200 mb-1" htmlFor="usuario-email">E-mail</label>
             <input
+              id="usuario-email"
               name="email"
               type="email"
               required
@@ -492,8 +502,9 @@ function UsuarioFormModal({ titulo, usuario, alunos, onFechar, onSubmit, submitt
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-salvia-800 dark:text-salvia-200 mb-1">Perfil</label>
+            <label className="block text-xs font-semibold text-salvia-800 dark:text-salvia-200 mb-1" htmlFor="usuario-perfil">Perfil</label>
             <select
+              id="usuario-perfil"
               name="perfil"
               required
               value={perfil}
@@ -513,9 +524,9 @@ function UsuarioFormModal({ titulo, usuario, alunos, onFechar, onSubmit, submitt
           {perfil === 'responsavel' && (
             <>
               <div>
-                <label className="block text-xs font-semibold text-salvia-800 dark:text-salvia-200 mb-1">
+                <p className="block text-xs font-semibold text-salvia-800 dark:text-salvia-200 mb-1">
                   Alunos vinculados
-                </label>
+                </p>
                 <div className="max-h-40 overflow-y-auto bg-salvia-50 dark:bg-salvia-950 border border-salvia-200 dark:border-salvia-800 rounded-xl p-2 space-y-1">
                   {alunos.length === 0 ? (
                     <p className="text-xs text-salvia-500 px-2 py-1">Nenhum aluno cadastrado.</p>
@@ -540,10 +551,11 @@ function UsuarioFormModal({ titulo, usuario, alunos, onFechar, onSubmit, submitt
               </div>
               {!usuario && (
                 <div>
-                  <label className="block text-xs font-semibold text-salvia-800 dark:text-salvia-200 mb-1">
+                  <label className="block text-xs font-semibold text-salvia-800 dark:text-salvia-200 mb-1" htmlFor="usuario-parentesco">
                     Parentesco
                   </label>
                   <input
+                    id="usuario-parentesco"
                     name="parentesco"
                     type="text"
                     placeholder="ex: Mãe, Pai, Responsável"
