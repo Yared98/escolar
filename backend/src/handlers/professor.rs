@@ -152,7 +152,7 @@ pub fn professor_pode_lancar(
     atribuicoes: &[(Uuid, Uuid)],
 ) -> bool {
     let role_norm = role.to_lowercase().replace('_', "");
-    if role_norm == "admin" || role_norm == "gestor" || role_norm == "secretaria" {
+    if crate::middleware::rbac::eh_gestao(role) || role_norm == "secretaria" {
         return true;
     }
     atribuicoes
@@ -297,7 +297,6 @@ pub async fn aulas_do_dia(
 ) -> Result<Json<Vec<AulaDiaDto>>, AppError> {
     check_roles(&auth_user, &["professor", "gestor", "admin"])?;
     let _tenant_id = active_tenant.0;
-    let role_norm = auth_user.role.to_lowercase().replace('_', "");
 
     let data = query.data.unwrap_or_else(hoje_brasilia);
     let dia_semana = match data_para_dia_semana(data) {
@@ -305,7 +304,7 @@ pub async fn aulas_do_dia(
         None => return Ok(Json(Vec::new())), // domingo
     };
 
-    let professor_filtro = if role_norm == "gestor" || role_norm == "admin" {
+    let professor_filtro = if crate::middleware::rbac::eh_gestao(&auth_user.role) {
         query.professor_id
     } else {
         Some(auth_user.id)
@@ -718,5 +717,15 @@ mod tests {
             disciplina,
             &atribuicoes
         ));
+        // Papel gravado pelo seed demo, que chega cru no token
+        assert!(professor_pode_lancar(
+            "GestorEscolar",
+            professor_id,
+            outra_turma,
+            disciplina,
+            &atribuicoes
+        ));
+        assert!(crate::middleware::rbac::eh_gestao("GestorEscolar"));
+        assert!(!crate::middleware::rbac::eh_gestao("professor"));
     }
 }

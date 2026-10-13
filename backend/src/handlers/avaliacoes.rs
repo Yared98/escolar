@@ -374,7 +374,6 @@ pub async fn deletar_avaliacao(
     // Card C8: remove quem criou; gestor e admin removem qualquer avaliação.
     check_roles(&auth_user, &["admin", "gestor", "professor"])?;
     let tenant_id = active_tenant.0;
-    let role_norm = auth_user.role.to_lowercase().replace('_', "");
 
     let evento =
         sqlx::query("SELECT criado_por FROM eventos_calendario WHERE id = $1 AND tenant_id = $2")
@@ -386,7 +385,8 @@ pub async fn deletar_avaliacao(
 
     let criado_por: Uuid = evento.get("criado_por");
 
-    let pode_deletar = role_norm == "admin" || role_norm == "gestor" || criado_por == auth_user.id;
+    let pode_deletar =
+        crate::middleware::rbac::eh_gestao(&auth_user.role) || criado_por == auth_user.id;
 
     if !pode_deletar {
         return Err(AppError::Forbidden(

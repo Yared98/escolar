@@ -1,5 +1,14 @@
 use crate::{error::AppError, middleware::auth::AuthUser};
 
+/// Perfil da gestão da escola, aceitando as grafias gravadas em `users.role`
+/// (ex.: o seed demo usa `GestorEscolar`). O token traz o papel cru, sem normalizar.
+pub fn eh_gestao(role: &str) -> bool {
+    matches!(
+        role.to_lowercase().replace('_', "").as_str(),
+        "admin" | "gestor" | "superadmin" | "gestorescolar"
+    )
+}
+
 pub fn check_roles(auth_user: &AuthUser, allowed_roles: &[&str]) -> Result<(), AppError> {
     let user_role = auth_user.role.to_lowercase().replace('_', "");
 
