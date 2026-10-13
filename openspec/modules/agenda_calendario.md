@@ -82,7 +82,7 @@ Registro de ocorrências individuais (tabela `ocorrencias_aluno`), usado pela ro
   - Fundamentais: `comportamento`, `atraso`, `falta_material`, `saude`, `elogio`, `outros`.
   - Educação Infantil (histórico): `febre`, `indisposicao`, `queda_arranhao`, `atrito_colega`, `outros` (e a grafia antiga `outro`).
   - O tipo é normalizado para minúsculas; tipo fora da lista devolve HTTP 400.
-- **Contrato de API** (handler `backend/src/handlers/agenda_admin.rs`):
+- **Contrato de API** (handlers `backend/src/handlers/agenda_admin/**`):
   - `POST /api/v1/agenda/ocorrencias` recebe `{ aluno_id, turma_id?, tipo_ocorrencia, descricao, prioridade?, notificado_responsavel? }` e devolve a ocorrência criada. A descrição é obrigatória (até 1000 caracteres após remover espaços) e o aluno precisa existir na escola (404 caso contrário).
   - `GET /api/v1/agenda/ocorrencias/:aluno_id` devolve as ocorrências do aluno, da mais recente para a mais antiga.
   - `GET /api/v1/agenda/ocorrencias?turma_id=&data=` devolve as ocorrências de uma turma, opcionalmente de um único dia (`data` no formato `YYYY-MM-DD`, fuso de Brasília). Serve ao Diário do Fundamental para sinalizar os alunos com observação no dia.
