@@ -265,14 +265,7 @@ pub async fn listar_ocorrencias_turma(
         ));
     }
 
-    // "Registrada no dia" usa o fuso de Brasília (UTC-3), a mesma aproximação
-    // documentada para o restante do módulo.
-    let intervalo = query.data.map(|data| {
-        let inicio = data.and_time(chrono::NaiveTime::MIN) - chrono::Duration::hours(3);
-        let fim = (data + chrono::Duration::days(1)).and_time(chrono::NaiveTime::MIN)
-            - chrono::Duration::hours(3);
-        (inicio.and_utc(), fim.and_utc())
-    });
+    let intervalo = query.data.map(intervalo_do_dia_brasilia);
     let (inicio, fim) = match intervalo {
         Some((i, f)) => (Some(i), Some(f)),
         None => (None, None),
@@ -298,9 +291,40 @@ pub async fn listar_ocorrencias_turma(
     Ok(Json(ocorrencias))
 }
 
+/// "Registrada no dia" usa o fuso de Brasília (UTC-3), a mesma aproximação documentada para o
+/// restante do módulo: o dia D vai de 03:00 UTC de D até 03:00 UTC de D+1.
+pub fn intervalo_do_dia_brasilia(
+    data: NaiveDate,
+) -> (chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>) {
+    let inicio = data.and_time(chrono::NaiveTime::MIN) + chrono::Duration::hours(3);
+    let fim = (data + chrono::Duration::days(1)).and_time(chrono::NaiveTime::MIN)
+        + chrono::Duration::hours(3);
+    (inicio.and_utc(), fim.and_utc())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dia_de_brasilia_inclui_a_noite_e_exclui_a_madrugada_utc() {
+        let dia = NaiveDate::from_ymd_opt(2026, 10, 13).unwrap();
+        let (inicio, fim) = super::intervalo_do_dia_brasilia(dia);
+        // 18:19 em Brasília = 21:19 UTC do mesmo dia: conta como dia 13.
+        let noite = chrono::NaiveDate::from_ymd_opt(2026, 10, 13)
+            .unwrap()
+            .and_hms_opt(21, 19, 0)
+            .unwrap()
+            .and_utc();
+        assert!(noite >= inicio && noite < fim);
+        // 23:30 de Brasília do dia 12 = 02:30 UTC do dia 13: ainda é dia 12.
+        let madrugada = chrono::NaiveDate::from_ymd_opt(2026, 10, 13)
+            .unwrap()
+            .and_hms_opt(2, 30, 0)
+            .unwrap()
+            .and_utc();
+        assert!(madrugada < inicio);
+    }
 
     #[test]
     fn test_tipo_ocorrencia_valido() {
