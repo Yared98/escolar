@@ -60,6 +60,7 @@ use crate::{
             listar_recorrencias_cardapio, prever_recorrencia_cardapio,
         },
         opensec::obter_status_opensec,
+        professor::{aulas_do_dia, lancar_notas_lote, listar_notas, minhas_turmas},
         regulatorio_ia::{
             baixar_educacenso, cadastrar_credencial_perimetral, consultar_diploma_digital,
             emitir_diploma_digital, exportar_educacenso, listar_alertas_evasao,
@@ -213,6 +214,10 @@ pub fn create_router(state: AppState) -> Router {
         .route("/academico/diario", get(consultar_diario_dia))
         .route("/academico/diario/recentes", get(listar_diarios_recentes))
         .route("/academico/boletim/:aluno_id", get(consultar_boletim))
+        .route("/academico/notas", get(listar_notas))
+        .route("/academico/notas/lote", post(lancar_notas_lote))
+        .route("/professor/minhas-turmas", get(minhas_turmas))
+        .route("/professor/aulas", get(aulas_do_dia))
         .route(
             "/academico/simulados",
             post(criar_simulado_tri).get(listar_simulados_tri),
