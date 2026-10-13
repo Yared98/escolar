@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   formatNumero,
+  formatDateExtenso,
   cleanDigits,
   formatCpf,
   formatPhone,
@@ -119,5 +120,13 @@ describe('formatNumero', () => {
     expect(formatNumero(8, 2)).toBe('8.00');
     expect(formatNumero(null, 1)).toBe('-');
     expect(formatNumero(undefined, 2)).toBe('-');
+  });
+});
+
+describe('formatDateExtenso', () => {
+  it('escreve a data por extenso sem depender do fuso horário', () => {
+    expect(formatDateExtenso('2026-10-13')).toBe('13 de outubro de 2026');
+    expect(formatDateExtenso('2026-03-01T00:00:00Z')).toBe('1 de março de 2026');
+    expect(formatDateExtenso(null)).toBe('');
   });
 });

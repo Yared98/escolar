@@ -88,11 +88,3 @@ export function formatDateExtenso(dateString: string | null | undefined): string
     return dateString || '';
   }
 }
-
-// Apelidos para compatibilidade com possíveis nomes usados em testes/consumidores.
-export const formatDatePorExtenso = formatDateExtenso;
-export const formatDataExtenso = formatDateExtenso;
-export const formatDataPorExtenso = formatDateExtenso;
-export const formatDateLong = formatDateExtenso;
-export const formatDateLongPtBr = formatDateExtenso;
-export const formatDataLong = formatDateExtenso;
