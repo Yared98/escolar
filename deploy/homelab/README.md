@@ -39,10 +39,11 @@ cd deploy/homelab
 
 ```powershell
 cd deploy/homelab
-openssl genpkey -algorithm ed25519 -outform PEM -out jwt_private.pem
+mkdir segredos
+openssl genpkey -algorithm ed25519 -outform PEM -out segredos/jwt_private.pem
 ```
 
-O arquivo `jwt_private.pem` é um segredo: guarde-o fora do repositório.
+O arquivo `segredos/jwt_private.pem` é um segredo: a pasta `segredos/` está no `.gitignore`. O compose monta essa pasta (somente leitura) no backend e lê a chave pelo caminho em `JWT_ED25519_PRIVATE_PEM_FILE`.
 
 ---
 
@@ -56,8 +57,8 @@ Edite o `.env` com seus valores reais. Pelo menos:
 
 - `DOMINIO`: domínio que aponta para o servidor.
 - `POSTGRES_PASSWORD`: senha forte para o banco.
-- `JWT_ED25519_PRIVATE_PEM`: conteúdo de `jwt_private.pem` (mantenha as quebras de linha como `\n`).
-  - **Alternativa**: use `JWT_ED25519_PRIVATE_PEM_FILE` e monte o arquivo no container backend.
+- `APP_ENV`: `production` para uma escola real; `demo` para mostrar o sistema com a escola-modelo.
+- `JWT_ED25519_PRIVATE_PEM_FILE`: deixe o padrão (`/run/segredos/jwt_private.pem`) se gerou a chave em `segredos/`.
 
 Nunca versione o arquivo `.env`.
 
@@ -85,23 +86,16 @@ Se tudo estiver certo, a tela de login aparecerá.
 
 Em produção (`APP_ENV=production`) as migrations de **seed demo** são ignoradas automaticamente. Para criar a primeira escola:
 
-1. Acesse a tela de login.
-2. Clique em **Cadastrar Escola**.
-3. Preencha os dados da escola e do gestor.
-
-> Se o card C3 ainda não tiver adicionado a variável `NEXT_PUBLIC_PERMITIR_CADASTRO_ESCOLA`, o botão de cadastro já está disponível na interface atual.
+1. A aba **Cadastrar Escola** fica escondida por padrão. Para criar a primeira escola, coloque `PERMITIR_CADASTRO_ESCOLA=true` no `.env` e reconstrua o frontend: `docker compose up -d --build frontend`.
+2. Acesse a tela de login, clique em **Cadastrar Escola** e preencha os dados da escola e do gestor.
+3. Volte `PERMITIR_CADASTRO_ESCOLA=false` e reconstrua o frontend de novo, para ninguém mais criar escolas pela tela.
+4. Entre como gestor e cadastre professores, secretaria e famílias em **Pessoas > Usuários e acessos**.
 
 ### Instalação de demonstração
 
-Se quiser mostrar o sistema para um cliente com dados de exemplo, existem duas formas:
+Para mostrar o sistema a um cliente com dados de exemplo, use `APP_ENV=demo` no `.env` **antes do primeiro `up`**: o backend aplica as migrations de seed demo (escola `escola-modelo`). O código só filtra os seeds quando `APP_ENV=production`.
 
-1. **Antes do primeiro `up`**: deixe `APP_ENV` diferente de `production` (por exemplo, `demo`) para que o backend aplique as seeds demo no boot.  
-   Nota: o código atual filtra seeds apenas quando `APP_ENV=production`; qualquer outro valor carrega as seeds.
-2. **Depois do primeiro `up`**: execute o script de seed manualmente contra o banco:  
-   ```bash
-   export DATABASE_URL=postgres://escolar_app:<SENHA>@localhost:5432/escolar_db
-   node ../../scripts/seed-demo.mjs
-   ```
+> A escola-modelo tem senha conhecida (documentada em `openspec/CORE_SPEC.md`). Use um banco SEPARADO para a demonstração e nunca coloque dados reais nele. Para passar a uma escola real, suba outra instalação (outro diretório/volume) com `APP_ENV=production`.
 
 ---
 

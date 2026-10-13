@@ -33,6 +33,7 @@ pnpm-debug.log*
 # Deploy local
 /deploy/homelab/.env
 /deploy/homelab/backups/
+/deploy/homelab/segredos/
 
 # TypeScript build cache
 *.tsbuildinfo

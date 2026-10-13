@@ -29,18 +29,22 @@ services:
     container_name: escolar_backend
     restart: always
     environment:
-      APP_ENV: production
+      # production (escola real, sem seeds demo) ou demo (carrega a escola-modelo de demonstração)
+      APP_ENV: ${APP_ENV:-production}
       PORT: 8000
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       # Informe a chave diretamente (JWT_ED25519_PRIVATE_PEM) ou o caminho de um arquivo montado (JWT_ED25519_PRIVATE_PEM_FILE).
-      JWT_ED25519_PRIVATE_PEM: ${JWT_ED25519_PRIVATE_PEM}
-      JWT_ED25519_PRIVATE_PEM_FILE: ${JWT_ED25519_PRIVATE_PEM_FILE}
+      JWT_ED25519_PRIVATE_PEM: ${JWT_ED25519_PRIVATE_PEM:-}
+      JWT_ED25519_PRIVATE_PEM_FILE: ${JWT_ED25519_PRIVATE_PEM_FILE:-/run/segredos/jwt_private.pem}
       ALLOWED_ORIGINS: https://${DOMINIO}
       TRUSTED_PROXY: "true"
       RATE_LIMIT_PUBLIC_RPM: ${RATE_LIMIT_PUBLIC_RPM:-60}
       ACCOUNT_LOCK_MAX_ATTEMPTS: ${ACCOUNT_LOCK_MAX_ATTEMPTS:-5}
       ACCOUNT_LOCK_WINDOW_MINUTES: ${ACCOUNT_LOCK_WINDOW_MINUTES:-15}
       CORA_MODE: ${CORA_MODE:-mock}
+    volumes:
+      # Coloque a chave gerada por gerar-chave-jwt.sh em ./segredos/jwt_private.pem
+      - ./segredos:/run/segredos:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -70,6 +74,8 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: /api/v1
+        # true só durante a criação da primeira escola (ver README)
+        NEXT_PUBLIC_PERMITIR_CADASTRO_ESCOLA: ${PERMITIR_CADASTRO_ESCOLA:-false}
     container_name: escolar_frontend
     restart: always
     environment:

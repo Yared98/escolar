@@ -86,9 +86,9 @@ describe('apiFetch', () => {
 
     const [r1, r2, r3] = await Promise.all([p1, p2, p3]);
 
-    expect(r1).toEqual({ data: '/api/v1/endpoint-1' });
-    expect(r2).toEqual({ data: '/api/v1/endpoint-2' });
-    expect(r3).toEqual({ data: '/api/v1/endpoint-3' });
+    expect(r1).toEqual({ data: 'http://localhost:8000/api/v1/endpoint-1' });
+    expect(r2).toEqual({ data: 'http://localhost:8000/api/v1/endpoint-2' });
+    expect(r3).toEqual({ data: 'http://localhost:8000/api/v1/endpoint-3' });
 
     // CRÍTICO: Exatamente 1 chamada de refresh deve ocorrer devido ao refreshInFlight
     expect(refreshCallCount).toBe(1);

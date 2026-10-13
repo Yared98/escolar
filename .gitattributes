@@ -1,4 +1,8 @@
-# Força quebra de linha LF em todos os arquivos de texto do repositório.
-# Isso evita que o SQLx quebre o checksum das migrations em ambientes Windows
-# e garante que scripts shell funcionem dentro dos containers Linux.
-* text=auto eol=lf
+# Migrations do sqlx: o checksum registrado no banco e calculado sobre os BYTES do arquivo.
+# "-text" desliga a conversao de fim de linha (core.autocrlf) e o Git entrega exatamente os
+# mesmos bytes no Windows, no Linux e no CI. Sem isso, um build feito de uma pasta do Windows
+# embute fins de linha diferentes e o sqlx recusa as migrations novas ("previously applied but has been modified").
+backend/migrations/*.sql -text
+
+# Scripts shell da implantação rodam em Linux: sempre LF, mesmo em checkout no Windows.
+deploy/homelab/*.sh text eol=lf
