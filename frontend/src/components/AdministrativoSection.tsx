@@ -4,6 +4,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { Building2, ShieldCheck, CheckCircle2, Plus } from 'lucide-react';
+import {
+  UsuariosPanel,
+  UsuarioItem,
+  AlunoOption,
+  CriarUsuarioDto,
+  AtualizarUsuarioDto,
+} from '@/components/administrativo/UsuariosPanel';
 
 interface Funcionario {
   id: string;
@@ -37,16 +44,20 @@ export function AdministrativoSection() {
   const searchParams = useSearchParams();
   const routeParam = searchParams ? searchParams.get('route') : null;
   const tabParam = searchParams ? searchParams.get('tab') : null;
-  const subTab: 'entidades' | 'relatorios' | 'envios' =
+  const subTab: 'entidades' | 'relatorios' | 'envios' | 'usuarios' =
     routeParam === 'pessoas' || tabParam === 'entidades'
       ? 'entidades'
       : tabParam === 'relatorios'
         ? 'relatorios'
-        : 'envios';
+        : tabParam === 'usuarios'
+          ? 'usuarios'
+          : 'envios';
 
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
   const [mensagens, setMensagens] = useState<MensagemEnvio[]>([]);
   const [logsAuditoria, setLogsAuditoria] = useState<AuditLogItem[]>([]);
+  const [usuarios, setUsuarios] = useState<UsuarioItem[]>([]);
+  const [alunos, setAlunos] = useState<AlunoOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -88,9 +99,56 @@ export function AdministrativoSection() {
     }
   }, []);
 
+  const loadUsuariosData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [usuariosData, alunosData] = await Promise.all([
+        apiFetch<UsuarioItem[]>('/administrativo/usuarios'),
+        apiFetch<{ id: string; nome: string }[]>('/secretaria/alunos').catch(() => []),
+      ]);
+      setUsuarios(Array.isArray(usuariosData) ? usuariosData : []);
+      setAlunos(
+        Array.isArray(alunosData)
+          ? alunosData.map((a) => ({ id: a.id, nome: a.nome }))
+          : []
+      );
+      setLoadError(null);
+    } catch (err: unknown) {
+      setUsuarios([]);
+      setAlunos([]);
+      setLoadError(err instanceof Error ? err.message : 'Não foi possível carregar os usuários.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleCriarUsuario = async (dto: CriarUsuarioDto) => {
+    return await apiFetch<{ id: string; senha_temporaria: string }>('/administrativo/usuarios', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  };
+
+  const handleAtualizarUsuario = async (id: string, dto: AtualizarUsuarioDto) => {
+    await apiFetch<{ id: string }>(`/administrativo/usuarios/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(dto),
+    });
+  };
+
+  const handleRedefinirSenha = async (id: string) => {
+    return await apiFetch<{ senha_temporaria: string }>(`/administrativo/usuarios/${id}/redefinir-senha`, {
+      method: 'POST',
+    });
+  };
+
   useEffect(() => {
-    loadAdminData();
-  }, [loadAdminData]);
+    if (subTab === 'usuarios') {
+      loadUsuariosData();
+    } else {
+      loadAdminData();
+    }
+  }, [subTab, loadAdminData, loadUsuariosData]);
 
   return (
     <section id="administrativo" className="bg-white dark:bg-salvia-900 border border-salvia-200 dark:border-salvia-800 rounded-2xl p-6 shadow-sm">
@@ -98,12 +156,20 @@ export function AdministrativoSection() {
         <div>
           <h2 className="text-lg font-bold text-slate-900 dark:text-salvia-50 flex items-center space-x-2">
             <Building2 className="w-5 h-5 text-salvia-600 dark:text-salvia-400" />
-            <span>{subTab === 'entidades' ? 'Pessoas' : 'Conformidade'}</span>
+            <span>
+              {subTab === 'entidades'
+                ? 'Pessoas'
+                : subTab === 'usuarios'
+                  ? 'Usuários e acessos'
+                  : 'Conformidade'}
+            </span>
           </h2>
           <p className="text-xs text-salvia-600 dark:text-salvia-400 mt-0.5">
             {subTab === 'entidades'
               ? 'Corpo docente e funcionários da escola.'
-              : 'Registro de envios e auditoria LGPD.'}
+              : subTab === 'usuarios'
+                ? 'Gestão de contas de acesso ao sistema.'
+                : 'Registro de envios e auditoria LGPD.'}
           </p>
         </div>
       </div>
@@ -167,6 +233,20 @@ export function AdministrativoSection() {
             </table>
           </div>
         </div>
+      )}
+
+      {/* TAB: USUÁRIOS E ACESSOS */}
+      {subTab === 'usuarios' && (
+        <UsuariosPanel
+          usuarios={usuarios}
+          alunos={alunos}
+          loading={loading}
+          error={loadError}
+          onRecarregar={loadUsuariosData}
+          onCriar={handleCriarUsuario}
+          onAtualizar={handleAtualizarUsuario}
+          onRedefinirSenha={handleRedefinirSenha}
+        />
       )}
 
       {/* TAB 1: CORPO DOCENTE & RH */}

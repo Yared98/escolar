@@ -56,6 +56,12 @@ pub struct LogoutDto {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct AlterarSenhaDto {
+    pub senha_atual: String,
+    pub nova_senha: String,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct LoginDto {
     pub tenant_slug: String,
     pub email: String,
@@ -377,6 +383,23 @@ pub async fn login(
         return Err(AppError::InvalidCredentials);
     }
 
+    if !user.ativo {
+        log_audit(
+            &mut *db,
+            tenant.id,
+            Some(user.id),
+            "AUTH_LOGIN_FAILED",
+            "users",
+            Some(user.id.to_string()),
+            Some(serde_json::json!({
+                "email": user.email,
+                "reason": "usuario_inativo"
+            })),
+        )
+        .await;
+        return Err(AppError::InvalidCredentials);
+    }
+
     // 4. Sucesso: insere tentativa positiva e zera contador de falhas
     sqlx::query(
         "INSERT INTO login_attempts (tenant_id, email, ip, success) VALUES ($1, $2, $3, true)",
@@ -450,6 +473,77 @@ pub async fn me(
     response.features = flags;
 
     Ok(Json(response))
+}
+
+pub async fn alterar_senha(
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
+    Extension(auth_user): Extension<AuthUser>,
+    Json(dto): Json<AlterarSenhaDto>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    use argon2::{
+        password_hash::{PasswordHash, PasswordVerifier},
+        Argon2,
+    };
+
+    if dto.nova_senha.len() < 8 {
+        return Err(AppError::BadRequest(
+            "A nova senha deve ter pelo menos 8 caracteres.".to_string(),
+        ));
+    }
+    if dto.nova_senha == dto.senha_atual {
+        return Err(AppError::BadRequest(
+            "A nova senha deve ser diferente da senha atual.".to_string(),
+        ));
+    }
+
+    let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1 AND tenant_id = $2")
+        .bind(auth_user.id)
+        .bind(auth_user.tenant_id)
+        .fetch_optional(&mut *db)
+        .await?
+        .ok_or(AppError::NotFound)?;
+
+    let parsed_hash =
+        PasswordHash::new(&user.password_hash).map_err(|_| AppError::InvalidCredentials)?;
+    Argon2::default()
+        .verify_password(dto.senha_atual.as_bytes(), &parsed_hash)
+        .map_err(|_| AppError::InvalidCredentials)?;
+
+    let salt = SaltString::generate(&mut OsRng);
+    let argon2 = Argon2::default();
+    let new_hash = argon2
+        .hash_password(dto.nova_senha.as_bytes(), &salt)
+        .map_err(|e| AppError::InternalServerError(e.to_string()))?
+        .to_string();
+
+    sqlx::query(
+        "UPDATE users SET password_hash = $1, deve_trocar_senha = false, updated_at = NOW() WHERE id = $2 AND tenant_id = $3"
+    )
+    .bind(&new_hash)
+    .bind(auth_user.id)
+    .bind(auth_user.tenant_id)
+    .execute(&mut *db)
+    .await?;
+
+    log_audit(
+        &mut *db,
+        auth_user.tenant_id,
+        Some(auth_user.id),
+        "USUARIO_ALTERAR_SENHA",
+        "users",
+        Some(auth_user.id.to_string()),
+        Some(serde_json::json!({
+            "email": user.email,
+            "perfil": user.role
+        })),
+    )
+    .await;
+
+    Ok(Json(serde_json::json!({
+        "status": "sucesso",
+        "mensagem": "Senha alterada com sucesso."
+    })))
 }
 
 pub const ACCESS_TOKEN_SECONDS: usize = 15 * 60;

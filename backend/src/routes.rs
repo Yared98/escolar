@@ -34,8 +34,8 @@ use crate::{
             relatorios_operacionais_auditoria, responder_rsvp, stream_mensagens_agenda,
         },
         auth::{
-            jwks, login, logout, me, oauth_authorize, oauth_token, openid_configuration,
-            refresh_session, register_tenant, userinfo,
+            alterar_senha, jwks, login, logout, me, oauth_authorize, oauth_token,
+            openid_configuration, refresh_session, register_tenant, userinfo,
         },
         crm_lms::{
             adicionar_interacao_lead, atualizar_lead, capturar_lead_publico, criar_lead,
@@ -77,6 +77,7 @@ use crate::{
             obter_contrato, obter_prontuario, obter_turma, renumerar_chamada_turma,
             salvar_prontuario, transferir_aluno_turma, vincular_responsavel_aluno,
         },
+        usuarios::{atualizar_usuario, criar_usuario, listar_usuarios, redefinir_senha},
     },
     middleware::{
         auth::auth_middleware, security::opensec_security_headers_middleware,
@@ -114,6 +115,7 @@ pub fn create_router(state: AppState) -> Router {
         // Autenticação & Secretaria (CRUD Alunos/Prontuários, Turmas & Contratos Digitais)
         .route("/auth/me", get(me))
         .route("/auth/logout", post(logout))
+        .route("/auth/alterar-senha", post(alterar_senha))
         .route("/auth/oauth/authorize", post(oauth_authorize))
         .route("/auth/oauth/userinfo", get(userinfo))
         .route("/secretaria/matriculas", post(criar_matricula))
@@ -337,6 +339,15 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/administrativo/auditoria",
             get(relatorios_operacionais_auditoria),
+        )
+        .route(
+            "/administrativo/usuarios",
+            get(listar_usuarios).post(criar_usuario),
+        )
+        .route("/administrativo/usuarios/:id", put(atualizar_usuario))
+        .route(
+            "/administrativo/usuarios/:id/redefinir-senha",
+            post(redefinir_senha),
         )
         // 4. Agenda Digital App & Ocorrências (Comunicação Centralizada Auditável, Ocorrências & Tracking)
         .route(

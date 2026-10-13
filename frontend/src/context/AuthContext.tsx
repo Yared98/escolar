@@ -8,6 +8,8 @@ interface User {
   name: string;
   email: string;
   role: string;
+  /** Indica que o usuário ainda não trocou a senha temporária. */
+  deve_trocar_senha?: boolean;
   /** Perfil do login, guardado quando a gestão pré-visualiza o menu de outro perfil. */
   role_original?: string;
   features?: string[];
@@ -29,6 +31,7 @@ interface AuthContextType {
   logout: () => void;
   setTenantId: (tenantId: string) => void;
   switchRole: (newRole: string) => void;
+  setUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -129,6 +132,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const setUserValue = (newUser: User) => {
+    setUser(newUser);
+    localStorage.setItem('escolar_user', JSON.stringify(newUser));
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -140,6 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logout,
         setTenantId,
         switchRole,
+        setUser: setUserValue,
       }}
     >
       {children}

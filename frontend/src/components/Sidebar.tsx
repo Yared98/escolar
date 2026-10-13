@@ -157,6 +157,7 @@ export const MENU_ITEMS: NavItem[] = [
     defaultTab: 'entidades',
     subItems: [
       { id: 'pessoas-rh', label: 'Corpo docente & RH', tabKey: 'entidades', icon: UserCheck },
+      { id: 'pessoas-usuarios', label: 'Usuários e acessos', tabKey: 'usuarios', icon: ShieldCheck },
     ],
   },
   {

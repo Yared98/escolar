@@ -71,6 +71,22 @@ O ecossistema é construído como um SaaS Educacional Multi-Tenant com Backend e
   - `Nutricionista` / `nutricionista`: Gestão de cardápios, pratos, recorrências e restrições alimentares.
   - `Aluno / Responsável` / `responsavel`: Portal da família para boletim, chamadas, rotina infantil, 2ª via Pix e mensagens.
 
+### 3.1 Gestão de Usuários e Acessos
+
+A gestão da escola pode criar contas de acesso para os perfis `gestor`, `secretaria`, `financeiro`, `professor`, `nutricionista` e `responsavel` através de `POST /api/v1/administrativo/usuarios`. A criação gera uma senha temporária forte (12 caracteres alfanuméricos), armazenada com Argon2, e define `deve_trocar_senha = true`. A senha temporária é devolvida uma única vez na resposta; a escola deve entregá-la à pessoa de forma segura.
+
+- **Troca obrigatória**: no primeiro login com `deve_trocar_senha = true`, o frontend exibe a tela "Crie sua nova senha" (`POST /api/v1/auth/alterar-senha`). A nova senha deve ter pelo menos 8 caracteres e ser diferente da atual.
+- **Desativação**: gestores podem desativar/rebaixar contas via `PUT /api/v1/administrativo/usuarios/:id`. A escola nunca fica sem ao menos um gestor/admin ativo (bloqueio em 400).
+- **Redefinição de senha**: `POST /api/v1/administrativo/usuarios/:id/redefinir-senha` gera nova senha temporária e força nova troca no próximo acesso.
+- **Auditoria**: criação, alteração, desativação, redefinição de senha e troca da própria senha geram entradas em `audit_logs`. Senhas nunca são logadas.
+- **Isolamento**: a listagem `GET /api/v1/administrativo/usuarios` respeita o tenant do usuário autenticado e só pode ser acessada por `admin`/`gestor`.
+
+### 3.2 Limitações MVP da Gestão de Usuários
+
+- Não há envio automático de e-mail de convite ou recuperação de senha. A senha temporária deve ser entregue manualmente pela escola.
+- Não há fluxo de "esqueci minha senha" autoatendimento para usuários finais.
+- Não há sincronização de usuários com sistemas externos (Active Directory, Google Workspace etc.).
+
 ---
 
 ## 4. Padrão de Comunicação Offline-First (PWA)

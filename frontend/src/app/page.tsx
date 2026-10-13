@@ -8,6 +8,7 @@ import dynamic from 'next/dynamic';
 import { Sidebar, NavRoute, MENU_ITEMS, findRouteByTab, isRouteAllowed, isRouteAuthorized } from '@/components/Sidebar';
 import { perfilAmigavel } from '@/lib/perfis';
 import { KeyRound, Building2, UserPlus, LogIn, Lock } from 'lucide-react';
+import { TrocarSenha } from '@/components/TrocarSenha';
 
 const VALID_ROUTES: NavRoute[] = [
   'overview',
@@ -223,7 +224,7 @@ function DashboardContent() {
         token: string;
         refresh_token?: string;
         tenant: { id: string; name: string; slug: string; status: string };
-        user: { id: string; tenant_id: string; name: string; email: string; role: string };
+        user: { id: string; tenant_id: string; name: string; email: string; role: string; deve_trocar_senha?: boolean };
       }>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({
@@ -284,7 +285,9 @@ function DashboardContent() {
 
   return (
     <div className="py-2">
-      {user ? (
+      {user?.deve_trocar_senha ? (
+        <TrocarSenha />
+      ) : user ? (
         <div className="flex flex-col lg:flex-row gap-6 items-start">
           {/* Sidebar Navigation */}
           <Sidebar activeRoute={activeRoute} onRouteChange={handleRouteChange} />
