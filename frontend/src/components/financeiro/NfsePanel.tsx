@@ -11,7 +11,7 @@ export function NfsePanel({
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-3 text-[11px] text-amber-900 dark:text-amber-200">
-        Emissões abaixo são <strong>simuladas</strong> (número/URL inventados). Não há transmissão ABRASF/prefeitura neste MVP. Use “NFS-e” nas ações da fatura paga/pendente para registrar.
+        Emissões abaixo são <strong>simuladas</strong> (número/URL inventados). Não há transmissão para a prefeitura nesta versão de demonstração. Use “NFS-e” nas ações da fatura paga/pendente para registrar.
       </div>
       <div className="overflow-x-auto rounded-xl border border-salvia-200 dark:border-salvia-800">
         <table className="w-full text-left text-xs">

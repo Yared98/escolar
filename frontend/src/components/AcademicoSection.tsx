@@ -70,7 +70,7 @@ export function AcademicoSection() {
             ) : (
               <span className="flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 animate-pulse">
                 <WifiOff className="w-3 h-3" />
-                <span>Modo Offline PWA</span>
+                <span>Sem internet: salvando no aparelho</span>
               </span>
             )}
           </div>

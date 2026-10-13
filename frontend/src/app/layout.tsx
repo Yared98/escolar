@@ -6,7 +6,7 @@ import { Header } from '@/components/Header';
 
 export const metadata = {
   title: 'Escolar ERP - Gestão Educacional & Cuidado Pedagógico',
-  description: 'Sistema ERP Escolar Humanizado Multi-Tenant com suporte PWA Offline-First',
+  description: 'Sistema de gestão escolar humanizado com acesso pelo celular e computador',
   manifest: '/manifest.json',
 };
 

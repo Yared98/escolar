@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { perfilAmigavel } from '@/lib/perfis';
 import {
   LucideIcon,
   LayoutDashboard,
@@ -80,18 +81,18 @@ export const MENU_ITEMS: NavItem[] = [
   },
   {
     id: 'crm',
-    label: 'CRM & Captação',
+    label: 'Captação de alunos',
     icon: Megaphone,
   },
   {
     id: 'secretaria',
-    label: 'Secretaria & Prontuários',
+    label: 'Secretaria',
     icon: Users,
     defaultTab: 'alunos',
     subItems: [
-      { id: 'sec-alunos', label: 'Alunos & Matrículas', tabKey: 'alunos', icon: Users },
-      { id: 'sec-turmas', label: 'Turmas & Ensalamento', tabKey: 'turmas', icon: BookOpen },
-      { id: 'sec-contratos', label: 'Contratos & Parcelas', tabKey: 'contratos', icon: FileText },
+      { id: 'sec-alunos', label: 'Alunos e matrículas', tabKey: 'alunos', icon: Users },
+      { id: 'sec-turmas', label: 'Turmas', tabKey: 'turmas', icon: BookOpen },
+      { id: 'sec-contratos', label: 'Contratos e parcelas', tabKey: 'contratos', icon: FileText },
     ],
   },
   {
@@ -100,8 +101,8 @@ export const MENU_ITEMS: NavItem[] = [
     icon: BookOpen,
     defaultTab: 'disciplinas_matriz',
     subItems: [
-      { id: 'ped-matriz', label: 'Disciplinas & Matriz', tabKey: 'disciplinas_matriz', icon: Layers },
-      { id: 'ped-horarios', label: 'Atribuição & Horários', tabKey: 'atribuicao_horarios', icon: Clock },
+      { id: 'ped-matriz', label: 'Disciplinas e matriz', tabKey: 'disciplinas_matriz', icon: Layers },
+      { id: 'ped-horarios', label: 'Professores e horários', tabKey: 'atribuicao_horarios', icon: Clock },
       { id: 'ped-projetos', label: 'Projetos BNCC', tabKey: 'projetos', icon: Sparkles },
     ],
   },
@@ -125,7 +126,7 @@ export const MENU_ITEMS: NavItem[] = [
     icon: Smartphone,
     defaultTab: 'comunicacao',
     subItems: [
-      { id: 'agenda-comunicacao', label: 'Mensagens & Mural', tabKey: 'comunicacao', icon: MessageSquare },
+      { id: 'agenda-comunicacao', label: 'Mensagens e mural', tabKey: 'comunicacao', icon: MessageSquare },
       { id: 'agenda-whatsapp', label: 'WhatsApp', tabKey: 'whatsapp', icon: MessageCircle },
     ],
   },
@@ -145,7 +146,7 @@ export const MENU_ITEMS: NavItem[] = [
       { id: 'fin-cobranca', label: 'Cobrança', tabKey: 'cobranca', icon: Send },
       { id: 'fin-fornecedores', label: 'Fornecedores', tabKey: 'fornecedores', icon: Truck },
       { id: 'fin-nfse', label: 'NFS-e', tabKey: 'nfse', icon: FileText },
-      { id: 'fin-bi', label: 'DRE & DFC', tabKey: 'bi', icon: PieChart },
+      { id: 'fin-bi', label: 'Relatórios', tabKey: 'bi', icon: PieChart },
       { id: 'fin-banking', label: 'Integrações', tabKey: 'banking', icon: Building },
     ],
   },
@@ -170,7 +171,7 @@ export const MENU_ITEMS: NavItem[] = [
   },
   {
     id: 'ia_evasao',
-    label: 'IA Anti-Evasão',
+    label: 'Risco de evasão',
     icon: Brain,
   },
   {
@@ -500,12 +501,9 @@ export function Sidebar({ activeRoute, onRouteChange }: SidebarProps) {
         <ShieldCheck className="w-4 h-4 text-salvia-600 dark:text-salvia-400" />
         <div className="flex flex-col text-left">
           <span className="text-xs font-bold text-slate-900 dark:text-salvia-50">{user?.name || 'Usuário'}</span>
-          <span className="text-[10px] text-salvia-600 dark:text-salvia-400 capitalize font-medium">{role}</span>
+          <span className="text-[10px] text-salvia-600 dark:text-salvia-400 font-medium">{perfilAmigavel(role)}</span>
         </div>
       </div>
-      <span className="text-[10px] uppercase font-mono font-bold bg-salvia-700 text-white px-2 py-0.5 rounded-full">
-        {role}
-      </span>
     </div>
   );
 
@@ -539,22 +537,14 @@ export function Sidebar({ activeRoute, onRouteChange }: SidebarProps) {
             <div className="flex-1">
               <NavLinks onClickCallback={() => setIsMobileMenuOpen(false)} />
             </div>
-
-            <div className="pt-6 mt-6 border-t border-salvia-100 dark:border-salvia-800 text-[10px] font-mono text-salvia-500 dark:text-salvia-400 text-center">
-              Escolar ERP • Multi-Tenant
-            </div>
           </div>
         </div>
       )}
 
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-64 bg-white dark:bg-salvia-900 border border-salvia-200 dark:border-salvia-800 rounded-2xl p-4 shadow-sm flex-col justify-between shrink-0 sticky top-6">
+      <aside className="hidden lg:flex w-64 bg-white dark:bg-salvia-900 border border-salvia-200 dark:border-salvia-800 rounded-2xl p-4 shadow-sm flex-col shrink-0 sticky top-6">
         <div className="space-y-6">
           <NavLinks />
-        </div>
-
-        <div className="pt-3 mt-4 border-t border-salvia-100 dark:border-salvia-800 text-[10px] font-mono text-salvia-500 dark:text-salvia-400 text-center">
-          Escolar ERP • Multi-Tenant
         </div>
       </aside>
     </>

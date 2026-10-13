@@ -244,7 +244,7 @@ export function ContratosPanel({ alunos, onNavigateToFinanceiro }: ContratosPane
           </div>
         </div>
         <div className="shrink-0 text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-white/80 dark:bg-salvia-900/60 px-3 py-1.5 rounded-lg border border-salvia-200/60 dark:border-salvia-800">
-          Nota: Assinatura eletrônica simples/avançada (sem exigência de ICP-Brasil no MVP).
+          Nota: Assinatura eletrônica simples/avançada (sem exigência de ICP-Brasil nesta versão de demonstração).
         </div>
       </div>
 
@@ -730,7 +730,7 @@ export function ContratosPanel({ alunos, onNavigateToFinanceiro }: ContratosPane
                   <span>Declaração de Transparência Criptográfica</span>
                 </div>
                 <p>
-                  A assinatura do presente contrato utiliza <strong>assinatura eletrônica simples/avançada</strong> com cálculo de integridade SHA-256 e registro auditável de IP e carimbo de tempo. <strong>Não utiliza certificado digital ICP-Brasil A1/A3 no estágio MVP</strong>.
+                  A assinatura do presente contrato utiliza <strong>assinatura eletrônica simples/avançada</strong> com cálculo de integridade SHA-256 e registro auditável de IP e carimbo de tempo. <strong>Não utiliza certificado digital ICP-Brasil A1/A3 nesta versão de demonstração</strong>.
                 </p>
               </div>
 
@@ -888,7 +888,7 @@ export function ContratosPanel({ alunos, onNavigateToFinanceiro }: ContratosPane
                     </div>
                   )}
                   <p className="text-[10px] text-slate-500 italic">
-                    Integridade assegurada por digest SHA-256 inalterável (MP 2.200-2/2001). Sem certificado ICP-Brasil no MVP.
+                    Integridade assegurada por digest SHA-256 inalterável (MP 2.200-2/2001). Sem certificado ICP-Brasil nesta versão de demonstração.
                   </p>
                 </div>
               )}

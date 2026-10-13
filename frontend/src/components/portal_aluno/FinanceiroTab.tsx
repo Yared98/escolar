@@ -99,7 +99,7 @@ export function FinanceiroTab({
         </div>
       </div>
 
-      {/* Disclaimer / Nota Honesta MVP sobre Pix e conciliação */}
+      {/* Nota honesta sobre Pix e conciliação */}
       <div className="p-3.5 bg-salvia-50/90 dark:bg-salvia-950/70 border border-salvia-200 dark:border-salvia-800 rounded-2xl flex items-start space-x-3 text-xs text-salvia-700 dark:text-salvia-300">
         <HelpCircle className="w-4 h-4 shrink-0 text-salvia-600 dark:text-salvia-400 mt-0.5" />
         <div className="space-y-1">

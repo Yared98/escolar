@@ -105,6 +105,10 @@ Todas as respostas HTTP do gateway injetam compulsoriamente os 6 cabeçalhos de 
 
 ---
 
+### Variáveis de ambiente do frontend
+
+- `NEXT_PUBLIC_PERMITIR_CADASTRO_ESCOLA`: quando igual a `'true'`, exibe a aba "Cadastrar Escola" na tela de login. Padrão: oculta.
+
 ## 6. Frontend Core UI & Design System (Gift Sálvia Edition)
 
 ### 6.1 Identidade Visual Biofílica

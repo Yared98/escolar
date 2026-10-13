@@ -238,7 +238,7 @@ export function AdministrativoSection() {
                 <h3 className="text-sm font-bold text-slate-900 dark:text-salvia-50">Auditoria LGPD & Segurança</h3>
               </div>
               <span className="px-3 py-1 bg-salvia-100 dark:bg-salvia-950/80 border border-salvia-300 dark:border-salvia-700 text-salvia-900 dark:text-salvia-300 rounded-full text-xs font-bold font-mono">
-                Auditoria de eventos (MVP)
+                Auditoria de eventos (versão de demonstração)
               </span>
             </div>
             <p className="text-xs text-salvia-600 dark:text-salvia-400">
@@ -247,14 +247,14 @@ export function AdministrativoSection() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="p-3 bg-white dark:bg-salvia-900 border border-salvia-200 dark:border-salvia-800 rounded-xl text-xs space-y-1">
-                <span className="text-[10px] uppercase tracking-wider font-bold text-salvia-500 block">Isolamento Multi-Tenant</span>
+                <span className="text-[10px] uppercase tracking-wider font-bold text-salvia-500 block">Isolamento por escola</span>
                 <span className="font-bold text-slate-900 dark:text-salvia-50 flex items-center space-x-1 text-emerald-600 dark:text-emerald-400">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>Isolamento por escola (RLS) no banco</span>
                 </span>
               </div>
               <div className="p-3 bg-white dark:bg-salvia-900 border border-salvia-200 dark:border-salvia-800 rounded-xl text-xs space-y-1">
-                <span className="text-[10px] uppercase tracking-wider font-bold text-salvia-500 block">RBAC & Proteção de Rotas</span>
+                <span className="text-[10px] uppercase tracking-wider font-bold text-salvia-500 block">Permissões por perfil</span>
                 <span className="font-bold text-slate-900 dark:text-salvia-50 flex items-center space-x-1 text-emerald-600 dark:text-emerald-400">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>Permissões por perfil validadas no servidor</span>
@@ -264,7 +264,7 @@ export function AdministrativoSection() {
                 <span className="text-[10px] uppercase tracking-wider font-bold text-salvia-500 block">Headers OWASP & SQL Shield</span>
                 <span className="font-bold text-slate-900 dark:text-salvia-50 flex items-center space-x-1 text-emerald-600 dark:text-emerald-400">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Auditoria de eventos (MVP)</span>
+                  <span>Auditoria de eventos (versão de demonstração)</span>
                 </span>
               </div>
             </div>
@@ -312,14 +312,14 @@ export function AdministrativoSection() {
                     <tr className="hover:bg-salvia-50 dark:hover:bg-salvia-800/40">
                       <td className="p-2.5 font-mono font-bold text-salvia-700 dark:text-salvia-300">SEC-001</td>
                       <td className="p-2.5 text-salvia-500">multi_tenant_isolation</td>
-                      <td className="p-2.5 font-bold text-slate-900 dark:text-salvia-50">Isolamento Rígido Multi-Tenant</td>
+                      <td className="p-2.5 font-bold text-slate-900 dark:text-salvia-50">Isolamento rígido por escola</td>
                       <td className="p-2.5 font-mono font-bold text-rose-600">CRITICAL</td>
                       <td className="p-2.5"><span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold rounded-full border border-emerald-300">ENFORCED</span></td>
                     </tr>
                     <tr className="hover:bg-salvia-50 dark:hover:bg-salvia-800/40">
                       <td className="p-2.5 font-mono font-bold text-salvia-700 dark:text-salvia-300">SEC-002</td>
                       <td className="p-2.5 text-salvia-500">auth_rbac</td>
-                      <td className="p-2.5 font-bold text-slate-900 dark:text-salvia-50">RBAC Claims Validation & 403 Forbidden</td>
+                      <td className="p-2.5 font-bold text-slate-900 dark:text-salvia-50">Validação de permissões por perfil</td>
                       <td className="p-2.5 font-mono font-bold text-rose-600">CRITICAL</td>
                       <td className="p-2.5"><span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold rounded-full border border-emerald-300">ENFORCED</span></td>
                     </tr>

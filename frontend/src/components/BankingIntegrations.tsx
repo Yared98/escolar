@@ -82,11 +82,11 @@ export function BankingIntegrations() {
               <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Cora Bank</h3>
               {modoGateway === 'mock' ? (
                 <span className="inline-flex items-center rounded-md bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-200">
-                  Simulado (modo mock)
+                  Simulado
                 </span>
               ) : (
                 <span className="inline-flex items-center rounded-md bg-rose-100 dark:bg-rose-900/40 px-2 py-0.5 text-[10px] font-semibold text-rose-800 dark:text-rose-200">
-                  modo não suportado ainda
+                  Modo não suportado ainda
                 </span>
               )}
             </div>
