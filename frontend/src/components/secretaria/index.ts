@@ -8,6 +8,7 @@ export * from './MatriculaModal';
 export * from './AlunosPanel';
 export * from './DocumentoImpressao';
 export * from './TurmasPanel';
+export * from './RematriculaPanel';
 export * from './matricula/DadosAlunoTab';
 export * from './matricula/ResponsaveisTab';
 export * from './matricula/EnderecoContatosTab';

@@ -232,10 +232,10 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?;
 
-        // Garantir que as 67 tabelas com tenant_id estejam presentes no schema
-        if tables_with_tenant.len() != 67 {
+        // Garantir que as 68 tabelas com tenant_id estejam presentes no schema
+        if tables_with_tenant.len() != 68 {
             return Err(format!(
-                "Esperado 67 tabelas com tenant_id no schema public, encontrado {}",
+                "Esperado 68 tabelas com tenant_id no schema public, encontrado {}",
                 tables_with_tenant.len()
             ));
         }
@@ -473,6 +473,7 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
                 "turma_professores" => format!("INSERT INTO {tbl} (id, tenant_id, turma_id, disciplina_id, professor_id) VALUES ($1, $2, '{turma_b_id}', '{disciplina_b_id}', '{user_b}')"),
                 "turmas" => format!("INSERT INTO {tbl} (id, tenant_id, nome, ano_letivo, etapa_ensino, turno) VALUES ($1, $2, 'Turma B2', 2026, 'fundamental_2', 'vespertino') ON CONFLICT DO NOTHING"),
                 "users" => format!("INSERT INTO {tbl} (id, tenant_id, name, email, password_hash, role) VALUES ($1, $2, 'User B2', 'userb2@escola.test', 'hash', 'professor') ON CONFLICT DO NOTHING"),
+                "viradas_ano_letivo" => format!("INSERT INTO {tbl} (id, tenant_id, ano_origem, ano_destino, executado_por) VALUES ($1, $2, 2025, 2026, '{user_b}')"),
                 "webhook_events" => format!("INSERT INTO {tbl} (id, tenant_id, gateway_name, event_id, payload_hash) VALUES ($1, $2, 'cora', 'evt_b_1', 'hash_b')"),
                 _ => return Err(format!("Tabela {tbl} não possui SQL de inserção mapeado no teste de isolamento")),
             };

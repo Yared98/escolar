@@ -108,6 +108,7 @@ export const MENU_ITEMS: NavItem[] = [
       { id: 'sec-alunos', label: 'Alunos e matrículas', tabKey: 'alunos', icon: Users },
       { id: 'sec-turmas', label: 'Turmas', tabKey: 'turmas', icon: BookOpen },
       { id: 'sec-contratos', label: 'Contratos e parcelas', tabKey: 'contratos', icon: FileText },
+      { id: 'sec-rematricula', label: 'Rematrícula', tabKey: 'rematricula', icon: UserCheck },
     ],
   },
   {

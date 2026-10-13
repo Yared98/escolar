@@ -22,6 +22,10 @@ import {
   AlunosPanel,
   DocumentoImpressao,
   TurmasPanel,
+  RematriculaPanel,
+  PreviaViradaData,
+  ExecutarViradaPayload,
+  ExecutarViradaResultado,
   labelStatusAluno,
   statusAlunoBadgeClass,
   proximasAcoesStatus,
@@ -65,25 +69,80 @@ export function SecretariaSection() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams ? searchParams.get('tab') : null;
-  const [activeTabLocal, setActiveTabLocal] = useState<'alunos' | 'turmas' | 'contratos'>(() => {
-    if (tabParam === 'turmas' || tabParam === 'contratos') return tabParam;
+  const [activeTabLocal, setActiveTabLocal] = useState<'alunos' | 'turmas' | 'contratos' | 'rematricula'>(() => {
+    if (tabParam === 'turmas' || tabParam === 'contratos' || tabParam === 'rematricula') return tabParam;
     return 'alunos';
   });
 
   useEffect(() => {
-    if (tabParam === 'turmas' || tabParam === 'contratos' || tabParam === 'alunos') {
+    if (tabParam === 'turmas' || tabParam === 'contratos' || tabParam === 'alunos' || tabParam === 'rematricula') {
       setActiveTabLocal(tabParam);
     }
   }, [tabParam]);
 
-  const activeTab: 'alunos' | 'turmas' | 'contratos' = activeTabLocal;
+  const activeTab: 'alunos' | 'turmas' | 'contratos' | 'rematricula' = activeTabLocal;
 
-  const handleTabChange = (tab: 'alunos' | 'turmas' | 'contratos') => {
+  const handleTabChange = (tab: 'alunos' | 'turmas' | 'contratos' | 'rematricula') => {
     setActiveTabLocal(tab);
     const params = new URLSearchParams(searchParams ? searchParams.toString() : '');
     params.set('route', 'secretaria');
     params.set('tab', tab);
     router.push(`/?${params.toString()}`, { scroll: false });
+  };
+
+  // Rematrícula e virada de ano letivo (C15)
+  const [anoOrigemRematricula, setAnoOrigemRematricula] = useState(2026);
+  const [anoDestinoRematricula, setAnoDestinoRematricula] = useState(2027);
+  const [copiarProfessoresRematricula, setCopiarProfessoresRematricula] = useState(true);
+  const [gerarContratosRematricula, setGerarContratosRematricula] = useState(true);
+  const [previaViradaData, setPreviaViradaData] = useState<PreviaViradaData | null>(null);
+  const [loadingPreviaVirada, setLoadingPreviaVirada] = useState(false);
+  const [errorPreviaVirada, setErrorPreviaVirada] = useState<string | null>(null);
+  const [executandoVirada, setExecutandoVirada] = useState(false);
+  const [resultadoVirada, setResultadoVirada] = useState<ExecutarViradaResultado | null>(null);
+  const [errorExecucaoVirada, setErrorExecucaoVirada] = useState<string | null>(null);
+
+  const handleCarregarPreviaVirada = async (origem: number, destino: number) => {
+    setLoadingPreviaVirada(true);
+    setErrorPreviaVirada(null);
+    try {
+      const res = await apiFetch<PreviaViradaData>(
+        `/api/v1/secretaria/virada-ano/previa?ano_origem=${origem}&ano_destino=${destino}`
+      );
+      setPreviaViradaData(res);
+    } catch (err: any) {
+      setErrorPreviaVirada(err.message || 'Erro ao carregar prévia da virada de ano letivo.');
+    } finally {
+      setLoadingPreviaVirada(false);
+    }
+  };
+
+  const handleExecutarVirada = async (payload: ExecutarViradaPayload) => {
+    setExecutandoVirada(true);
+    setErrorExecucaoVirada(null);
+    try {
+      const res = await apiFetch<ExecutarViradaResultado>(
+        '/api/v1/secretaria/virada-ano/executar',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }
+      );
+      setResultadoVirada(res);
+      loadTurmas();
+    } catch (err: any) {
+      setErrorExecucaoVirada(err.message || 'Erro ao executar virada de ano letivo.');
+    } finally {
+      setExecutandoVirada(false);
+    }
+  };
+
+  const handleReiniciarVirada = () => {
+    setPreviaViradaData(null);
+    setResultadoVirada(null);
+    setErrorPreviaVirada(null);
+    setErrorExecucaoVirada(null);
   };
 
   const [alunos, setAlunos] = useState<Aluno[]>([]);
@@ -984,9 +1043,21 @@ export function SecretariaSection() {
           <FileText className="w-4 h-4" />
           <span>Contratos e parcelas</span>
         </button>
+        <button
+          type="button"
+          onClick={() => handleTabChange('rematricula')}
+          className={`pb-3 px-3 text-xs font-bold border-b-2 flex items-center space-x-2 transition-all ${
+            activeTab === 'rematricula'
+              ? 'border-salvia-600 text-salvia-700 dark:text-salvia-400'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          <UserCheck className="w-4 h-4" />
+          <span>Rematrícula</span>
+        </button>
       </div>
 
-      {/* Renderização Condicional: Alunos vs Turmas vs Contratos */}
+      {/* Renderização Condicional: Alunos vs Turmas vs Contratos vs Rematrícula */}
       {activeTab === 'alunos' && (
         <AlunosPanel
           contagemStatus={contagemStatus}
@@ -1053,6 +1124,28 @@ export function SecretariaSection() {
               window.location.href = url.toString();
             }
           }}
+        />
+      )}
+
+      {activeTab === 'rematricula' && (
+        <RematriculaPanel
+          anoOrigem={anoOrigemRematricula}
+          setAnoOrigem={setAnoOrigemRematricula}
+          anoDestino={anoDestinoRematricula}
+          setAnoDestino={setAnoDestinoRematricula}
+          copiarProfessores={copiarProfessoresRematricula}
+          setCopiarProfessores={setCopiarProfessoresRematricula}
+          gerarContratos={gerarContratosRematricula}
+          setGerarContratos={setGerarContratosRematricula}
+          previaData={previaViradaData}
+          loadingPrevia={loadingPreviaVirada}
+          errorPrevia={errorPreviaVirada}
+          onCarregarPrevia={handleCarregarPreviaVirada}
+          executando={executandoVirada}
+          resultadoExecucao={resultadoVirada}
+          errorExecucao={errorExecucaoVirada}
+          onExecutarVirada={handleExecutarVirada}
+          onReiniciar={handleReiniciarVirada}
         />
       )}
 

@@ -212,3 +212,79 @@ export interface FaturaParcela {
 export interface ContratoDetalhado extends ContratoItem {
   parcelas?: FaturaParcela[];
 }
+
+// ============================================================================
+// Tipos para Rematrícula e Virada de Ano Letivo (C15)
+// ============================================================================
+
+export interface PreviaAlunoVirada {
+  aluno_id: string;
+  nome: string;
+  numero_chamada?: number | null;
+  status_boletim: string;
+  acao_sugerida: 'promover' | 'reter' | 'decidir';
+  media_geral: number;
+  frequencia_pct: number;
+}
+
+export interface PreviaTurmaVirada {
+  turma_origem_id: string;
+  turma_origem_nome: string;
+  etapa_ensino: string;
+  serie?: string | null;
+  turno: string;
+  sala_id?: string | null;
+  capacidade_maxima: number;
+  sugestao_proxima_serie?: string | null;
+  sugestao_proxima_etapa?: string | null;
+  sugestao_nome_turma?: string | null;
+  turma_destino_existente_id?: string | null;
+  total_alunos: number;
+  alunos: PreviaAlunoVirada[];
+}
+
+export interface PreviaViradaData {
+  ano_origem: number;
+  ano_destino: number;
+  ja_executada: boolean;
+  turmas: PreviaTurmaVirada[];
+}
+
+export interface TurmaViradaPayload {
+  turma_origem_id: string;
+  nova_turma?: {
+    id?: string;
+    nome: string;
+    serie?: string;
+    etapa_ensino?: string;
+    turno?: string;
+  };
+  turma_destino_id?: string;
+}
+
+export interface AlunoViradaPayload {
+  aluno_id: string;
+  acao: 'promover' | 'reter' | 'nao_rematricular';
+  turma_destino_id?: string;
+}
+
+export interface ExecutarViradaPayload {
+  ano_origem: number;
+  ano_destino: number;
+  copiar_professores: boolean;
+  gerar_contratos: boolean;
+  turmas: TurmaViradaPayload[];
+  alunos: AlunoViradaPayload[];
+}
+
+export interface ExecutarViradaResultado {
+  sucesso: boolean;
+  mensagem: string;
+  ano_origem: number;
+  ano_destino: number;
+  turmas_criadas: number;
+  alunos_promovidos: number;
+  alunos_retidos: number;
+  alunos_nao_rematriculados: number;
+  contratos_gerados: number;
+}
