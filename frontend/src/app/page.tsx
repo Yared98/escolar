@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
 import dynamic from 'next/dynamic';
 import { Sidebar, NavRoute, MENU_ITEMS, findRouteByTab, isRouteAllowed, isRouteAuthorized } from '@/components/Sidebar';
+import { perfilAmigavel } from '@/lib/perfis';
 import { KeyRound, Building2, UserPlus, LogIn, Lock } from 'lucide-react';
 
 const VALID_ROUTES: NavRoute[] = [
@@ -112,6 +113,7 @@ function DashboardContent() {
   });
 
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  const permitirCadastroEscola = process.env.NEXT_PUBLIC_PERMITIR_CADASTRO_ESCOLA === 'true';
 
   // Login form state
   const [tenantSlug, setTenantSlug] = useState('escola-modelo');
@@ -295,17 +297,17 @@ function DashboardContent() {
                   <Lock className="w-8 h-8" />
                 </div>
                 <h2 className="text-lg font-bold text-rose-900 dark:text-rose-200">
-                  403 Forbidden — Acesso Não Autorizado
+                  Você não tem acesso a esta área
                 </h2>
                 <p className="text-xs text-rose-800 dark:text-rose-300 max-w-md mx-auto">
-                  O seu perfil (<span className="font-mono font-bold uppercase">{role}</span>) não possui permissão para acessar o módulo de back-office <span className="font-mono font-bold">/{activeRoute}</span>.
+                  Seu perfil não inclui esta parte do sistema. Se precisar, fale com a gestão da escola.
                 </p>
                 <div className="pt-2">
                   <button
                     onClick={() => handleRouteChange(role === 'responsavel' ? 'portal_aluno' : 'overview')}
                     className="bg-rose-700 hover:bg-rose-800 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all"
                   >
-                    Voltar para Área Permitida
+                    Voltar ao início
                   </button>
                 </div>
               </div>
@@ -330,36 +332,38 @@ function DashboardContent() {
       ) : (
         <div className="w-full max-w-md mx-auto bg-white dark:bg-salvia-900 border border-salvia-200 dark:border-salvia-800 rounded-2xl p-6 sm:p-8 shadow-md">
           <div className="text-center mb-6">
-            <h1 className="text-xl font-bold text-slate-900 dark:text-salvia-50">Acesso ao Escolar ERP</h1>
+            <h1 className="text-xl font-bold text-slate-900 dark:text-salvia-50">Entrar</h1>
             <p className="text-xs text-salvia-600 dark:text-salvia-400 mt-1">
-              Plataforma integradora de gestão escolar e controle de acesso RBAC.
+              Acesse com o código da sua escola, seu e-mail e senha.
             </p>
           </div>
 
           {/* Form Tabs */}
-          <div className="flex bg-salvia-100 dark:bg-salvia-800 p-1 rounded-xl mb-6">
+          <div className={`flex bg-salvia-100 dark:bg-salvia-800 p-1 rounded-xl mb-6 ${!permitirCadastroEscola ? 'justify-center' : ''}`}>
             <button
               onClick={() => setActiveTab('login')}
-              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center space-x-1.5 ${
+              className={`${permitirCadastroEscola ? 'flex-1' : 'px-6'} py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center space-x-1.5 ${
                 activeTab === 'login'
                   ? 'bg-salvia-700 dark:bg-salvia-500 text-white shadow-sm'
                   : 'text-salvia-700 dark:text-salvia-300 hover:text-slate-900 dark:hover:text-salvia-50'
               }`}
             >
               <LogIn className="w-3.5 h-3.5" />
-              <span>Entrar no Sistema</span>
+              <span>Entrar</span>
             </button>
-            <button
-              onClick={() => setActiveTab('register')}
-              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center space-x-1.5 ${
-                activeTab === 'register'
-                  ? 'bg-salvia-700 dark:bg-salvia-500 text-white shadow-sm'
-                  : 'text-salvia-700 dark:text-salvia-300 hover:text-slate-900 dark:hover:text-salvia-50'
-              }`}
-            >
-              <Building2 className="w-3.5 h-3.5" />
-              <span>Cadastrar Escola</span>
-            </button>
+            {permitirCadastroEscola && (
+              <button
+                onClick={() => setActiveTab('register')}
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center space-x-1.5 ${
+                  activeTab === 'register'
+                    ? 'bg-salvia-700 dark:bg-salvia-500 text-white shadow-sm'
+                    : 'text-salvia-700 dark:text-salvia-300 hover:text-slate-900 dark:hover:text-salvia-50'
+                }`}
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                <span>Cadastrar Escola</span>
+              </button>
+            )}
           </div>
 
           {error && (
@@ -372,7 +376,7 @@ function DashboardContent() {
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-salvia-800 dark:text-salvia-200 mb-1">
-                  Identificador da Escola (Slug)
+                  Código da escola
                 </label>
                 <div className="relative">
                   <Building2 className="w-4 h-4 text-salvia-400 absolute left-3 top-2.5" />
@@ -419,7 +423,7 @@ function DashboardContent() {
                 disabled={loading}
                 className="w-full bg-salvia-700 dark:bg-salvia-500 hover:bg-salvia-800 dark:hover:bg-salvia-600 text-white py-2.5 rounded-xl font-bold text-xs transition-all shadow-sm disabled:opacity-50 mt-2"
               >
-                {loading ? 'Autenticando...' : 'Acessar ERP Escolar'}
+                {loading ? 'Autenticando...' : 'Entrar'}
               </button>
             </form>
           ) : (
@@ -437,7 +441,7 @@ function DashboardContent() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-salvia-800 dark:text-salvia-200 mb-1">Slug da URL</label>
+                <label className="block text-xs font-semibold text-salvia-800 dark:text-salvia-200 mb-1">Código da escola na URL</label>
                 <input
                   type="text"
                   required

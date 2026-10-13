@@ -330,7 +330,7 @@ export function FinanceiroSection() {
       }>('/financeiro/cobranca/regua', { method: 'POST' });
       setReguaResult(res);
       setReguaStatus(
-        `Régua executada: ${res.disparos_executados} eventos registrados no banco (D-5: ${res.mensagens.lembretes_preventivos}, D-0: ${res.mensagens.avisos_vencimento_hoje}, D+: ${res.mensagens.cobrancas_ativas}). Status registrado internamente; sem envio real via WhatsApp ou e-mail neste MVP.`
+        `Régua executada: ${res.disparos_executados} eventos registrados no banco (D-5: ${res.mensagens.lembretes_preventivos}, D-0: ${res.mensagens.avisos_vencimento_hoje}, D+: ${res.mensagens.cobrancas_ativas}). Status registrado internamente; sem envio real via WhatsApp ou e-mail nesta versão de demonstração.`
       );
       await loadFinanceiroData();
     } catch (err: unknown) {

@@ -138,7 +138,7 @@ export function ChamadaPanel({
 
   const handleSalvar = async () => {
     if (!tenantId) {
-      showToast({ text: 'Sessão sem tenant. Faça login novamente.', type: 'warn' });
+      showToast({ text: 'Sua sessão expirou. Entre novamente.', type: 'warn' });
       return;
     }
     if (!turmaId || alunos.length === 0) {
@@ -165,7 +165,7 @@ export function ChamadaPanel({
       eventUuid = await enqueue('diario_classe', syncPayload as unknown as Record<string, unknown>);
     } catch (err: unknown) {
       showToast({
-        text: err instanceof Error ? err.message : 'Não foi possível gravar no IndexedDB.',
+        text: err instanceof Error ? err.message : 'Não foi possível salvar neste aparelho.',
         type: 'warn',
       });
       setSaving(false);
@@ -192,7 +192,7 @@ export function ChamadaPanel({
       text: syncOk
         ? infantil
           ? 'Presença do dia salva no diário infantil.'
-          : 'Chamada salva e sincronizada com o ERP.'
+          : 'Chamada salva.'
         : 'Chamada salva neste aparelho. O envio ao servidor ocorre ao reconectar, ao reabrir o Diário ou ao voltar para esta aba.',
       type: 'success',
     });
@@ -222,7 +222,7 @@ export function ChamadaPanel({
         )}
 
         <div>
-          <label className="block text-salvia-700 dark:text-salvia-300 font-bold mb-1">Resumo do Efetivo:</label>
+          <label className="block text-salvia-700 dark:text-salvia-300 font-bold mb-1">Resumo:</label>
           <div className="flex items-center space-x-2 pt-1 font-mono font-bold">
             <span className="text-emerald-600">{alunos.filter((a) => a.status === 'presente').length} P</span>
             <span>•</span>
@@ -276,7 +276,7 @@ export function ChamadaPanel({
         <div className="flex justify-between items-center">
           <h3 className="text-xs font-bold uppercase tracking-wider text-salvia-800 dark:text-salvia-200 flex items-center space-x-2">
             <Users className="w-4 h-4 text-salvia-600 dark:text-salvia-400" />
-            <span>{infantil ? 'Presença do dia' : 'Lista de Alunos & Chamada Rápida'}</span>
+            <span>{infantil ? 'Presença do dia' : 'Chamada'}</span>
           </h3>
           <button
             onClick={() => setAlunos((prev) => prev.map((a) => ({ ...a, status: 'presente' })))}
@@ -368,14 +368,14 @@ export function ChamadaPanel({
         >
           <CheckCheck className="w-4 h-4" />
           <span>
-            {saving ? 'Salvando...' : infantil ? 'Salvar presença do dia' : 'Salvar Chamada (Offline-First)'}
+            {saving ? 'Salvando...' : infantil ? 'Salvar presença do dia' : 'Salvar chamada'}
           </span>
         </button>
       </div>
 
       <div className="space-y-3 pt-2">
         <h3 className="text-xs font-bold uppercase tracking-wider text-salvia-800 dark:text-salvia-200">
-          Histórico Recente de Diários Salvos
+          Últimas aulas registradas
         </h3>
         <div className="divide-y divide-salvia-100 dark:divide-salvia-800 border border-salvia-200 dark:border-salvia-800 rounded-2xl overflow-hidden text-xs">
           {historico.length === 0 ? (

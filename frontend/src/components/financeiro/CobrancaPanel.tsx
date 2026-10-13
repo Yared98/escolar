@@ -54,13 +54,13 @@ export function CobrancaPanel({
       <div className="rounded-xl border border-salvia-200 dark:border-salvia-800 bg-salvia-50/70 dark:bg-salvia-950/40 p-4 text-xs text-salvia-800 dark:text-salvia-200 space-y-2">
         <div className="flex items-center space-x-2 font-bold text-slate-900 dark:text-salvia-50">
           <Info className="w-4 h-4 text-salvia-600 dark:text-salvia-400" />
-          <span>Régua de Cobrança Escolar Automatizada · Modo Simulado (MVP)</span>
+          <span>Régua de cobrança escolar automatizada · modo simulado</span>
         </div>
         <p className="leading-relaxed">
           O motor de régua analisa faturas escolares e processa as regras de régua preventiva (D-5 a D-1), aviso no dia (D-0) e cobrança ativa em atraso (D+ com cálculo automático de multa de 2% e juros pro-rata de 1% a.m.).
         </p>
         <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-900 dark:text-amber-200 font-medium">
-          <strong>Aviso de integridade (MVP stub):</strong> Os disparos são registrados internamente no banco de dados para rastreabilidade e auditoria (<code className="font-mono">regua_cobranca_logs</code> com status <em>registrado</em>). <strong>Não há envio real de mensagens via WhatsApp ou E-mail</strong> para responsáveis ou alunos neste MVP (sem conector omnicanal externo ativo).
+          <strong>Aviso de integridade (versão de demonstração):</strong> Os disparos são registrados internamente no banco de dados para rastreabilidade e auditoria. <strong>Não há envio real de mensagens via WhatsApp ou e-mail</strong> para responsáveis ou alunos nesta versão (sem conector omnicanal externo ativo).
         </div>
       </div>
 
@@ -111,7 +111,7 @@ export function CobrancaPanel({
         <div>
           <h4 className="text-xs font-bold text-slate-900 dark:text-salvia-50">Processar Motor de Régua</h4>
           <p className="text-[11px] text-salvia-600 dark:text-salvia-400">
-            Dispara o endpoint POST /financeiro/cobranca/regua para classificar faturas e gravar logs no banco.
+            Executa a classificação das faturas e grava os logs no banco.
           </p>
         </div>
         <button

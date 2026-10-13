@@ -13,7 +13,7 @@ describe('BankingIntegrations - conformidade B7 (selo e erro sem dados dummy)', 
     vi.restoreAllMocks();
   });
 
-  it('exibe o selo "Simulado (modo mock)" quando modo_gateway === "mock"', async () => {
+  it('exibe o selo "Simulado" quando modo_gateway === "mock"', async () => {
     vi.spyOn(apiModule, 'apiFetch').mockResolvedValue([
       {
         gateway_name: 'cora',
@@ -28,11 +28,11 @@ describe('BankingIntegrations - conformidade B7 (selo e erro sem dados dummy)', 
     render(<BankingIntegrations />);
 
     await waitFor(() => {
-      expect(screen.getByText('Simulado (modo mock)')).toBeInTheDocument();
+      expect(screen.getByText('Simulado')).toBeInTheDocument();
     });
   });
 
-  it('exibe o selo "modo não suportado ainda" quando modo_gateway !== "mock"', async () => {
+  it('exibe o selo "Modo não suportado ainda" quando modo_gateway !== "mock"', async () => {
     vi.spyOn(apiModule, 'apiFetch').mockResolvedValue([
       {
         gateway_name: 'cora',
@@ -47,7 +47,7 @@ describe('BankingIntegrations - conformidade B7 (selo e erro sem dados dummy)', 
     render(<BankingIntegrations />);
 
     await waitFor(() => {
-      expect(screen.getByText('modo não suportado ainda')).toBeInTheDocument();
+      expect(screen.getByText('Modo não suportado ainda')).toBeInTheDocument();
     });
   });
 

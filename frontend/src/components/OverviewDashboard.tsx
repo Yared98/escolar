@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { perfilAmigavel } from '@/lib/perfis';
 import {
   Users,
   DollarSign,
@@ -9,10 +10,8 @@ import {
   AlertTriangle,
   Sparkles,
   HeartHandshake,
-  ShieldCheck,
-  Award,
 } from 'lucide-react';
-import { NavRoute } from './Sidebar';
+import { NavRoute, isRouteAllowed } from './Sidebar';
 import { apiFetch } from '@/lib/api';
 
 interface OverviewDashboardProps {
@@ -39,18 +38,42 @@ export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
 
   useEffect(() => {
     async function loadKpis() {
+      const podeVerFinanceiro = isRouteAllowed('financeiro', role);
+      const podeVerSecretaria = isRouteAllowed('secretaria', role);
+      const podeVerIaEvasao = isRouteAllowed('ia_evasao', role);
+
       try {
-        const [dreData, alunosData, alertasData] = await Promise.allSettled([
-          apiFetch<{ receita_bruta: number; total_faturas_pagas: number; total_faturas_pendentes: number }>('/financeiro/relatorios/dre'),
-          apiFetch<{ total: number }>('/secretaria/alunos?status=ativo&limit=1'),
-          apiFetch<{ aluno_id: string }[]>('/ia/evasao/alertas'),
-        ]);
+        const promises: Promise<unknown>[] = [];
+        const indices = {
+          dre: -1,
+          alunos: -1,
+          alertas: -1,
+        };
 
-        const dre = dreData.status === 'fulfilled' ? dreData.value : null;
-        const alunosPage = alunosData.status === 'fulfilled' ? alunosData.value : null;
-        const alertas = alertasData.status === 'fulfilled' ? alertasData.value : [];
+        if (podeVerFinanceiro) {
+          indices.dre = promises.length;
+          promises.push(
+            apiFetch<{ receita_bruta: number; total_faturas_pagas: number; total_faturas_pendentes: number }>(
+              '/financeiro/relatorios/dre'
+            )
+          );
+        }
+        if (podeVerSecretaria) {
+          indices.alunos = promises.length;
+          promises.push(apiFetch<{ total: number }>('/secretaria/alunos?status=ativo&limit=1'));
+        }
+        if (podeVerIaEvasao) {
+          indices.alertas = promises.length;
+          promises.push(apiFetch<{ aluno_id: string }[]>('/ia/evasao/alertas'));
+        }
 
-        const failed = [dreData, alunosData, alertasData].some((result) => result.status === 'rejected');
+        const results = promises.length > 0 ? await Promise.allSettled(promises) : [];
+
+        const dre = indices.dre >= 0 && results[indices.dre].status === 'fulfilled' ? (results[indices.dre] as PromiseFulfilledResult<{ receita_bruta: number; total_faturas_pagas: number; total_faturas_pendentes: number }>).value : null;
+        const alunosPage = indices.alunos >= 0 && results[indices.alunos].status === 'fulfilled' ? (results[indices.alunos] as PromiseFulfilledResult<{ total: number }>).value : null;
+        const alertas = indices.alertas >= 0 && results[indices.alertas].status === 'fulfilled' ? (results[indices.alertas] as PromiseFulfilledResult<{ aluno_id: string }[]>).value : [];
+
+        const failed = results.some((result) => result.status === 'rejected');
         setKpi({
           totalAlunos: alunosPage?.total ?? 0,
           receitaMensal: dre?.receita_bruta ?? 0,
@@ -73,7 +96,7 @@ export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
       }
     }
     loadKpis();
-  }, []);
+  }, [role]);
 
   return (
     <div className="space-y-6">
@@ -86,17 +109,12 @@ export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
             </div>
             <div>
               <h1 className="text-xl font-bold text-slate-900 dark:text-salvia-50">
-                Dashboard de Gestão Integrada & KPIs
+                Painel da escola
               </h1>
               <p className="text-xs text-salvia-600 dark:text-salvia-400 mt-0.5">
-                Bem-vindo(a), <span className="font-semibold text-slate-900 dark:text-salvia-50">{user?.name}</span>! Perfil ativo: <span className="font-mono text-salvia-700 dark:text-salvia-300 font-semibold">{role}</span>.
+                Olá, <span className="font-semibold text-slate-900 dark:text-salvia-50">{user?.name}</span>! Perfil: <span className="font-semibold text-salvia-700 dark:text-salvia-300">{perfilAmigavel(role)}</span>.
               </p>
             </div>
-          </div>
-
-          <div className="bg-salvia-100 dark:bg-salvia-800 border border-salvia-200 dark:border-salvia-700 text-salvia-900 dark:text-salvia-100 px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center space-x-1.5 self-start sm:self-auto">
-            <ShieldCheck className="w-4 h-4 text-salvia-600 dark:text-salvia-400" />
-            <span>Sessão RBAC Validada</span>
           </div>
         </div>
 
@@ -117,7 +135,7 @@ export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
 
           <div className="bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 p-4 rounded-xl">
             <div className="flex items-center justify-between text-salvia-600 dark:text-salvia-400 text-xs mb-1 font-medium">
-              <span>Receita Mensal (AR)</span>
+              <span>Receita do mês</span>
               <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             </div>
             <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400 font-mono">
@@ -137,7 +155,7 @@ export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
 
           <div className="bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 p-4 rounded-xl">
             <div className="flex items-center justify-between text-salvia-600 dark:text-salvia-400 text-xs mb-1 font-medium">
-              <span>IA Alertas Evasão</span>
+              <span>Alunos em risco de evasão</span>
               <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             </div>
             <p className={`text-2xl font-bold font-mono ${kpi.totalAlertasEvasao > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
@@ -151,33 +169,18 @@ export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
 
       </div>
 
-      {/* AI & Regulatory Predictive Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div
-          onClick={() => onRouteChange('portal_aluno')}
-          className="cursor-pointer bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 p-5 rounded-2xl hover:border-salvia-500 transition-all space-y-2"
-        >
-          <div className="flex items-center space-x-2">
-            <Award className="w-5 h-5 text-salvia-700 dark:text-salvia-300" />
-            <h3 className="font-bold text-slate-900 dark:text-salvia-50 text-sm">Diploma Digital MEC (Portaria 70/2025)</h3>
-          </div>
-          <p className="text-xs text-salvia-600 dark:text-salvia-400">
-            Emissão em modo simulado; assinatura ICP-Brasil A3 não integrada no MVP. Verificação interna por hash SHA-256 e QR Code.
-          </p>
+      {/* Alerta de saúde */}
+      <div
+        onClick={() => onRouteChange('agenda')}
+        className="cursor-pointer bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 p-5 rounded-2xl hover:border-salvia-500 transition-all space-y-2"
+      >
+        <div className="flex items-center space-x-2">
+          <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+          <h3 className="font-bold text-slate-900 dark:text-salvia-50 text-sm">Alerta de Restrições Alimentares & Saúde</h3>
         </div>
-
-        <div
-          onClick={() => onRouteChange('agenda')}
-          className="cursor-pointer bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 p-5 rounded-2xl hover:border-salvia-500 transition-all space-y-2"
-        >
-          <div className="flex items-center space-x-2">
-            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-            <h3 className="font-bold text-slate-900 dark:text-salvia-50 text-sm">Alerta de Restrições Alimentares & Saúde</h3>
-          </div>
-          <p className="text-xs text-salvia-600 dark:text-salvia-400">
-            Restrições alimentares do prontuário aparecem no cardápio quando estão cadastradas.
-          </p>
-        </div>
+        <p className="text-xs text-salvia-600 dark:text-salvia-400">
+          Restrições alimentares do prontuário aparecem no cardápio quando estão cadastradas.
+        </p>
       </div>
     </div>
   );

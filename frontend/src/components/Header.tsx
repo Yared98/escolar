@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+import { perfilAmigavel } from '@/lib/perfis';
 import { apiFetch } from '@/lib/api';
 import {
   Wifi,
@@ -78,7 +79,7 @@ export function Header() {
               Escolar ERP
             </span>
             <span className="text-[11px] text-salvia-600 dark:text-salvia-400 font-normal leading-none">
-              Gestão Humanizada Multi-Tenant
+              Gestão escolar humanizada
             </span>
           </div>
         </div>
@@ -93,11 +94,11 @@ export function Header() {
 
       {/* Actions: RBAC Simulator, Notifications, Theme Switcher & Profile */}
       <div className="flex items-center space-x-2 sm:space-x-3">
-        {/* RBAC Role Simulator Dropdown in Header */}
-        {user && (
+        {/* Pré-visualização de menu (apenas gestão/admin) */}
+        {user && /^(admin|superadmin|gestor|gestorescolar)$/i.test(role) && (
           <div className="hidden md:flex items-center space-x-1.5 bg-salvia-50 dark:bg-salvia-950 border border-salvia-200 dark:border-salvia-800 px-2.5 py-1 rounded-xl">
             <Shield className="w-3.5 h-3.5 text-salvia-600 dark:text-salvia-400" />
-            <span className="text-[11px] font-medium text-salvia-600 dark:text-salvia-400">Ver menu como:</span>
+            <span className="text-[11px] font-medium text-salvia-600 dark:text-salvia-400">Pré-visualizar menu de:</span>
             <select
               title="Pré-visualiza o menu deste perfil nesta tela. O acesso no servidor continua o do login."
               value={(() => {
@@ -111,11 +112,11 @@ export function Header() {
               onChange={(e) => switchRole(e.target.value)}
               className="bg-transparent text-xs text-slate-900 dark:text-salvia-50 font-bold focus:outline-none cursor-pointer"
             >
-              <option value="admin">👑 Admin / Gestor</option>
-              <option value="financeiro">💼 Financeiro</option>
-              <option value="professor">👨‍🏫 Professor</option>
-              <option value="nutricionista">🥗 Nutricionista</option>
-              <option value="responsavel">👨‍👩‍👧 Responsável / Pai</option>
+              <option value="admin">Gestão</option>
+              <option value="financeiro">Financeiro</option>
+              <option value="professor">Professor(a)</option>
+              <option value="nutricionista">Nutrição</option>
+              <option value="responsavel">Família</option>
             </select>
           </div>
         )}
@@ -216,7 +217,7 @@ export function Header() {
           ) : (
             <>
               <WifiOff className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-              <span>Offline PWA</span>
+              <span>Sem internet</span>
             </>
           )}
         </div>
@@ -225,7 +226,7 @@ export function Header() {
           <div className="flex items-center space-x-3 border-l border-salvia-200 dark:border-salvia-800 pl-3 sm:pl-4">
             <div className="hidden sm:flex flex-col text-right leading-tight">
               <span className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-salvia-50">{user.name}</span>
-              <span className="text-[11px] text-salvia-700 dark:text-salvia-300 font-mono font-medium capitalize">{role}</span>
+              <span className="text-[11px] text-salvia-700 dark:text-salvia-300 font-medium">{perfilAmigavel(role)}</span>
             </div>
 
             <button
