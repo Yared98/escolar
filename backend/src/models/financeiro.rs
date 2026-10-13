@@ -17,6 +17,8 @@ pub struct Fatura {
     pub qr_code_pix: Option<String>,
     pub gateway_invoice_id: Option<String>,
     pub gateway_invoice_url: Option<String>,
+    pub gateway_pix_code: Option<String>,
+    pub gateway_digitable_line: Option<String>,
     pub gateway_name: Option<String>,
     pub contrato_id: Option<Uuid>,
     pub parcela_numero: Option<i32>,

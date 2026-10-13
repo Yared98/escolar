@@ -124,6 +124,11 @@ async fn run_cora_integration_checks(pool: &PgPool) -> Result<(), String> {
         account_lock_max_attempts: 5,
         account_lock_window_minutes: 15,
         cora_mode: CoraMode::Mock,
+        cora_client_id: None,
+        cora_cert_file: None,
+        cora_key_file: None,
+        cora_base_url: None,
+
         email_mode: EmailMode::Simulado,
         app_public_url: "http://localhost:3000".to_string(),
     };

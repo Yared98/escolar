@@ -360,3 +360,245 @@ pub async fn deletar_fatura(
         json!({ "status": "sucesso", "mensagem": "Fatura cancelada com sucesso mantendo escrituração fiscal." }),
     ))
 }
+
+#[derive(serde::Deserialize)]
+pub struct EmitirCoraDto {
+    #[serde(default)]
+    pub payment_forms: Option<Vec<String>>,
+}
+
+fn limpar_documento(doc: &str) -> String {
+    doc.chars()
+        .filter(|c| c.is_ascii_digit())
+        .take(14)
+        .collect()
+}
+
+fn tipo_documento(doc: &str) -> &'static str {
+    if doc.len() > 11 {
+        "CNPJ"
+    } else {
+        "CPF"
+    }
+}
+
+fn stable_idempotency_key_for_fatura(fatura_id: Uuid) -> String {
+    Uuid::new_v5(&Uuid::NAMESPACE_OID, fatura_id.as_bytes()).to_string()
+}
+
+pub async fn emitir_cora_fatura(
+    State(state): State<AppState>,
+    TenantDb(mut db): TenantDb,
+    Extension(active_tenant): Extension<ActiveTenant>,
+    Extension(auth_user): Extension<AuthUser>,
+    Path(fatura_id): Path<Uuid>,
+    Json(_dto): Json<EmitirCoraDto>,
+) -> Result<Json<Fatura>, AppError> {
+    check_roles(&auth_user, &["admin", "financeiro"])?;
+    let tenant_id = active_tenant.0;
+
+    if state.config.cora_mode == crate::config::CoraMode::Mock {
+        return Err(AppError::BadRequest(
+            "No modo simulado use o QR Code Pix local gerado pelo sistema.".to_string(),
+        ));
+    }
+
+    let gateway = gateway_for(&state.config);
+
+    let fatura =
+        sqlx::query_as::<_, Fatura>("SELECT * FROM faturas WHERE id = $1 AND tenant_id = $2")
+            .bind(fatura_id)
+            .bind(tenant_id)
+            .fetch_optional(&mut *db)
+            .await?
+            .ok_or(AppError::NotFound)?;
+
+    if fatura.status == "pago" {
+        return Err(AppError::Conflict(
+            "Fatura já está paga; não é possível emitir nova cobrança.".to_string(),
+        ));
+    }
+
+    if fatura.gateway_name.as_deref() == Some("cora") && fatura.gateway_invoice_id.is_some() {
+        return Ok(Json(fatura));
+    }
+
+    let responsavel = sqlx::query_as::<
+        _,
+        (
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+        ),
+    >(
+        r#"
+        SELECT
+            COALESCE(NULLIF(a.nome_responsavel_financeiro, ''), a.nome_responsavel) AS nome,
+            COALESCE(NULLIF(a.cpf_responsavel_financeiro, ''), a.cpf) AS cpf,
+            COALESCE(NULLIF(a.email_responsavel_financeiro, ''), a.email_responsavel) AS email,
+            a.nome AS aluno_nome,
+            a.cpf AS aluno_cpf
+        FROM faturas f
+        JOIN alunos a ON a.id = f.aluno_id AND a.tenant_id = f.tenant_id
+        WHERE f.id = $1 AND f.tenant_id = $2
+        "#,
+    )
+    .bind(fatura_id)
+    .bind(tenant_id)
+    .fetch_optional(&mut *db)
+    .await?
+    .unwrap_or((None, None, None, None, None));
+
+    let nome = responsavel
+        .0
+        .clone()
+        .or(responsavel.3.clone())
+        .unwrap_or_else(|| "Responsável".to_string())
+        .trim()
+        .chars()
+        .take(60)
+        .collect::<String>();
+    let documento_raw = responsavel
+        .1
+        .clone()
+        .or(responsavel.4.clone())
+        .unwrap_or_else(|| "00000000000".to_string());
+    let documento = limpar_documento(&documento_raw);
+    let email = responsavel
+        .2
+        .clone()
+        .unwrap_or_else(|| "financeiro@escola.test".to_string())
+        .trim()
+        .chars()
+        .take(60)
+        .collect::<String>();
+
+    let amount_cents = (fatura.valor * 100.0).round() as i64;
+    let due_date = fatura.data_vencimento.format("%Y-%m-%d").to_string();
+
+    let invoice_request = CoraCreateInvoiceRequest {
+        code: fatura.id.to_string(),
+        customer: CoraCustomer {
+            name: nome,
+            email,
+            document: CoraDocument {
+                identity: documento.clone(),
+                document_type: tipo_documento(&documento).to_string(),
+            },
+        },
+        services: vec![CoraService {
+            name: "Mensalidade".to_string(),
+            description: fatura.descricao.clone().chars().take(100).collect(),
+            amount: amount_cents,
+        }],
+        payment_terms: CoraPaymentTerms {
+            due_date,
+            fine: Some(CoraFine {
+                amount: None,
+                rate: Some(fatura.multa_percentual),
+            }),
+            interest: Some(CoraInterest {
+                rate: fatura.juros_mora_mes_percentual,
+            }),
+        },
+        payment_forms: Some(vec!["BANK_SLIP".to_string(), "PIX".to_string()]),
+    };
+
+    let idempotency_key = stable_idempotency_key_for_fatura(fatura.id);
+
+    let cora_invoice = gateway
+        .create_invoice(&idempotency_key, invoice_request)
+        .await?;
+
+    let updated = sqlx::query_as::<_, Fatura>(
+        r#"
+        UPDATE faturas
+        SET gateway_name = 'cora',
+            gateway_invoice_id = $1,
+            gateway_invoice_url = $2,
+            gateway_pix_code = $3,
+            gateway_digitable_line = $4,
+            updated_at = NOW()
+        WHERE id = $5 AND tenant_id = $6
+        RETURNING *
+        "#,
+    )
+    .bind(&cora_invoice.id)
+    .bind(cora_invoice.boleto_url())
+    .bind(cora_invoice.pix_emv())
+    .bind(cora_invoice.digitable_line())
+    .bind(fatura_id)
+    .bind(tenant_id)
+    .fetch_one(&mut *db)
+    .await?;
+
+    log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "EMITIR_COBRANCA_CORA",
+        "faturas",
+        Some(fatura_id.to_string()),
+        Some(json!({
+            "gateway_invoice_id": cora_invoice.id,
+            "valor": fatura.valor,
+            "responsavel_documento": documento
+        })),
+    )
+    .await;
+
+    Ok(Json(updated))
+}
+
+pub async fn simular_pagamento_cora_fatura(
+    State(state): State<AppState>,
+    TenantDb(mut db): TenantDb,
+    Extension(active_tenant): Extension<ActiveTenant>,
+    Extension(auth_user): Extension<AuthUser>,
+    Path(fatura_id): Path<Uuid>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    check_roles(&auth_user, &["admin", "financeiro"])?;
+    let tenant_id = active_tenant.0;
+
+    if state.config.cora_mode != crate::config::CoraMode::Sandbox {
+        return Err(AppError::BadRequest(
+            "Simulação de pagamento só é permitida no ambiente de testes (sandbox) da Cora."
+                .to_string(),
+        ));
+    }
+
+    let gateway = gateway_for(&state.config);
+
+    let fatura = sqlx::query_as::<_, Fatura>(
+        "SELECT * FROM faturas WHERE id = $1 AND tenant_id = $2 AND gateway_name = 'cora'",
+    )
+    .bind(fatura_id)
+    .bind(tenant_id)
+    .fetch_optional(&mut *db)
+    .await?
+    .ok_or(AppError::NotFound)?;
+
+    let cora_id = fatura.gateway_invoice_id.ok_or_else(|| {
+        AppError::BadRequest("Fatura não possui identificador da Cora.".to_string())
+    })?;
+
+    gateway.simulate_payment(&cora_id).await?;
+
+    log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "SIMULAR_PAGAMENTO_CORA",
+        "faturas",
+        Some(fatura_id.to_string()),
+        Some(json!({ "gateway_invoice_id": cora_id })),
+    )
+    .await;
+
+    Ok(Json(json!({
+        "status": "simulado",
+        "gateway_invoice_id": cora_id
+    })))
+}

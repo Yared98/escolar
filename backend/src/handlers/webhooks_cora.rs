@@ -2,7 +2,7 @@ use crate::error::AppError;
 use crate::AppState;
 use axum::{
     body::Bytes,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::HeaderMap,
     Json,
 };
@@ -64,11 +64,17 @@ impl CoraWebhookInvoice {
     }
 }
 
+#[derive(Deserialize, Default)]
+pub struct CoraWebhookQuery {
+    pub token: Option<String>,
+}
+
 type HmacSha256 = Hmac<Sha256>;
 
 pub async fn cora_webhook_handler(
     State(state): State<AppState>,
     Path(tenant_id): Path<Uuid>,
+    Query(query): Query<CoraWebhookQuery>,
     headers: HeaderMap,
     body: Bytes,
 ) -> Result<Json<serde_json::Value>, AppError> {
@@ -90,72 +96,45 @@ pub async fn cora_webhook_handler(
         }
     };
 
-    // 2. Extract Cora-Signature header
-    let raw_sig_header = headers
-        .get("Cora-Signature")
-        .and_then(|h| h.to_str().ok())
-        .ok_or_else(|| AppError::Unauthorized("Missing Cora-Signature header".into()))?;
-
-    let sig_format =
-        std::env::var("CORA_WEBHOOK_SIGNATURE_FORMAT").unwrap_or_else(|_| "hex".to_string());
-
-    let (timestamp_opt, sig_hex_str) = parse_cora_signature_header(raw_sig_header);
-
-    if sig_format == "t_v1" || timestamp_opt.is_some() {
-        let ts = timestamp_opt.ok_or_else(|| {
-            AppError::Unauthorized("Timestamp 't' missing in Cora-Signature header".into())
-        })?;
-        let now = chrono::Utc::now().timestamp();
-        let diff = (now - ts).abs();
-        if diff > 300 {
+    // Autenticação: a documentação oficial da Cora não descreve assinatura de webhook.
+    // Mantemos o header `Cora-Signature` como compatibilidade opcional;
+    // se ausente, exigimos um token secreto na query `token` ou no header `X-Cora-Webhook-Token`.
+    let sig_header_present = headers.get("Cora-Signature").is_some();
+    if sig_header_present {
+        validate_cora_signature(&headers, &body, &webhook_secret)?;
+    } else {
+        let provided_token = query
+            .token
+            .as_deref()
+            .or_else(|| {
+                headers
+                    .get("X-Cora-Webhook-Token")
+                    .and_then(|h| h.to_str().ok())
+            })
+            .unwrap_or("");
+        let expected = webhook_secret.as_bytes();
+        let provided = provided_token.as_bytes();
+        let len_match = expected.len().ct_eq(&provided.len());
+        let bytes_match = expected.ct_eq(provided);
+        let valid: bool = (len_match & bytes_match).into();
+        if !valid {
             return Err(AppError::Unauthorized(
-                "Webhook timestamp expired or out of tolerance".into(),
+                "Token de webhook inválido ou ausente".into(),
             ));
         }
     }
 
-    // 3. Compute HMAC SHA-256 and constant-time comparison
-    let mut mac = HmacSha256::new_from_slice(webhook_secret.as_bytes())
-        .map_err(|_| AppError::InternalServerError("Invalid HMAC key length".into()))?;
+    // Formato documentado da Cora envia os dados do evento nos headers e o corpo pode ser vazio.
+    // Montamos um payload compatível a partir dos headers quando necessário.
+    let (event_id, event_type, invoice) = extract_event_from_headers_or_body(&headers, &body)?;
+    let cora_id = invoice.id.clone();
 
-    if let Some(ts) = timestamp_opt {
-        mac.update(ts.to_string().as_bytes());
-        mac.update(b".");
-    }
-    mac.update(&body);
-
-    let calculated_sig_bytes = mac.finalize().into_bytes();
-
-    let header_sig_bytes = hex::decode(&sig_hex_str)
-        .map_err(|_| AppError::Unauthorized("Invalid hex in Cora-Signature header".into()))?;
-
-    let len_match = header_sig_bytes.len().ct_eq(&calculated_sig_bytes.len());
-    let bytes_match = header_sig_bytes.ct_eq(&calculated_sig_bytes[..]);
-    let sig_valid: bool = (len_match & bytes_match).into();
-
-    if !sig_valid {
-        return Err(AppError::Unauthorized("Invalid webhook signature".into()));
-    }
-
-    // 4. Parse the verified payload
-    let payload: CoraWebhookPayload = serde_json::from_slice(&body)
-        .map_err(|_| AppError::BadRequest("Invalid JSON payload".into()))?;
-
-    // 5. Atomic transaction for idempotency check and business processing
+    // Atomic transaction for idempotency check and business processing
     let mut tx = db.begin().await?;
     sqlx::query("SELECT set_config('app.current_tenant', $1, true)")
         .bind(tenant_id.to_string())
         .execute(&mut *tx)
         .await?;
-
-    let cora_id = payload.data.invoice.id.clone();
-    let event_id = payload.event_id.clone().unwrap_or_else(|| {
-        headers
-            .get("webhook-event-id")
-            .and_then(|h| h.to_str().ok())
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| format!("{}_{}", payload.event_type, cora_id))
-    });
 
     let payload_hash = hex::encode(Sha256::digest(&body));
 
@@ -180,8 +159,8 @@ pub async fn cora_webhook_handler(
         })));
     }
 
-    // 6. Process business logic inside the same transaction
-    if payload.event_type == "invoice.paid" || payload.event_type == "invoice.settled" {
+    // Process business logic inside the same transaction
+    if event_type == "invoice.paid" || event_type == "invoice.settled" {
         let fatura_opt = sqlx::query_as::<_, (Uuid, f64, String)>(
             "SELECT id, valor, status FROM faturas WHERE tenant_id = $1 AND gateway_invoice_id = $2 AND gateway_name = 'cora'"
         )
@@ -192,7 +171,7 @@ pub async fn cora_webhook_handler(
 
         if let Some((fatura_id, fatura_valor, status)) = fatura_opt {
             if status == "pendente" {
-                if let Some(paid_reais) = payload.data.invoice.get_paid_value() {
+                if let Some(paid_reais) = invoice.get_paid_value() {
                     if (paid_reais - fatura_valor).abs() > 0.01 {
                         sqlx::query(
                             "INSERT INTO audit_logs (tenant_id, acao, entidade, entidade_id, detalhes_json) VALUES ($1, 'webhook_valor_divergente', 'faturas', $2, $3)"
@@ -237,6 +216,103 @@ pub async fn cora_webhook_handler(
     tx.commit().await?;
 
     Ok(Json(serde_json::json!({"status": "received"})))
+}
+
+fn validate_cora_signature(
+    headers: &HeaderMap,
+    body: &Bytes,
+    webhook_secret: &str,
+) -> Result<(), AppError> {
+    let raw_sig_header = headers
+        .get("Cora-Signature")
+        .and_then(|h| h.to_str().ok())
+        .ok_or_else(|| AppError::Unauthorized("Missing Cora-Signature header".into()))?;
+
+    let sig_format =
+        std::env::var("CORA_WEBHOOK_SIGNATURE_FORMAT").unwrap_or_else(|_| "hex".to_string());
+
+    let (timestamp_opt, sig_hex_str) = parse_cora_signature_header(raw_sig_header);
+
+    if sig_format == "t_v1" || timestamp_opt.is_some() {
+        let ts = timestamp_opt.ok_or_else(|| {
+            AppError::Unauthorized("Timestamp 't' missing in Cora-Signature header".into())
+        })?;
+        let now = chrono::Utc::now().timestamp();
+        let diff = (now - ts).abs();
+        if diff > 300 {
+            return Err(AppError::Unauthorized(
+                "Webhook timestamp expired or out of tolerance".into(),
+            ));
+        }
+    }
+
+    let mut mac = HmacSha256::new_from_slice(webhook_secret.as_bytes())
+        .map_err(|_| AppError::InternalServerError("Invalid HMAC key length".into()))?;
+
+    if let Some(ts) = timestamp_opt {
+        mac.update(ts.to_string().as_bytes());
+        mac.update(b".");
+    }
+    mac.update(body);
+
+    let calculated_sig_bytes = mac.finalize().into_bytes();
+
+    let header_sig_bytes = hex::decode(&sig_hex_str)
+        .map_err(|_| AppError::Unauthorized("Invalid hex in Cora-Signature header".into()))?;
+
+    let len_match = header_sig_bytes.len().ct_eq(&calculated_sig_bytes.len());
+    let bytes_match = header_sig_bytes.ct_eq(&calculated_sig_bytes[..]);
+    let sig_valid: bool = (len_match & bytes_match).into();
+
+    if !sig_valid {
+        return Err(AppError::Unauthorized("Invalid webhook signature".into()));
+    }
+
+    Ok(())
+}
+
+fn extract_event_from_headers_or_body(
+    headers: &HeaderMap,
+    body: &Bytes,
+) -> Result<(String, String, CoraWebhookInvoice), AppError> {
+    // Cora envia evento nos headers: webhook-event-id, webhook-event-type, webhook-resource-id.
+    let header_event_id = headers
+        .get("webhook-event-id")
+        .and_then(|h| h.to_str().ok());
+    let header_event_type = headers
+        .get("webhook-event-type")
+        .and_then(|h| h.to_str().ok());
+    let header_resource_id = headers
+        .get("webhook-resource-id")
+        .and_then(|h| h.to_str().ok());
+
+    if let (Some(event_id), Some(event_type), Some(resource_id)) =
+        (header_event_id, header_event_type, header_resource_id)
+    {
+        let invoice = CoraWebhookInvoice {
+            id: resource_id.to_string(),
+            status: None,
+            amount: None,
+            paid_amount: None,
+            value: None,
+            amount_cents: None,
+        };
+        return Ok((event_id.to_string(), event_type.to_string(), invoice));
+    }
+
+    // Fallback: payload JSON antigo (compatibilidade com integrações existentes)
+    let payload: CoraWebhookPayload = serde_json::from_slice(body)
+        .map_err(|_| AppError::BadRequest("Invalid JSON payload".into()))?;
+
+    let event_id = payload.event_id.unwrap_or_else(|| {
+        headers
+            .get("webhook-event-id")
+            .and_then(|h| h.to_str().ok())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| format!("{}_{}", payload.event_type, payload.data.invoice.id))
+    });
+
+    Ok((event_id, payload.event_type, payload.data.invoice))
 }
 
 fn parse_cora_signature_header(header: &str) -> (Option<i64>, String) {

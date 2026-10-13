@@ -67,7 +67,7 @@
   "GET /secretaria/turmas": 5,
   "GET /secretaria/turmas/{}/alunos": 5,
   "GET /secretaria/virada-ano/previa": 1,
-  "GET /tenant/integrations/banking": 1,
+  "GET /tenant/integrations/banking": 2,
   "POST /academico/diario/sync": 1,
   "POST /academico/fechamentos": 1,
   "POST /academico/notas/lote": 1,
@@ -96,6 +96,8 @@
   "POST /financeiro/despesas/{}/estornar": 1,
   "POST /financeiro/faturas": 1,
   "POST /financeiro/faturas/gerar-parcelas": 1,
+  "POST /financeiro/faturas/{}/cora": 1,
+  "POST /financeiro/faturas/{}/cora/simular-pagamento": 1,
   "POST /financeiro/nfse/emitir": 1,
   "POST /notificacoes/push/subscribe": 1,
   "POST /nutricao/cardapios/recorrencias": 1,
@@ -124,6 +126,5 @@
   "PUT /planos-aula": 1,
   "PUT /planos-aula/{}/comentario": 1,
   "PUT /secretaria/alunos/{}": 1,
-  "PUT /secretaria/prontuarios/{}": 2,
-  "PUT /tenant/integrations/banking": 1
+  "PUT /secretaria/prontuarios/{}": 2
 }

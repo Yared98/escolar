@@ -20,6 +20,10 @@ use crate::{
         GerarParcelasContratoDto, MensagensReguaContadores, NfseEmissao, ProcessarConciliacaoDto,
         ReguaCobrancaLog, ReguaExecucaoResultDto, UpdateDespesaDto, UpdateFaturaDto,
     },
+    services::cora_api::{
+        gateway_for, CoraCreateInvoiceRequest, CoraCustomer, CoraDocument, CoraFine, CoraInterest,
+        CoraPaymentTerms, CoraService,
+    },
     services::faturamento::{
         gerar_parcelas_contrato, inserir_fatura, tenant_nome, valor_atualizado_com_encargos,
         NovaFaturaParams,
@@ -137,6 +141,8 @@ mod tests {
             qr_code_pix: None,
             gateway_invoice_id: None,
             gateway_invoice_url: None,
+            gateway_pix_code: None,
+            gateway_digitable_line: None,
             gateway_name: None,
             contrato_id: None,
             parcela_numero: None,

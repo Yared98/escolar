@@ -7,6 +7,10 @@ export interface Fatura {
   metodo_pagamento: string;
   status: string;
   qr_code_pix?: string;
+  gateway_name?: string | null;
+  gateway_invoice_id?: string | null;
+  gateway_invoice_url?: string | null;
+  gateway_pix_code?: string | null;
   parcela_numero?: number | null;
   parcela_total?: number | null;
   multa_percentual?: number;

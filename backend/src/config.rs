@@ -83,8 +83,175 @@ pub struct Config {
     pub account_lock_max_attempts: i64,
     pub account_lock_window_minutes: i64,
     pub cora_mode: CoraMode,
+    pub cora_client_id: Option<String>,
+    pub cora_cert_file: Option<String>,
+    pub cora_key_file: Option<String>,
+    pub cora_base_url: Option<String>,
     pub email_mode: EmailMode,
     pub app_public_url: String,
+}
+
+impl Config {
+    /// Indica se as credenciais de servidor da Cora estão presentes.
+    /// Em modo de teste (CORA_BASE_URL explícito com http://) o certificado não é exigido.
+    pub fn cora_configured_for(&self, mode: CoraMode) -> bool {
+        if mode == CoraMode::Mock {
+            return true;
+        }
+        if let Some(base) = &self.cora_base_url {
+            if base.trim().starts_with("http://") {
+                return !base.trim().is_empty();
+            }
+        }
+        self.cora_client_id
+            .as_ref()
+            .is_some_and(|s| !s.trim().is_empty())
+            && self
+                .cora_cert_file
+                .as_ref()
+                .is_some_and(|s| !s.trim().is_empty())
+            && self
+                .cora_key_file
+                .as_ref()
+                .is_some_and(|s| !s.trim().is_empty())
+    }
+
+    pub fn is_production(&self) -> bool {
+        self.environment.to_lowercase() == "production"
+    }
+
+    pub fn from_env() -> Result<Self, String> {
+        let environment = env::var("APP_ENV")
+            .or_else(|_| env::var("ENVIRONMENT"))
+            .unwrap_or_else(|_| "development".to_string());
+
+        let is_production = environment.to_lowercase() == "production";
+
+        let database_url = match env::var("DATABASE_URL") {
+            Ok(url) if !url.trim().is_empty() => url,
+            _ => {
+                if is_production {
+                    return Err(
+                        "ERRO DE SEGURANÇA: DATABASE_URL deve ser explicitamente configurada em produção!"
+                            .to_string(),
+                    );
+                }
+                "postgres://escolar_app:escolar_password@localhost:5432/escolar_db".to_string()
+            }
+        };
+
+        let (jwt_private_pem, jwt_public_pem, jwt_public_x) = if let Ok(path) =
+            env::var("JWT_ED25519_PRIVATE_PEM_FILE")
+        {
+            if path.trim().is_empty() {
+                // Variável definida mas vazia: ignore e tente a próxima fonte.
+                if let Ok(pem) = env::var("JWT_ED25519_PRIVATE_PEM") {
+                    if pem.trim().is_empty() {
+                        return Err("JWT_ED25519_PRIVATE_PEM está vazio.".to_string());
+                    }
+                    material_from_private_pem(&pem)?
+                } else if is_production {
+                    return Err(
+                        "ERRO CRÍTICO: em produção, configure JWT_ED25519_PRIVATE_PEM (conteúdo) ou JWT_ED25519_PRIVATE_PEM_FILE (caminho) com uma chave PKCS#8 Ed25519."
+                            .to_string(),
+                    );
+                } else {
+                    development_signing_material()
+                }
+            } else {
+                let pem = std::fs::read_to_string(&path).map_err(|e| {
+                    format!("JWT_ED25519_PRIVATE_PEM_FILE ({path}) não pôde ser lido: {e}")
+                })?;
+                if pem.trim().is_empty() {
+                    return Err(
+                        "JWT_ED25519_PRIVATE_PEM_FILE aponta para arquivo vazio.".to_string()
+                    );
+                }
+                material_from_private_pem(&pem)?
+            }
+        } else if let Ok(pem) = env::var("JWT_ED25519_PRIVATE_PEM") {
+            if pem.trim().is_empty() {
+                return Err("JWT_ED25519_PRIVATE_PEM está vazio.".to_string());
+            }
+            material_from_private_pem(&pem)?
+        } else if is_production {
+            return Err(
+                "ERRO CRÍTICO: em produção, configure JWT_ED25519_PRIVATE_PEM (conteúdo) ou JWT_ED25519_PRIVATE_PEM_FILE (caminho) com uma chave PKCS#8 Ed25519."
+                    .to_string(),
+            );
+        } else {
+            development_signing_material()
+        };
+
+        let allowed_origins = env::var("ALLOWED_ORIGINS")
+            .unwrap_or_else(|_| "http://localhost:3000,http://127.0.0.1:3000".to_string());
+
+        let port = env::var("PORT")
+            .ok()
+            .and_then(|p| p.parse().ok())
+            .unwrap_or(8000);
+
+        let trusted_proxy = env::var("TRUSTED_PROXY")
+            .map(|v| {
+                let s = v.trim().to_lowercase();
+                s == "true" || s == "1" || s == "yes"
+            })
+            .unwrap_or(false);
+
+        let rate_limit_public_rpm = env::var("RATE_LIMIT_PUBLIC_RPM")
+            .or_else(|_| env::var("RATE_LIMIT_PER_MINUTE"))
+            .ok()
+            .and_then(|p| p.parse().ok())
+            .unwrap_or(60);
+
+        let account_lock_max_attempts = env::var("ACCOUNT_LOCK_MAX_ATTEMPTS")
+            .ok()
+            .and_then(|p| p.parse().ok())
+            .unwrap_or(5);
+
+        let account_lock_window_minutes = env::var("ACCOUNT_LOCK_WINDOW_MINUTES")
+            .ok()
+            .and_then(|p| p.parse().ok())
+            .unwrap_or(15);
+
+        let cora_mode = parse_cora_mode(env::var("CORA_MODE").ok().as_deref())?;
+        let cora_client_id = env::var("CORA_CLIENT_ID")
+            .ok()
+            .filter(|s| !s.trim().is_empty());
+        let cora_cert_file = env::var("CORA_CERT_FILE")
+            .ok()
+            .filter(|s| !s.trim().is_empty());
+        let cora_key_file = env::var("CORA_KEY_FILE")
+            .ok()
+            .filter(|s| !s.trim().is_empty());
+        let cora_base_url = env::var("CORA_BASE_URL")
+            .ok()
+            .filter(|s| !s.trim().is_empty());
+        let email_mode = parse_email_mode(env::var("EMAIL_MODE").ok().as_deref(), is_production)?;
+        let app_public_url =
+            env::var("APP_PUBLIC_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
+
+        Ok(Config {
+            database_url,
+            jwt_private_pem,
+            jwt_public_pem,
+            jwt_public_x,
+            port,
+            allowed_origins,
+            environment,
+            trusted_proxy,
+            rate_limit_public_rpm,
+            account_lock_max_attempts,
+            account_lock_window_minutes,
+            cora_mode,
+            cora_client_id,
+            cora_cert_file,
+            cora_key_file,
+            cora_base_url,
+            email_mode,
+            app_public_url,
+        })
+    }
 }
 
 impl std::fmt::Debug for Config {
@@ -105,6 +272,7 @@ impl std::fmt::Debug for Config {
                 &self.account_lock_window_minutes,
             )
             .field("cora_mode", &self.cora_mode)
+            .field("cora_base_url", &self.cora_base_url)
             .field("email_mode", &self.email_mode)
             .field("app_public_url", &self.app_public_url)
             .finish()
@@ -271,129 +439,6 @@ fn base64_url(bytes: &[u8]) -> String {
     result
 }
 
-impl Config {
-    pub fn is_production(&self) -> bool {
-        self.environment.to_lowercase() == "production"
-    }
-
-    pub fn from_env() -> Result<Self, String> {
-        let environment = env::var("APP_ENV")
-            .or_else(|_| env::var("ENVIRONMENT"))
-            .unwrap_or_else(|_| "development".to_string());
-
-        let is_production = environment.to_lowercase() == "production";
-
-        let database_url = match env::var("DATABASE_URL") {
-            Ok(url) if !url.trim().is_empty() => url,
-            _ => {
-                if is_production {
-                    return Err(
-                        "ERRO DE SEGURANÇA: DATABASE_URL deve ser explicitamente configurada em produção!"
-                            .to_string(),
-                    );
-                }
-                "postgres://escolar_app:escolar_password@localhost:5432/escolar_db".to_string()
-            }
-        };
-
-        let (jwt_private_pem, jwt_public_pem, jwt_public_x) = if let Ok(path) =
-            env::var("JWT_ED25519_PRIVATE_PEM_FILE")
-        {
-            if path.trim().is_empty() {
-                // Variável definida mas vazia: ignore e tente a próxima fonte.
-                if let Ok(pem) = env::var("JWT_ED25519_PRIVATE_PEM") {
-                    if pem.trim().is_empty() {
-                        return Err("JWT_ED25519_PRIVATE_PEM está vazio.".to_string());
-                    }
-                    material_from_private_pem(&pem)?
-                } else if is_production {
-                    return Err(
-                        "ERRO CRÍTICO: em produção, configure JWT_ED25519_PRIVATE_PEM (conteúdo) ou JWT_ED25519_PRIVATE_PEM_FILE (caminho) com uma chave PKCS#8 Ed25519."
-                            .to_string(),
-                    );
-                } else {
-                    development_signing_material()
-                }
-            } else {
-                let pem = std::fs::read_to_string(&path).map_err(|e| {
-                    format!("JWT_ED25519_PRIVATE_PEM_FILE ({path}) não pôde ser lido: {e}")
-                })?;
-                if pem.trim().is_empty() {
-                    return Err(
-                        "JWT_ED25519_PRIVATE_PEM_FILE aponta para arquivo vazio.".to_string()
-                    );
-                }
-                material_from_private_pem(&pem)?
-            }
-        } else if let Ok(pem) = env::var("JWT_ED25519_PRIVATE_PEM") {
-            if pem.trim().is_empty() {
-                return Err("JWT_ED25519_PRIVATE_PEM está vazio.".to_string());
-            }
-            material_from_private_pem(&pem)?
-        } else if is_production {
-            return Err(
-                "ERRO CRÍTICO: em produção, configure JWT_ED25519_PRIVATE_PEM (conteúdo) ou JWT_ED25519_PRIVATE_PEM_FILE (caminho) com uma chave PKCS#8 Ed25519."
-                    .to_string(),
-            );
-        } else {
-            development_signing_material()
-        };
-
-        let allowed_origins = env::var("ALLOWED_ORIGINS")
-            .unwrap_or_else(|_| "http://localhost:3000,http://127.0.0.1:3000".to_string());
-
-        let port = env::var("PORT")
-            .ok()
-            .and_then(|p| p.parse().ok())
-            .unwrap_or(8000);
-
-        let trusted_proxy = env::var("TRUSTED_PROXY")
-            .map(|v| {
-                let s = v.trim().to_lowercase();
-                s == "true" || s == "1" || s == "yes"
-            })
-            .unwrap_or(false);
-
-        let rate_limit_public_rpm = env::var("RATE_LIMIT_PUBLIC_RPM")
-            .or_else(|_| env::var("RATE_LIMIT_PER_MINUTE"))
-            .ok()
-            .and_then(|p| p.parse().ok())
-            .unwrap_or(60);
-
-        let account_lock_max_attempts = env::var("ACCOUNT_LOCK_MAX_ATTEMPTS")
-            .ok()
-            .and_then(|p| p.parse().ok())
-            .unwrap_or(5);
-
-        let account_lock_window_minutes = env::var("ACCOUNT_LOCK_WINDOW_MINUTES")
-            .ok()
-            .and_then(|p| p.parse().ok())
-            .unwrap_or(15);
-
-        let cora_mode = parse_cora_mode(env::var("CORA_MODE").ok().as_deref())?;
-        let email_mode = parse_email_mode(env::var("EMAIL_MODE").ok().as_deref(), is_production)?;
-        let app_public_url =
-            env::var("APP_PUBLIC_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
-
-        Ok(Config {
-            database_url,
-            jwt_private_pem,
-            jwt_public_pem,
-            jwt_public_x,
-            port,
-            allowed_origins,
-            environment,
-            trusted_proxy,
-            rate_limit_public_rpm,
-            account_lock_max_attempts,
-            account_lock_window_minutes,
-            cora_mode,
-            email_mode,
-            app_public_url,
-        })
-    }
-}
-
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -409,6 +454,10 @@ impl Default for Config {
             account_lock_max_attempts: 5,
             account_lock_window_minutes: 15,
             cora_mode: CoraMode::Mock,
+            cora_client_id: None,
+            cora_cert_file: None,
+            cora_key_file: None,
+            cora_base_url: None,
             email_mode: EmailMode::Simulado,
             app_public_url: "http://localhost:3000".to_string(),
         }
@@ -462,6 +511,10 @@ mod tests {
             account_lock_max_attempts: 5,
             account_lock_window_minutes: 15,
             cora_mode: CoraMode::Mock,
+            cora_client_id: Some("client_id".to_string()),
+            cora_cert_file: Some("/run/segredos/cert.pem".to_string()),
+            cora_key_file: Some("/run/segredos/key.pem".to_string()),
+            cora_base_url: None,
             email_mode: EmailMode::Simulado,
             app_public_url: "http://localhost:3000".to_string(),
         };
@@ -469,6 +522,9 @@ mod tests {
         let debug_repr = format!("{:?}", config);
         assert!(!debug_repr.contains("escolar_password"));
         assert!(!debug_repr.contains("BEGIN PRIVATE KEY"));
+        assert!(!debug_repr.contains("client_id"));
+        assert!(!debug_repr.contains("cert.pem"));
+        assert!(!debug_repr.contains("key.pem"));
         assert!(debug_repr.contains("database_url: \"***\""));
         assert!(debug_repr.contains("jwt_private_pem: \"***\""));
     }
@@ -502,5 +558,21 @@ mod tests {
     fn test_email_mode_invalido_prod_erro() {
         let err = parse_email_mode(Some("smtp"), true).unwrap_err();
         assert!(err.contains("EMAIL_MODE='smtp'"));
+    }
+
+    #[test]
+    fn test_cora_configured_for() {
+        let mut config = Config::default();
+        assert!(config.cora_configured_for(CoraMode::Mock));
+        assert!(!config.cora_configured_for(CoraMode::Sandbox));
+
+        config.cora_base_url = Some("http://localhost:9999".to_string());
+        assert!(config.cora_configured_for(CoraMode::Sandbox));
+
+        config.cora_base_url = None;
+        config.cora_client_id = Some("id".to_string());
+        config.cora_cert_file = Some("/run/segredos/cert.pem".to_string());
+        config.cora_key_file = Some("/run/segredos/key.pem".to_string());
+        assert!(config.cora_configured_for(CoraMode::Production));
     }
 }
