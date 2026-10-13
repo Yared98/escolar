@@ -187,6 +187,7 @@ A gestão de calendário escolar e engajamento familiar suporta confirmação de
 ### 8.1 Gestão de Eventos
 - O calendário escolar permite criar eventos categorizados (`feriado`, `ferias`, `reuniao_pais`, `festa`, `prova`).
 - Funcionalidade `exige_confirmacao_presenca`: Flag que ativa o ciclo de RSVP para o evento. Quando ativada, os usuários convidados recebem alertas e o evento rastreia presenças.
+- `eventos_calendario` tem a coluna `disciplina_id` (UUID, `REFERENCES disciplinas(id) ON DELETE SET NULL`, migration `20261014200000_avaliacoes_turma.sql`) usada pelo calendário de avaliações por turma (`/api/v1/avaliacoes`). A tabela continua sob RLS com política `tenant_id = get_current_tenant()`.
 
 ### 8.2 Confirmação de Presença (RSVP) e Acompanhantes
 - Ao responder, o responsável não envia apenas um `Sim/Não`. Se for um evento aplicável, o sistema registra a **Quantidade de Acompanhantes** que o responsável trará para dimensionar espaços e assentos.

@@ -158,6 +158,38 @@ export interface NotaAluno {
   nota?: number | null;
 }
 
+export type TipoAvaliacao = 'prova' | 'trabalho' | 'atividade';
+
+export const TIPOS_AVALIACAO: { value: TipoAvaliacao; label: string }[] = [
+  { value: 'prova', label: 'Prova' },
+  { value: 'trabalho', label: 'Trabalho' },
+  { value: 'atividade', label: 'Atividade' },
+];
+
+/** Avaliação (prova, trabalho ou atividade) marcada no calendário de uma turma. */
+export interface AvaliacaoCalendario {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  /** Data no formato YYYY-MM-DD. */
+  data: string;
+  tipo: TipoAvaliacao;
+  turma_id: string;
+  turma_nome: string;
+  disciplina_id: string | null;
+  disciplina_nome: string | null;
+}
+
+/** Dados que o professor envia para marcar uma nova avaliação. */
+export interface NovaAvaliacaoPayload {
+  turma_id: string;
+  disciplina_id: string;
+  titulo: string;
+  descricao?: string | null;
+  data: string;
+  tipo: TipoAvaliacao;
+}
+
 export type PeriodoNota =
   | '1_bimestre'
   | '2_bimestre'
