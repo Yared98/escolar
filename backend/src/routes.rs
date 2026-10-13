@@ -44,6 +44,7 @@ use crate::{
             responder_protocolo_atendimento, salvar_lms_config, scorm_track, whatsapp_webhook,
             whatsapp_webhook_verify,
         },
+        documentos::emitir_documento,
         financeiro::{
             atualizar_despesa, atualizar_fatura, deletar_despesa, deletar_fatura, emitir_nfse,
             estornar_despesa, executar_regua_cobranca, gerar_despesa, gerar_fatura,
@@ -128,6 +129,10 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/secretaria/alunos/:aluno_id",
             put(atualizar_aluno).delete(deletar_aluno),
+        )
+        .route(
+            "/secretaria/alunos/:aluno_id/documento",
+            get(emitir_documento),
         )
         .route(
             "/secretaria/prontuarios/:aluno_id",

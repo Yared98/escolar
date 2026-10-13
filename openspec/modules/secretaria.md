@@ -130,6 +130,18 @@ O módulo cobre o **ciclo de vida completo do estudante** (matrícula com duplo 
   - Endpoints `GET /api/v1/secretaria/salas`, `POST /api/v1/secretaria/salas`, `DELETE /api/v1/secretaria/salas/:sala_id` para catalogação e controle dos espaços escolares com capacidade nominal.
 - **UI Secretaria e lotação**: o carregamento de alunos/turmas/salas/professores é independente (`Promise.allSettled`); falha em um recurso não zera os demais. Lotação exibida usa apenas `alunos_matriculados` / `vagas_restantes` da API (sem fallbacks fictícios). Diário e Secretaria compartilham `GET /secretaria/turmas`.
 
+## 6.1. Documentos para impressão (declarações e histórico)
+
+- Endpoint: `GET /api/v1/secretaria/alunos/:aluno_id/documento?tipo=declaracao_matricula|declaracao_frequencia|historico`, papéis `admin`, `gestor`, `secretaria`, handler em `backend/src/handlers/documentos.rs`, `TenantDb`, aluno do próprio tenant (404 se de outro tenant).
+- Resposta JSON com escola (nome, CNPJ e endereço quando existirem, senão `null`), aluno (nome, data de nascimento, CPF quando houver, matrícula/RA quando houver), turma atual e ano letivo, situação da matrícula, frequência anual (total de aulas/presenças/percentual) no caso de declaração de frequência, notas por disciplina e período com média no histórico, `emitido_em` e `codigo_verificacao` (SHA-256 curto de tenant+aluno+tipo+data). Registra `log_audit` com ação `DOCUMENTO_EMITIDO`.
+- Frontend: em `frontend/src/components/secretaria/AlunosPanel.tsx`, menu de ações do aluno ("⋮") possui opção "Emitir documento" que abre modal de escolha de tipo em `SecretariaSection.tsx` e, na sequência, a visualização para impressão em `secretaria/DocumentoImpressao.tsx` (somente exibição; chamada de API em `SecretariaSection.tsx`). Impressão via `window.print()` (menu, cabeçalho do app e barra inferior ocultos em `@media print`).
+
+### Limitações MVP
+- Documento impresso em HTML/PDF pelo navegador, sem assinatura digital ICP-Brasil; assinatura feita à mão na linha de assinatura da secretaria.
+- `codigo_verificacao` é de uso interno da escola, não é validado publicamente.
+- Se faltarem dados da escola (CNPJ/endereço), os campos ficam em branco para preenchimento manual.
+- Não há matrícula/RA persistido no MVP (campo `null` na resposta) nem endereço cadastrado em `tenants` (campo `null`).
+
 ## 7. Mapa de código (frontend)
 
 Organização após o refactor B12 (só moveu código, sem mudança de regra):

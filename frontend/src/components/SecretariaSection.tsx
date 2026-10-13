@@ -20,6 +20,7 @@ import {
   TurmaAlunosModal,
   MatriculaModal,
   AlunosPanel,
+  DocumentoImpressao,
   TurmasPanel,
   labelStatusAluno,
   statusAlunoBadgeClass,
@@ -126,6 +127,13 @@ export function SecretariaSection() {
     aluno: Aluno;
     prontuario: ProntuarioData;
   } | null>(null);
+
+  // Documento para impressão (secretaria)
+  const [documentoAluno, setDocumentoAluno] = useState<Aluno | null>(null);
+  const [documentoTipo, setDocumentoTipo] = useState<'declaracao_matricula' | 'declaracao_frequencia' | 'historico'>('declaracao_matricula');
+  const [documentoLoading, setDocumentoLoading] = useState(false);
+  const [documentoError, setDocumentoError] = useState<string | null>(null);
+  const [documentoPrint, setDocumentoPrint] = useState<any>(null);
   const [isEditingProntuario, setIsEditingProntuario] = useState(false);
   const [editTipoSanguineo, setEditTipoSanguineo] = useState('O+');
   const [editAlergias, setEditAlergias] = useState('');
@@ -782,6 +790,35 @@ export function SecretariaSection() {
     }
   };
 
+  const handleEmitirDocumento = (aluno: Aluno) => {
+    setDocumentoAluno(aluno);
+    setDocumentoTipo('declaracao_matricula');
+    setDocumentoError(null);
+    setDocumentoPrint(null);
+  };
+
+  const handleGerarDocumento = async () => {
+    if (!documentoAluno) return;
+    setDocumentoLoading(true);
+    setDocumentoError(null);
+    try {
+      const data = await apiFetch<any>(
+        `/secretaria/alunos/${documentoAluno.id}/documento?tipo=${documentoTipo}`
+      );
+      setDocumentoPrint(data);
+    } catch (err: unknown) {
+      setDocumentoError(err instanceof Error ? err.message : 'Não foi possível emitir o documento.');
+    } finally {
+      setDocumentoLoading(false);
+    }
+  };
+
+  const handleFecharDocumento = () => {
+    setDocumentoAluno(null);
+    setDocumentoPrint(null);
+    setDocumentoError(null);
+  };
+
   const initProntuarioEditFields = (p: ProntuarioData) => {
     setEditTipoSanguineo(p.tipo_sanguineo || 'Não informado');
     setEditAlergias(p.alergias || '');
@@ -971,6 +1008,7 @@ export function SecretariaSection() {
           loading={loading}
           alunos={alunos}
           handleViewProntuario={handleViewProntuario}
+          handleEmitirDocumento={handleEmitirDocumento}
           menuStatusAlunoId={menuStatusAlunoId}
           setMenuStatusAlunoId={setMenuStatusAlunoId}
           handleAlterarStatus={handleAlterarStatus}
@@ -1106,6 +1144,50 @@ export function SecretariaSection() {
           );
         }}
       />
+
+      {/* Modal de escolha de tipo de documento */}
+      {documentoAluno && !documentoPrint && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl dark:bg-[#141d17]">
+            <h3 className="mb-3 text-base font-bold text-slate-900 dark:text-slate-100">Emitir documento</h3>
+            <p className="mb-3 text-sm text-slate-600 dark:text-slate-300">{documentoAluno.nome}</p>
+            <label className="flex flex-col gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
+              Tipo de documento
+              <select
+                value={documentoTipo}
+                onChange={(e) => setDocumentoTipo(e.target.value as any)}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
+              >
+                <option value="declaracao_matricula">Declaração de matrícula</option>
+                <option value="declaracao_frequencia">Declaração de frequência</option>
+                <option value="historico">Histórico escolar</option>
+              </select>
+            </label>
+            {documentoError && <p className="mt-2 text-sm text-rose-600">{documentoError}</p>}
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleFecharDocumento}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold min-h-[44px]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleGerarDocumento()}
+                disabled={documentoLoading}
+                className="rounded-lg bg-salvia-700 px-3 py-2 text-sm font-bold text-white min-h-[44px] disabled:opacity-50"
+              >
+                {documentoLoading ? 'Gerando...' : 'Visualizar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {documentoPrint && (
+        <DocumentoImpressao documento={documentoPrint} onClose={handleFecharDocumento} />
+      )}
 
       {/* Modal Criar Nova Turma Completa */}
       {showTurmaModal && (

@@ -6,6 +6,7 @@ export * from './NovaTurmaModal';
 export * from './TurmaAlunosModal';
 export * from './MatriculaModal';
 export * from './AlunosPanel';
+export * from './DocumentoImpressao';
 export * from './TurmasPanel';
 export * from './matricula/DadosAlunoTab';
 export * from './matricula/ResponsaveisTab';
