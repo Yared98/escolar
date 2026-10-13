@@ -180,7 +180,7 @@ export function ComposerModal({
                         : 'Selecione o aluno'}
                 </option>
                 {opcoesPrivado.map((op) => (
-                  <option key={op.id} value={op.id}>{op.rotulo}</option>
+                  <option key={op.id} value={op.id} disabled={op.semAcesso}>{op.rotulo}</option>
                 ))}
               </select>
             </label>

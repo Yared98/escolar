@@ -116,11 +116,26 @@ export function AgendaDigitalSection() {
     }
     let ativo = true;
     setCarregandoAlunos(true);
-    apiFetch<{ items: AlunoResumo[] }>(
-      `/secretaria/alunos?status=ativo&limit=200&turma_id=${encodeURIComponent(turmaPrivadoId)}`,
-    )
-      .then((page) => {
-        if (ativo) setAlunosTurma(page.items || []);
+    // Lista da turma traz o responsável que tem acesso ao portal (quem recebe de fato a mensagem).
+    apiFetch<
+      {
+        aluno_id: string;
+        nome: string;
+        nome_responsavel: string;
+        responsavel_user_id?: string | null;
+        responsavel_nome?: string | null;
+      }[]
+    >(`/secretaria/turmas/${encodeURIComponent(turmaPrivadoId)}/alunos`)
+      .then((lista) => {
+        if (!ativo) return;
+        setAlunosTurma(
+          (lista || []).map((a) => ({
+            id: a.aluno_id,
+            nome: a.nome,
+            nome_responsavel: a.responsavel_nome || a.nome_responsavel,
+            responsavel_user_id: a.responsavel_user_id ?? null,
+          })),
+        );
       })
       .catch((err: unknown) => {
         if (!ativo) return;

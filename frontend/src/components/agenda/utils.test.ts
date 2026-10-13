@@ -14,10 +14,10 @@ describe('opcoesAlunoPrivado', () => {
     { id: '1', nome: 'Ana Souza', nome_responsavel: '', responsavel_user_id: null },
   ];
 
-  it('ordena por aluno e mostra o responsável ao lado', () => {
+  it('ordena por aluno, mostra o responsável e marca quem não tem acesso', () => {
     expect(opcoesAlunoPrivado(alunos)).toEqual([
-      { id: '1', rotulo: 'Ana Souza · responsável não informado' },
-      { id: '2', rotulo: 'Bruno Lima · Carla Lima' },
+      { id: '1', rotulo: 'Ana Souza · sem responsável com acesso', semAcesso: true },
+      { id: '2', rotulo: 'Bruno Lima · Carla Lima', semAcesso: false },
     ]);
   });
 

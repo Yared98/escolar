@@ -540,11 +540,11 @@ export function ProfessorSection({ onRouteChange }: ProfessorSectionProps) {
             Aulas e notas do(a) professor(a) {user?.name || ''}
           </p>
         </div>
-        <div className="flex items-center space-x-1 bg-salvia-100 dark:bg-salvia-800 p-1 rounded-xl">
+        <div className="grid grid-cols-2 gap-1 sm:flex sm:items-center bg-salvia-100 dark:bg-salvia-800 p-1 rounded-xl w-full sm:w-auto">
           <button
             type="button"
             onClick={() => aoTrocarAba('hoje')}
-            className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+            className={`flex items-center justify-center space-x-1.5 px-3 py-2 min-h-[44px] sm:min-h-0 rounded-lg text-xs font-bold transition-all ${
               activeTab === 'hoje'
                 ? 'bg-white dark:bg-salvia-700 text-salvia-900 dark:text-salvia-50 shadow-sm'
                 : 'text-salvia-700 dark:text-salvia-300 hover:text-slate-900 dark:hover:text-salvia-50'
@@ -556,7 +556,7 @@ export function ProfessorSection({ onRouteChange }: ProfessorSectionProps) {
           <button
             type="button"
             onClick={() => aoTrocarAba('planejamento')}
-            className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+            className={`flex items-center justify-center space-x-1.5 px-3 py-2 min-h-[44px] sm:min-h-0 rounded-lg text-xs font-bold transition-all ${
               activeTab === 'planejamento'
                 ? 'bg-white dark:bg-salvia-700 text-salvia-900 dark:text-salvia-50 shadow-sm'
                 : 'text-salvia-700 dark:text-salvia-300 hover:text-slate-900 dark:hover:text-salvia-50'
@@ -568,7 +568,7 @@ export function ProfessorSection({ onRouteChange }: ProfessorSectionProps) {
           <button
             type="button"
             onClick={() => aoTrocarAba('notas')}
-            className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+            className={`flex items-center justify-center space-x-1.5 px-3 py-2 min-h-[44px] sm:min-h-0 rounded-lg text-xs font-bold transition-all ${
               activeTab === 'notas'
                 ? 'bg-white dark:bg-salvia-700 text-salvia-900 dark:text-salvia-50 shadow-sm'
                 : 'text-salvia-700 dark:text-salvia-300 hover:text-slate-900 dark:hover:text-salvia-50'
@@ -580,7 +580,7 @@ export function ProfessorSection({ onRouteChange }: ProfessorSectionProps) {
           <button
             type="button"
             onClick={() => aoTrocarAba('avaliacoes')}
-            className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+            className={`flex items-center justify-center space-x-1.5 px-3 py-2 min-h-[44px] sm:min-h-0 rounded-lg text-xs font-bold transition-all ${
               activeTab === 'avaliacoes'
                 ? 'bg-white dark:bg-salvia-700 text-salvia-900 dark:text-salvia-50 shadow-sm'
                 : 'text-salvia-700 dark:text-salvia-300 hover:text-slate-900 dark:hover:text-salvia-50'

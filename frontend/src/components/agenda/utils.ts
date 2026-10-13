@@ -3,6 +3,8 @@ import { AlunoResumo, MensagemAgenda, ThreadAgenda } from './types';
 export interface OpcaoAlunoPrivado {
   id: string;
   rotulo: string;
+  // Sem responsável com acesso ao portal: não há quem receba a mensagem.
+  semAcesso: boolean;
 }
 
 // Mensagem privada: depois de escolher a turma, uma linha por aluno com o responsável ao lado.
@@ -19,7 +21,10 @@ export const opcoesAlunoPrivado = (alunos: AlunoResumo[], busca = ''): OpcaoAlun
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
     .map((a) => ({
       id: a.id,
-      rotulo: `${a.nome} · ${a.nome_responsavel?.trim() || 'responsável não informado'}`,
+      rotulo: a.responsavel_user_id
+        ? `${a.nome} · ${a.nome_responsavel?.trim() || 'responsável'}`
+        : `${a.nome} · sem responsável com acesso`,
+      semAcesso: !a.responsavel_user_id,
     }));
 };
 
