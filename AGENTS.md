@@ -85,7 +85,7 @@ A fonte de verdade é `openspec/`. Estes arquivos são histórico ou referência
 
 | Área | Spec | Código típico |
 |---|---|---|
-| Secretaria | `openspec/modules/secretaria.md` | `backend/src/handlers/secretaria.rs`, `handlers/documentos.rs` (declarações e histórico), `frontend/src/components/SecretariaSection.tsx` (orquestra), `frontend/src/components/secretaria/**` (inclui `secretaria/matricula/**`) |
+| Secretaria | `openspec/modules/secretaria.md` | `backend/src/handlers/secretaria/**`, `handlers/documentos.rs` (declarações e histórico), `frontend/src/components/SecretariaSection.tsx` (orquestra), `frontend/src/components/secretaria/**` (inclui `secretaria/matricula/**`) |
 | Financeiro | `openspec/modules/financeiro.md` | `backend/src/handlers/financeiro/**`, `frontend/src/components/FinanceiroSection.tsx` (orquestra), `frontend/src/components/financeiro/**` |
 | Acadêmico | `openspec/modules/academico.md` | `backend/src/handlers/academico.rs`, `handlers/professor.rs` (Meu dia e notas), `ProfessorSection.tsx` (orquestra) + `frontend/src/components/professor/**`, `frontend/src/components/academico/**`, `PedagocioNutricaoSection.tsx` (orquestra; TRI) + `frontend/src/components/pedagogico/**`, `PortalAlunoSection.tsx` (orquestra) + `frontend/src/components/portal_aluno/**` |
 | Nutrição | `openspec/modules/nutricao.md` | `backend/src/handlers/nutricao/**`, `frontend/src/components/nutricao/**` |
