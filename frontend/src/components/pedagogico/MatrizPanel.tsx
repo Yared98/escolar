@@ -46,7 +46,7 @@ export function MatrizPanel({
           <select
             value={selectedTurmaId}
             onChange={(e) => setSelectedTurmaId(e.target.value)}
-            className="bg-white dark:bg-[#141d17] border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:border-salvia-600"
+            className="bg-white dark:bg-[#141d17] border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:border-salvia-600 max-sm:w-full max-sm:min-w-0 max-sm:max-w-full max-sm:truncate"
           >
             {turmas.map((t) => (
               <option key={t.id} value={t.id}>
