@@ -40,6 +40,8 @@ Os endpoints existem no backend, sem painel de administração visual na interfa
 ---
 
 ## 2. Protocolo LTI 1.3 Advantage & SCORM (Backend API)
+
+> **Nota de arquitetura (B13.4):** O handler `backend/src/handlers/crm_lms.rs` foi dividido em `crm_lms/lms.rs` (LTI/SCORM), `crm_lms/crm.rs` (funil comercial) e `crm_lms/whatsapp.rs` (chatbot e protocolos). O comportamento e os contratos de API permanecem idênticos.
 - **Configuração Multi-Tenant por LMS**:
   - `POST /api/v1/lms/config`: Cadastro e atualização atômica de credenciais (`lms_type`, `client_id`, `platform_url`, `lti_version`).
   - `GET /api/v1/lms/config`: Listagem de provedores configurados para o tenant ativo.

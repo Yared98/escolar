@@ -48,6 +48,8 @@ Não há integração oficial ativa com a Meta Cloud API para envio de mensagens
 
 ## 2. Central de Atendimento & Protocolos
 
+> **Nota de arquitetura (B13.4):** O handler `backend/src/handlers/crm_lms.rs` foi dividido em `crm_lms/crm.rs` (funil comercial), `crm_lms/whatsapp.rs` (chatbot e protocolos) e `crm_lms/lms.ts` (LTI/SCORM). O comportamento e os contratos de API permanecem idênticos.
+
 - **Receptor Local de Mensagens**:
   - `GET /api/v1/atendimento/whatsapp/webhook`: Validação simples de handshake via `hub.challenge` e `hub.verify_token`.
   - `POST /api/v1/atendimento/whatsapp/webhook`: Receptor que processa mensagens e aciona o classificador local por palavras-chave.
