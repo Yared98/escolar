@@ -103,7 +103,7 @@ export function Header() {
         {user && /^(admin|superadmin|gestor|gestorescolar|gestor_escolar)$/i.test(user.role_original ?? role) && (
           <div className="hidden md:flex items-center space-x-1.5 bg-salvia-50 dark:bg-salvia-950 border border-salvia-200 dark:border-salvia-800 px-2.5 py-1 rounded-xl">
             <Shield className="w-3.5 h-3.5 text-salvia-600 dark:text-salvia-400" />
-            <span className="text-[11px] font-medium text-salvia-600 dark:text-salvia-400">Pré-visualizar menu de:</span>
+            <span className="hidden xl:inline text-[11px] font-medium text-salvia-600 dark:text-salvia-400 whitespace-nowrap">Ver menu de:</span>
             <select
               title="Pré-visualiza o menu deste perfil nesta tela. O acesso no servidor continua o do login."
               value={(() => {

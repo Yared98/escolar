@@ -227,26 +227,14 @@ export function ContratosPanel({ alunos, onNavigateToFinanceiro }: ContratosPane
         </div>
       )}
 
-      {/* Banner Informativo Legal / Conformidade MP 2.200-2/2001 */}
-      <div className="p-4 rounded-xl border border-salvia-200 dark:border-salvia-800 bg-salvia-50/60 dark:bg-salvia-950/40 text-salvia-900 dark:text-salvia-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="flex items-start gap-3">
-          <ShieldCheck className="w-5 h-5 text-salvia-700 dark:text-salvia-400 shrink-0 mt-0.5" />
-          <div>
-            <h4 className="text-xs font-bold text-salvia-900 dark:text-salvia-100 flex items-center gap-2">
-              <span>Assinatura Eletrônica & Automação Financeira de Matrícula</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] bg-salvia-200 dark:bg-salvia-800 text-salvia-800 dark:text-salvia-200 font-semibold">
-                MP 2.200-2/2001 • SHA-256
-              </span>
-            </h4>
-            <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
-              Validação de integridade por hash criptográfico SHA-256 e carimbo de tempo UTC. Ao formalizar a assinatura, o sistema gera automaticamente 12 parcelas Pix mensais no módulo Financeiro.
-            </p>
-          </div>
-        </div>
-        <div className="shrink-0 text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-white/80 dark:bg-salvia-900/60 px-3 py-1.5 rounded-lg border border-salvia-200/60 dark:border-salvia-800">
-          Nota: Assinatura eletrônica simples/avançada (sem exigência de ICP-Brasil nesta versão de demonstração).
-        </div>
-      </div>
+      {/* Aviso curto: o que acontece ao assinar e o tipo de assinatura (sem ICP-Brasil nesta versão) */}
+      <p className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-400">
+        <Info className="w-4 h-4 shrink-0 mt-0.5 text-salvia-600 dark:text-salvia-400" />
+        <span>
+          Ao assinar o contrato, as 12 mensalidades são criadas automaticamente no Financeiro. A assinatura é
+          eletrônica simples, sem certificado digital ICP-Brasil.
+        </span>
+      </p>
 
       {/* Barra de Filtros e Criação */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
@@ -353,7 +341,7 @@ export function ContratosPanel({ alunos, onNavigateToFinanceiro }: ContratosPane
             <p className="text-[11px] max-w-sm text-slate-500">
               {search || statusFilter !== 'todos' || anoFilter
                 ? 'Tente ajustar os filtros de busca para encontrar contratos cadastrados.'
-                : 'Crie minutas de contratos de prestação de serviços educacionais para vincular parcelas de anuidade aos estudantes.'}
+                : 'Crie o contrato de um aluno para gerar as mensalidades no Financeiro.'}
             </p>
           </div>
         ) : (
@@ -427,13 +415,13 @@ export function ContratosPanel({ alunos, onNavigateToFinanceiro }: ContratosPane
                           {isAssinado && contrato.hash_documento && (
                             <div className="flex items-center gap-1 text-[10px] text-slate-500 font-mono">
                               <span title={contrato.hash_documento}>
-                                SHA-256: {contrato.hash_documento.substring(0, 12)}...
+                                Código: {contrato.hash_documento.substring(0, 12)}...
                               </span>
                               <button
                                 type="button"
                                 onClick={() => handleCopy(contrato.hash_documento!, 'hash', contrato.id)}
                                 className="text-salvia-700 hover:text-salvia-900 dark:text-salvia-400"
-                                title="Copiar Hash Completo SHA-256"
+                                title="Copiar código de verificação"
                               >
                                 {copiedHash === contrato.id ? (
                                   <Check className="w-3 h-3 text-emerald-600" />
@@ -608,12 +596,12 @@ export function ContratosPanel({ alunos, onNavigateToFinanceiro }: ContratosPane
               <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
                 <div className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
                   <Info className="w-3.5 h-3.5 text-salvia-600" />
-                  <span>Fluxo de Homologação</span>
+                  <span>Como funciona</span>
                 </div>
                 <p>
-                  1. A minuta é criada com status <strong>Pendente de Assinatura</strong>.<br />
-                  2. O responsável formaliza o aceite com validação por hash criptográfico SHA-256.<br />
-                  3. O faturamento de 12 parcelas Pix é gerado automaticamente na tesouraria.
+                  1. O contrato é criado como <strong>Pendente de assinatura</strong>.<br />
+                  2. O responsável lê e aceita o contrato (assinatura eletrônica simples).<br />
+                  3. As 12 mensalidades são criadas automaticamente no Financeiro.
                 </p>
               </div>
 
@@ -656,7 +644,7 @@ export function ContratosPanel({ alunos, onNavigateToFinanceiro }: ContratosPane
                 <ShieldCheck className="w-5 h-5 text-salvia-700 dark:text-salvia-400" />
                 <div>
                   <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
-                    Homologação & Assinatura Eletrônica do Contrato
+                    Assinatura do contrato
                   </h3>
                   <p className="text-[10px] text-slate-500">
                     Contrato #{contratoParaAssinar.id.substring(0, 8)} • Ano Letivo {contratoParaAssinar.ano_letivo}
@@ -727,10 +715,10 @@ export function ContratosPanel({ alunos, onNavigateToFinanceiro }: ContratosPane
               <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-900/60 text-amber-900 dark:text-amber-200 text-[11px] leading-snug space-y-1">
                 <div className="font-bold flex items-center gap-1.5 text-amber-800 dark:text-amber-300">
                   <Info className="w-3.5 h-3.5 shrink-0" />
-                  <span>Declaração de Transparência Criptográfica</span>
+                  <span>Sobre esta assinatura</span>
                 </div>
                 <p>
-                  A assinatura do presente contrato utiliza <strong>assinatura eletrônica simples/avançada</strong> com cálculo de integridade SHA-256 e registro auditável de IP e carimbo de tempo. <strong>Não utiliza certificado digital ICP-Brasil A1/A3 nesta versão de demonstração</strong>.
+                  É uma <strong>assinatura eletrônica simples</strong>: o sistema registra quem aceitou, quando e de qual endereço, e guarda uma impressão digital do contrato para provar que ele não foi alterado. <strong>Não usa certificado digital ICP-Brasil</strong>.
                 </p>
               </div>
 
@@ -849,7 +837,6 @@ export function ContratosPanel({ alunos, onNavigateToFinanceiro }: ContratosPane
                       </>
                     )}
                   </div>
-                  <span className="text-[10px] text-slate-500">MP 2.200-2/2001</span>
                 </div>
               </div>
 
@@ -871,13 +858,13 @@ export function ContratosPanel({ alunos, onNavigateToFinanceiro }: ContratosPane
                   {contratoDetalhes.hash_documento && (
                     <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-2 rounded-lg border border-salvia-200/60 dark:border-salvia-800">
                       <div className="text-[10px] font-mono text-slate-700 dark:text-slate-300 break-all pr-2">
-                        SHA-256: {contratoDetalhes.hash_documento}
+                        Código de verificação: {contratoDetalhes.hash_documento}
                       </div>
                       <button
                         type="button"
                         onClick={() => handleCopy(contratoDetalhes.hash_documento!, 'hash', contratoDetalhes.id)}
                         className="text-salvia-700 hover:text-salvia-900 dark:text-salvia-400 shrink-0 p-1"
-                        title="Copiar Hash SHA-256"
+                        title="Copiar código de verificação"
                       >
                         {copiedHash === contratoDetalhes.id ? (
                           <Check className="w-4 h-4 text-emerald-600" />
@@ -888,7 +875,7 @@ export function ContratosPanel({ alunos, onNavigateToFinanceiro }: ContratosPane
                     </div>
                   )}
                   <p className="text-[10px] text-slate-500 italic">
-                    Integridade assegurada por digest SHA-256 inalterável (MP 2.200-2/2001). Sem certificado ICP-Brasil nesta versão de demonstração.
+                    O código acima comprova que o contrato não foi alterado depois da assinatura. Assinatura eletrônica simples, sem certificado ICP-Brasil.
                   </p>
                 </div>
               )}

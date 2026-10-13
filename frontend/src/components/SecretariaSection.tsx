@@ -911,10 +911,10 @@ export function SecretariaSection() {
         <div>
           <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center space-x-2">
             <UserCheck className="w-5 h-5 text-salvia-700 dark:text-salvia-400" />
-            <span>Portal da Secretaria & Matrícula Online</span>
+            <span>Secretaria</span>
           </h2>
           <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-            Gestão integral de alunos, responsáveis legal/financeiro, endereço, contatos de emergência e prontuário médico.
+            Alunos, matrículas, turmas e contratos.
           </p>
         </div>
 
@@ -958,7 +958,7 @@ export function SecretariaSection() {
           }`}
         >
           <Users className="w-4 h-4" />
-          <span>Alunos & Matrículas</span>
+          <span>Alunos e matrículas</span>
         </button>
         <button
           type="button"
@@ -982,7 +982,7 @@ export function SecretariaSection() {
           }`}
         >
           <FileText className="w-4 h-4" />
-          <span>Contratos & Parcelas</span>
+          <span>Contratos e parcelas</span>
         </button>
       </div>
 
