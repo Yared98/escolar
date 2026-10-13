@@ -17,8 +17,9 @@ handle /api/* {
 }
 
 # OIDC Discovery / JWKS são publicados pelo backend em /api/v1/.well-known/*
-handle_path /.well-known/* {
-    rewrite * /api/v1/.well-known/{path}
+handle /.well-known/* {
+    # mantém o caminho original e só acrescenta o prefixo da API
+    rewrite * /api/v1{uri}
     reverse_proxy backend:8000
 }
 
