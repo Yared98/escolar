@@ -5,7 +5,6 @@ services:
   # 1. Banco de Dados PostgreSQL 16 (não exposto para fora do compose)
   postgres:
     image: postgres:16-alpine
-    container_name: escolar_postgres
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -26,7 +25,6 @@ services:
     build:
       context: ../../backend
       dockerfile: Dockerfile
-    container_name: escolar_backend
     restart: always
     environment:
       # production (escola real, sem seeds demo) ou demo (carrega a escola-modelo de demonstração)
@@ -56,7 +54,6 @@ services:
     build:
       context: ../../worker
       dockerfile: Dockerfile
-    container_name: escolar_worker
     restart: always
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
@@ -78,7 +75,6 @@ services:
         NEXT_PUBLIC_PERMITIR_CADASTRO_ESCOLA: ${PERMITIR_CADASTRO_ESCOLA:-false}
         # true só na instalação de demonstração: o login mostra atalhos das contas da escola-modelo
         NEXT_PUBLIC_MODO_DEMO: ${MODO_DEMO:-false}
-    container_name: escolar_frontend
     restart: always
     environment:
       PORT: 3000
@@ -90,7 +86,6 @@ services:
   # 5. Proxy reverso Caddy — único serviço publicado na rede (80/443)
   caddy:
     image: caddy:2-alpine
-    container_name: escolar_caddy
     restart: always
     ports:
       - "80:80"
@@ -110,7 +105,6 @@ services:
   # 6. Backup diário do banco (dump customizado, mantém os últimos 14 arquivos)
   backup:
     image: postgres:16-alpine
-    container_name: escolar_backup
     restart: always
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}

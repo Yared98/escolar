@@ -120,19 +120,13 @@ O serviço `backup` gera um dump customizado (`pg_dump -Fc`) uma vez ao dia, sal
 
 ### Restaurar um backup
 
-1. Pare a stack ou o serviço backend para evitar conflitos:  
-   ```bash
-   docker compose stop backend worker
-   ```
-2. Execute o script de restauração:  
-   ```bash
-   export DATABASE_URL=postgres://escolar_app:<SENHA>@localhost:5432/escolar_db
-   ./restaurar-backup.sh ./backups/escolar_YYYYMMDD_HHMMSS.dump
-   ```
-3. Suba os serviços novamente:  
-   ```bash
-   docker compose up -d
-   ```
+Com a stack no ar, a partir de `deploy/homelab`:
+
+```bash
+./restaurar-backup.sh ./backups/escolar_YYYYMMDD_HHMMSS.dump
+```
+
+O script lê usuário e banco do `.env`, para o backend e o worker, restaura dentro do container do Postgres (a porta do banco continua fechada) e religa os serviços.
 
 **Atenção:** a restauração apaga e recria o banco atual. Dados não salvos em backup serão perdidos.
 
