@@ -86,7 +86,7 @@ A fonte de verdade é `openspec/`. Estes arquivos são histórico ou referência
 | Área | Spec | Código típico |
 |---|---|---|
 | Secretaria | `openspec/modules/secretaria.md` | `backend/src/handlers/secretaria.rs`, `frontend/src/components/SecretariaSection.tsx` (orquestra), `frontend/src/components/secretaria/**` (inclui `secretaria/matricula/**`) |
-| Financeiro | `openspec/modules/financeiro.md` | `backend/src/handlers/financeiro.rs`, `frontend/src/components/FinanceiroSection.tsx` (orquestra), `frontend/src/components/financeiro/**` |
+| Financeiro | `openspec/modules/financeiro.md` | `backend/src/handlers/financeiro/**`, `frontend/src/components/FinanceiroSection.tsx` (orquestra), `frontend/src/components/financeiro/**` |
 | Acadêmico | `openspec/modules/academico.md` | `backend/src/handlers/academico.rs`, `frontend/src/components/academico/**`, `PedagocioNutricaoSection.tsx` (orquestra; TRI) + `frontend/src/components/pedagogico/**`, `PortalAlunoSection.tsx` (orquestra) + `frontend/src/components/portal_aluno/**` |
 | Nutrição | `openspec/modules/nutricao.md` | `backend/src/handlers/nutricao/**`, `frontend/src/components/nutricao/**` |
 | Agenda & Calendário | `openspec/modules/agenda_calendario.md` | `backend/src/handlers/agenda_admin.rs`, `AgendaDigitalSection.tsx` (orquestra) + `frontend/src/components/agenda/**`, `CalendarioEscolarSection.tsx`, `worker/**` |
