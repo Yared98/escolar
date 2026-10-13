@@ -333,7 +333,7 @@ export function ChamadaPanel({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {alunos.length === 0 && (
             <p className="md:col-span-2 text-xs text-salvia-600 dark:text-salvia-400">
-              Nenhum aluno enturmado nesta turma. A chamada fica disponível depois do ensalamento na secretaria.
+              Nenhum aluno nesta turma ainda. A chamada aparece quando a secretaria colocar os alunos na turma.
             </p>
           )}
           {alunos.map((aluno) => (

@@ -84,7 +84,7 @@ export function DadosAlunoTab({
             }`}
           >
             <span className="font-bold block">Matrícula ativa</span>
-            Aluno já confirmado e apto a ensalar.
+            Matrícula confirmada: o aluno já pode ser colocado em uma turma.
           </button>
           <button
             type="button"

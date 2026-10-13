@@ -120,7 +120,7 @@ export function EnsalamentoModal({
               disabled={submitting}
               className="px-4 py-2 bg-salvia-700 dark:bg-salvia-600 hover:bg-salvia-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-60"
             >
-              {submitting ? 'Ensalando...' : 'Confirmar Ensalamento'}
+              {submitting ? 'Salvando...' : 'Colocar na turma'}
             </button>
           </div>
         </form>

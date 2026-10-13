@@ -186,7 +186,7 @@ export function RotinaTab({
                         className="inline-flex items-center gap-1.5 bg-salvia-700 text-white px-3 py-1.5 rounded-xl text-[11px] font-bold hover:bg-salvia-800 disabled:opacity-50"
                       >
                         <Send className="w-3 h-3" />
-                        {enviandoResposta ? 'Enviando…' : 'Enviar na thread'}
+                        {enviandoResposta ? 'Enviando…' : 'Enviar resposta'}
                       </button>
                     </div>
                   </div>
