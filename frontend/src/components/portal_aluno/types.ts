@@ -25,12 +25,20 @@ export interface PortfolioInfantil {
   campos_experiencia_bncc: string[];
 }
 
+export interface ParecerBoletim {
+  periodo: string;
+  parecer: string;
+  encaminhamento?: 'recuperacao' | 'acompanhamento' | 'sem_pendencias' | null;
+}
+
 export interface BoletimData {
   aluno_id: string;
   nome_aluno: string;
   disciplinas: DisciplinaBoletim[];
   media_geral: number | null;
   status_aprovacao: string;
+  periodos_fechados: string[];
+  pareceres: ParecerBoletim[];
 }
 
 export interface FaturaData {

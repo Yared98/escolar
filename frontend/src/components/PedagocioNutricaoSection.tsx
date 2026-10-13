@@ -12,18 +12,30 @@ import {
   X,
 } from 'lucide-react';
 import { CardapioPlanner } from './nutricao/CardapioPlanner';
-import { Disciplina, Turma, TurmaDisciplinaDetalhada, HorarioTurmaDetalhado, ProfessorItem, SalaItem, SimuladoTri, ProjetoEducacional, AlunoTurmaRoster, TriPanel, NovoSimuladoModal, MatrizPanel, NovaDisciplinaModal, AdicionarMatrizModal, HorariosPanel, ProjetosPanel, AtribuirProfessorModal, NovoHorarioModal } from './pedagogico';
+import { Disciplina, Turma, TurmaDisciplinaDetalhada, HorarioTurmaDetalhado, ProfessorItem, SalaItem, SimuladoTri, ProjetoEducacional, AlunoTurmaRoster, FechamentoPeriodo, AlunoConselho, PeriodoFechamento, TriPanel, NovoSimuladoModal, MatrizPanel, NovaDisciplinaModal, AdicionarMatrizModal, HorariosPanel, ProjetosPanel, AtribuirProfessorModal, NovoHorarioModal, FechamentoPanel } from './pedagogico';
+
+const PERIODOS_FECHAMENTO: { value: PeriodoFechamento; label: string }[] = [
+  { value: '1_bimestre', label: '1º Bimestre' },
+  { value: '2_bimestre', label: '2º Bimestre' },
+  { value: '3_bimestre', label: '3º Bimestre' },
+  { value: '4_bimestre', label: '4º Bimestre' },
+  { value: '1_trimestre', label: '1º Trimestre' },
+  { value: '2_trimestre', label: '2º Trimestre' },
+  { value: '3_trimestre', label: '3º Trimestre' },
+  { value: 'recuperacao', label: 'Recuperação' },
+];
 
 export function PedagocioNutricaoSection() {
   const searchParams = useSearchParams();
   const tabParam = searchParams ? searchParams.get('tab') : null;
   const routeParam = searchParams ? searchParams.get('route') : null;
-  const activeTab: 'disciplinas_matriz' | 'atribuicao_horarios' | 'projetos' | 'nutricao' | 'tri' =
+  const activeTab: 'disciplinas_matriz' | 'atribuicao_horarios' | 'projetos' | 'nutricao' | 'tri' | 'fechamento' =
     routeParam === 'nutricao' || tabParam === 'nutricao'
       ? 'nutricao'
       : tabParam === 'atribuicao_horarios' ||
           tabParam === 'projetos' ||
-          tabParam === 'tri'
+          tabParam === 'tri' ||
+          tabParam === 'fechamento'
         ? tabParam
         : 'disciplinas_matriz';
 
@@ -54,6 +66,21 @@ export function PedagocioNutricaoSection() {
   const [turmaHorarios, setTurmaHorarios] = useState<HorarioTurmaDetalhado[]>([]);
   const [turmaAlunos, setTurmaAlunos] = useState<AlunoTurmaRoster[]>([]);
   const [turmaAlunosErro, setTurmaAlunosErro] = useState<string | null>(null);
+
+  // Fechamento de período e conselho de classe
+  const [fechamentos, setFechamentos] = useState<FechamentoPeriodo[]>([]);
+  const [loadingFechamentos, setLoadingFechamentos] = useState(false);
+  const [erroFechamentos, setErroFechamentos] = useState<string | null>(null);
+  const [fechando, setFechando] = useState(false);
+  const [periodoConselho, setPeriodoConselho] = useState<PeriodoFechamento>('1_bimestre');
+  const [alunosConselho, setAlunosConselho] = useState<AlunoConselho[]>([]);
+  const [loadingConselho, setLoadingConselho] = useState(false);
+  const [erroConselho, setErroConselho] = useState<string | null>(null);
+  const [pareceres, setPareceres] = useState<Record<string, string>>({});
+  const [encaminhamentos, setEncaminhamentos] = useState<
+    Record<string, 'recuperacao' | 'acompanhamento' | 'sem_pendencias' | ''>
+  >({});
+  const [salvandoParecer, setSalvandoParecer] = useState<Record<string, boolean>>({});
 
   // Modais de Criação
   const [showModalDisciplina, setShowModalDisciplina] = useState(false);
@@ -158,6 +185,172 @@ export function PedagocioNutricaoSection() {
       loadTurmaDetails(selectedTurmaId);
     }
   }, [selectedTurmaId, loadTurmaDetails]);
+
+  // Carrega fechamentos da turma selecionada.
+  const loadFechamentos = useCallback(async (turmaId: string) => {
+    if (!turmaId) {
+      setFechamentos([]);
+      return;
+    }
+    setLoadingFechamentos(true);
+    setErroFechamentos(null);
+    try {
+      const data = await apiFetch<FechamentoPeriodo[]>(
+        `/academico/fechamentos?turma_id=${encodeURIComponent(turmaId)}`
+      );
+      setFechamentos(data || []);
+    } catch (err: unknown) {
+      setErroFechamentos(err instanceof Error ? err.message : 'Não foi possível carregar os fechamentos.');
+      setFechamentos([]);
+    } finally {
+      setLoadingFechamentos(false);
+    }
+  }, []);
+
+  // Carrega alunos do conselho para turma + período.
+  const loadConselho = useCallback(async (turmaId: string, periodo: PeriodoFechamento) => {
+    if (!turmaId) {
+      setAlunosConselho([]);
+      return;
+    }
+    setLoadingConselho(true);
+    setErroConselho(null);
+    try {
+      const data = await apiFetch<{ alunos: AlunoConselho[] }>(
+        `/academico/conselho?turma_id=${encodeURIComponent(turmaId)}&periodo=${encodeURIComponent(periodo)}`
+      );
+      const lista = data?.alunos || [];
+      setAlunosConselho(lista);
+      setPareceres((prev) => {
+        const next = { ...prev };
+        lista.forEach((a) => {
+          if (!(a.aluno_id in next) && a.parecer) {
+            next[a.aluno_id] = a.parecer;
+          }
+        });
+        return next;
+      });
+      setEncaminhamentos((prev) => {
+        const next = { ...prev };
+        lista.forEach((a) => {
+          if (!(a.aluno_id in next) && a.encaminhamento) {
+            next[a.aluno_id] = a.encaminhamento;
+          }
+        });
+        return next;
+      });
+    } catch (err: unknown) {
+      setErroConselho(err instanceof Error ? err.message : 'Não foi possível carregar o conselho de classe.');
+      setAlunosConselho([]);
+    } finally {
+      setLoadingConselho(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedTurmaId && activeTab === 'fechamento') {
+      void loadFechamentos(selectedTurmaId);
+      void loadConselho(selectedTurmaId, periodoConselho);
+    }
+  }, [selectedTurmaId, activeTab, periodoConselho, loadFechamentos, loadConselho]);
+
+  // Handlers: Fechar/Reabrir período.
+  const handleFechar = async (periodo: PeriodoFechamento) => {
+    if (!selectedTurmaId) return;
+    if (!window.confirm(`Fechar o ${labelPeriodo(periodo).toLowerCase()}? Após fechar, ninguém poderá alterar notas até que a coordenação reabra.`)) {
+      return;
+    }
+    setFechando(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      await apiFetch('/academico/fechamentos', {
+        method: 'POST',
+        body: JSON.stringify({ turma_id: selectedTurmaId, periodo }),
+      });
+      setSuccessMsg(`${labelPeriodo(periodo)} fechado com sucesso.`);
+      await loadFechamentos(selectedTurmaId);
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Não foi possível fechar o período.');
+    } finally {
+      setFechando(false);
+    }
+  };
+
+  const handleReabrir = async (periodo: PeriodoFechamento) => {
+    if (!selectedTurmaId) return;
+    const f = fechamentos.find((x) => x.periodo === periodo);
+    if (!f?.fechado) return;
+    if (!window.confirm(`Reabrir o ${labelPeriodo(periodo).toLowerCase()}? As notas poderão ser alteradas novamente.`)) {
+      return;
+    }
+    setFechando(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      // O endpoint de reabertura exige o id do registro; consultamos o backend para obtê-lo.
+      const lista = await apiFetch<Array<{ id: string; periodo: PeriodoFechamento; fechado: boolean }>>(
+        `/academico/fechamentos?turma_id=${encodeURIComponent(selectedTurmaId)}`
+      );
+      const registro = lista.find((x) => x.periodo === periodo && x.fechado);
+      if (!registro?.id) {
+        setErrorMsg('Registro de fechamento não encontrado.');
+        return;
+      }
+      await apiFetch(`/academico/fechamentos/${registro.id}`, { method: 'DELETE' });
+      setSuccessMsg(`${labelPeriodo(periodo)} reaberto com sucesso.`);
+      await loadFechamentos(selectedTurmaId);
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Não foi possível reabrir o período.');
+    } finally {
+      setFechando(false);
+    }
+  };
+
+  const handleParecerChange = (alunoId: string, valor: string) => {
+    setPareceres((prev) => ({ ...prev, [alunoId]: valor }));
+  };
+
+  const handleEncaminhamentoChange = (
+    alunoId: string,
+    valor: 'recuperacao' | 'acompanhamento' | 'sem_pendencias' | ''
+  ) => {
+    setEncaminhamentos((prev) => ({ ...prev, [alunoId]: valor }));
+  };
+
+  const handleSalvarParecer = async (alunoId: string) => {
+    if (!selectedTurmaId) return;
+    const parecer = pareceres[alunoId]?.trim();
+    if (!parecer) {
+      setErrorMsg('O parecer não pode estar vazio.');
+      return;
+    }
+    setSalvandoParecer((prev) => ({ ...prev, [alunoId]: true }));
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      await apiFetch('/academico/conselho', {
+        method: 'PUT',
+        body: JSON.stringify({
+          turma_id: selectedTurmaId,
+          periodo: periodoConselho,
+          aluno_id: alunoId,
+          parecer,
+          encaminhamento: encaminhamentos[alunoId] || null,
+        }),
+      });
+      setSuccessMsg('Parecer salvo com sucesso.');
+      await loadConselho(selectedTurmaId, periodoConselho);
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Não foi possível salvar o parecer.');
+    } finally {
+      setSalvandoParecer((prev) => ({ ...prev, [alunoId]: false }));
+    }
+  };
+
+  function labelPeriodo(periodo: PeriodoFechamento) {
+    return PERIODOS_FECHAMENTO.find((p) => p.value === periodo)?.label || periodo;
+  }
 
   // Handlers: Salvar Disciplina
   const handleSalvarDisciplina = async (e: React.FormEvent) => {
@@ -374,13 +567,17 @@ export function PedagocioNutricaoSection() {
             <span>
               {activeTab === 'nutricao'
                 ? 'Nutrição & Cardápios'
-                : 'Gestão Pedagógica, Matriz Curricular & Lotação'}
+                : activeTab === 'fechamento'
+                  ? 'Fechamento de Período e Conselho de Classe'
+                  : 'Gestão Pedagógica, Matriz Curricular & Lotação'}
             </span>
           </h2>
           <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
             {activeTab === 'nutricao'
               ? 'Planejamento de cardápios, vigências de recorrências e atenção a restrições alimentares.'
-              : 'Cadastro de Componentes Curriculares (BNCC), Matrizes por Turma, Atribuição Docente e Grade Semanal sem Choques.'}
+              : activeTab === 'fechamento'
+                ? 'Bloqueie ou reabra bimestres/trimestres e registre o parecer do conselho para cada aluno.'
+                : 'Cadastro de Componentes Curriculares (BNCC), Matrizes por Turma, Atribuição Docente e Grade Semanal sem Choques.'}
           </p>
         </div>
       </div>
@@ -467,6 +664,35 @@ export function PedagocioNutricaoSection() {
       {activeTab === 'projetos' && (
         <ProjetosPanel
           projetos={projetos}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* ABA 6: FECHAMENTO DE PERÍODO E CONSELHO DE CLASSE */}
+      {/* ========================================================================= */}
+      {activeTab === 'fechamento' && (
+        <FechamentoPanel
+          turmas={turmas}
+          selectedTurmaId={selectedTurmaId}
+          onChangeTurma={setSelectedTurmaId}
+          fechamentos={fechamentos}
+          loadingFechamentos={loadingFechamentos}
+          erroFechamentos={erroFechamentos}
+          onFechar={handleFechar}
+          onReabrir={handleReabrir}
+          fechando={fechando}
+          periodoConselho={periodoConselho}
+          onChangePeriodoConselho={setPeriodoConselho}
+          alunosConselho={alunosConselho}
+          loadingConselho={loadingConselho}
+          erroConselho={erroConselho}
+          pareceres={pareceres}
+          encaminhamentos={encaminhamentos}
+          onParecerChange={handleParecerChange}
+          onEncaminhamentoChange={handleEncaminhamentoChange}
+          onSalvarParecer={handleSalvarParecer}
+          salvandoParecer={salvandoParecer}
+          podeGerenciarFechamento={true}
         />
       )}
 

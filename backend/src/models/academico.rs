@@ -113,6 +113,15 @@ pub struct BoletimCompletoDto {
     pub disciplinas: Vec<BoletimDisciplinaDto>,
     pub media_geral: f64,
     pub status_aprovacao: String,
+    pub periodos_fechados: Vec<String>,
+    pub pareceres: Vec<ParecerBoletimDto>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct ParecerBoletimDto {
+    pub periodo: String,
+    pub parecer: String,
+    pub encaminhamento: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]

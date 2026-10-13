@@ -232,10 +232,10 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?;
 
-        // Garantir que as 63 tabelas com tenant_id estejam presentes no schema
-        if tables_with_tenant.len() != 63 {
+        // Garantir que as 65 tabelas com tenant_id estejam presentes no schema
+        if tables_with_tenant.len() != 65 {
             return Err(format!(
-                "Esperado 63 tabelas com tenant_id no schema public, encontrado {}",
+                "Esperado 65 tabelas com tenant_id no schema public, encontrado {}",
                 tables_with_tenant.len()
             ));
         }
@@ -402,6 +402,7 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
                 "diplomas_digitais" => format!("INSERT INTO {tbl} (id, tenant_id, aluno_id, curso_nome, xml_diplomado, xml_documentacao, hash_xades) VALUES ($1, $2, '{aluno_b_id}', 'Curso B', '<xml/>', '<xml/>', 'hashb123')"),
                 "disciplinas" => format!("INSERT INTO {tbl} (id, tenant_id, nome, codigo) VALUES ($1, $2, 'Física B', 'FIS-B') ON CONFLICT DO NOTHING"),
                 "eventos_calendario" => format!("INSERT INTO {tbl} (id, tenant_id, titulo, data_inicio, data_fim, tipo, criado_por) VALUES ($1, $2, 'Evento B', CURRENT_DATE, CURRENT_DATE + INTERVAL '1 day', 'outro', '{user_b}')"),
+                "fechamentos_periodo" => format!("INSERT INTO {tbl} (id, tenant_id, turma_id, periodo, fechado_por, fechado_em) VALUES ($1, $2, '{turma_b_id}', '1_bimestre', '{user_b}', NOW())"),
                 "eventos_rsvps" => {
                     let ev_id = Uuid::new_v4();
                     sqlx::query(&format!("INSERT INTO eventos_calendario (id, tenant_id, titulo, data_inicio, data_fim, tipo, criado_por) VALUES ('{ev_id}', '{tenant_b}', 'Ev RSVP B', CURRENT_DATE, CURRENT_DATE + INTERVAL '1 day', 'outro', '{user_b}')"))
@@ -427,6 +428,7 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
                     format!("INSERT INTO {tbl} (id, tenant_id, fatura_id, valor_servico, status) VALUES ($1, $2, '{fat_id}', 1000.0, 'processando')")
                 },
                 "notas" => format!("INSERT INTO {tbl} (id, tenant_id, aluno_id, disciplina_nome, nota, periodo) VALUES ($1, $2, '{aluno_b_id}', 'Matemática B', 9.5, '1_bimestre')"),
+                "pareceres_conselho" => format!("INSERT INTO {tbl} (id, tenant_id, turma_id, aluno_id, periodo, parecer, encaminhamento, registrado_por) VALUES ($1, $2, '{turma_b_id}', '{aluno_b_id}', '1_bimestre', 'Parecer teste B', 'sem_pendencias', '{user_b}')"),
                 "notificacoes_disparos_logs" => format!("INSERT INTO {tbl} (id, tenant_id, canal, destino, status_envio) VALUES ($1, $2, 'push', 'destb@test.com', 'enviado')"),
                 "notificacoes_sistema" => format!("INSERT INTO {tbl} (id, tenant_id, modulo, titulo, mensagem, canal_disparo) VALUES ($1, $2, 'geral', 'Notif B', 'Mensagem B', 'push_pwa')"),
                 "oauth_authorization_codes" => format!("INSERT INTO {tbl} (id, tenant_id, user_id, client_id, code, redirect_uri, code_challenge, code_challenge_method, expires_at) VALUES ($1, $2, '{user_b}', 'client_b', 'code_b_123', 'https://redirect.b.com', 'chal_b', 'S256', NOW() + INTERVAL '10 minutes')"),

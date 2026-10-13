@@ -317,3 +317,25 @@ export interface NovaOcorrenciaPayload {
   prioridade: string;
   notificado_responsavel: boolean;
 }
+
+export interface FechamentoPeriodo {
+  periodo: PeriodoNota;
+  fechado: boolean;
+  fechado_por?: string | null;
+  fechado_em?: string | null;
+}
+
+export interface AlunoConselho {
+  aluno_id: string;
+  aluno_nome: string;
+  numero_chamada?: number | null;
+  media_periodo?: number | null;
+  parecer?: string | null;
+  encaminhamento?: 'recuperacao' | 'acompanhamento' | 'sem_pendencias' | null;
+}
+
+export interface ParecerBoletim {
+  periodo: string;
+  parecer: string;
+  encaminhamento?: 'recuperacao' | 'acompanhamento' | 'sem_pendencias' | null;
+}

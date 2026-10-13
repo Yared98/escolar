@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { BookOpen, Users, Save, AlertCircle, Loader2 } from 'lucide-react';
+import { BookOpen, Users, Save, AlertCircle, Loader2, Lock } from 'lucide-react';
 import type { MinhaTurma, MinhaTurmaDisciplina, NotaAluno, PeriodoNota } from '@/lib/types/academico';
 
 interface LancarNotasPanelProps {
@@ -22,6 +22,9 @@ interface LancarNotasPanelProps {
   onAlterarNota: (alunoId: string, valor: string) => void;
   onSalvar: () => void;
   salvando: boolean;
+  periodoFechado?: boolean;
+  loadingFechamentos?: boolean;
+  erroFechamentos?: string | null;
 }
 
 export function LancarNotasPanel({
@@ -42,6 +45,9 @@ export function LancarNotasPanel({
   onAlterarNota,
   onSalvar,
   salvando,
+  periodoFechado = false,
+  loadingFechamentos = false,
+  erroFechamentos,
 }: LancarNotasPanelProps) {
   const temAlteracoes = Object.keys(alteracoes).length > 0;
   const temErros = Object.values(errosNota).some((e) => e);
@@ -108,6 +114,22 @@ export function LancarNotasPanel({
         <div className="p-3.5 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 text-xs flex items-start space-x-2">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <span>{erroAlunos}</span>
+        </div>
+      )}
+
+      {erroFechamentos && (
+        <div className="p-3.5 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 text-xs flex items-start space-x-2">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>{erroFechamentos}</span>
+        </div>
+      )}
+
+      {!loadingFechamentos && periodoFechado && (
+        <div className="p-3.5 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 text-xs flex items-start space-x-2">
+          <Lock className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>
+            O {periodos.find((p) => p.value === periodo)?.label || periodo} desta turma está fechado. Peça à coordenação para reabrir se for necessário alterar notas.
+          </span>
         </div>
       )}
 
@@ -186,7 +208,7 @@ export function LancarNotasPanel({
         <button
           type="button"
           onClick={onSalvar}
-          disabled={!temAlteracoes || temErros || salvando || alunos.length === 0}
+          disabled={!temAlteracoes || temErros || salvando || alunos.length === 0 || periodoFechado}
           className="w-full bg-salvia-700 hover:bg-salvia-800 disabled:opacity-50 disabled:cursor-not-allowed text-white dark:bg-salvia-600 dark:hover:bg-salvia-500 px-4 py-3.5 rounded-2xl text-sm font-bold flex items-center justify-center space-x-2 transition-all"
         >
           {salvando ? (
@@ -207,7 +229,7 @@ export function LancarNotasPanel({
         <button
           type="button"
           onClick={onSalvar}
-          disabled={!temAlteracoes || temErros || salvando || alunos.length === 0}
+          disabled={!temAlteracoes || temErros || salvando || alunos.length === 0 || periodoFechado}
           className="bg-salvia-700 hover:bg-salvia-800 disabled:opacity-50 disabled:cursor-not-allowed text-white dark:bg-salvia-600 dark:hover:bg-salvia-500 px-6 py-3 rounded-2xl text-xs font-bold flex items-center justify-center space-x-2 transition-all"
         >
           {salvando ? (

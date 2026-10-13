@@ -38,6 +38,7 @@ import {
   Truck,
   Building,
   ClipboardList,
+  Lock,
 } from 'lucide-react';
 
 export type NavRoute =
@@ -118,6 +119,7 @@ export const MENU_ITEMS: NavItem[] = [
       { id: 'ped-matriz', label: 'Disciplinas e matriz', tabKey: 'disciplinas_matriz', icon: Layers },
       { id: 'ped-horarios', label: 'Professores e horários', tabKey: 'atribuicao_horarios', icon: Clock },
       { id: 'ped-projetos', label: 'Projetos BNCC', tabKey: 'projetos', icon: Sparkles },
+      { id: 'ped-fechamento', label: 'Fechamento e conselho', tabKey: 'fechamento', icon: Lock },
     ],
   },
   {

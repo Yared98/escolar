@@ -16,6 +16,8 @@ O processo avaliativo opera pelo lançamento de notas por período letivo e falt
 | Grade Horária Semanal Anti-Choque Triplo (Turma, Docente, Sala) | Implementado |
 | Tela "Meu dia" do professor (aulas de hoje + atalhos) | Implementado |
 | Lançamento de notas por turma/disciplina/período no celular | Implementado |
+| Fechamento de bimestre/trimestre e bloqueio 409 no lançamento de notas | Implementado |
+| Conselho de classe (parecer e encaminhamento por aluno/período) | Implementado |
 | Navegação inferior mobile para todos os perfis | Implementado |
 | Simulados TRI (cadastro de itens a/b/c + apuração de gabarito via API/UI) | **Parcial** — endpoints e aba em `PedagocioNutricaoSection`; sem leitora física |
 | Leitora Ótica de Gabaritos Físicos (hardware/scan) | **Fora de escopo MVP** |
@@ -97,8 +99,18 @@ O processo avaliativo opera pelo lançamento de notas por período letivo e falt
     ```
     - Validações: `periodo` deve estar na lista (`1_bimestre`, `2_bimestre`, `3_bimestre`, `4_bimestre`, `1_trimestre`, `2_trimestre`, `3_trimestre`, `recuperacao`); nota entre 0 e 10 (arredondada para 2 casas); aluno enturmado na turma; lista não vazia e máximo 200 itens; `nota: null` ignora o aluno.
     - Upsert por `tenant_id + aluno_id + disciplina_nome + periodo`; se houver duplicatas antigas, todas são atualizadas.
+    - **Bloqueio 409**: se o período estiver fechado para a turma (`fechamentos_periodo`), o endpoint retorna `409 Conflict` com a mensagem "O {período} desta turma está fechado. Peça à coordenação para reabrir.". Gestores e administradores também são bloqueados — precisam reabrir o período antes de alterar notas.
     - Response 200 OK: `{ gravadas: n, ignoradas: m }`.
     - Gera `audit_logs` com ação `NOTAS_LOTE`.
+
+- **Fechamento de Período e Conselho de Classe**:
+  - `GET /api/v1/academico/fechamentos?turma_id=` → lista todos os períodos válidos indicando se estão fechados, quem fechou e quando. Papéis: `gestor`, `admin`, `secretaria`, `professor` (leitura).
+  - `POST /api/v1/academico/fechamentos` `{ turma_id, periodo }` → fecha o período para a turma. Papéis: `gestor`, `admin`, `secretaria`. Gera `audit_logs` (`FECHAMENTO_PERIODO`).
+  - `DELETE /api/v1/academico/fechamentos/:id` → reabre o período. Papéis: `gestor`, `admin`, `secretaria`. Gera `audit_logs` (`REABERTURA_PERIODO`).
+  - `GET /api/v1/academico/conselho?turma_id=&periodo=` → alunos ativos da turma com média do período (média aritmética das notas lançadas) e parecer existente. Papéis: `gestor`, `admin`, `secretaria`, `professor` (desde que atribuído à turma em qualquer disciplina).
+  - `PUT /api/v1/academico/conselho` `{ turma_id, periodo, aluno_id, parecer, encaminhamento? }` → salva ou atualiza o parecer do conselho para o aluno no período. `parecer` é obrigatório e aceita até 2000 caracteres; `encaminhamento` é opcional e deve ser `recuperacao`, `acompanhamento` ou `sem_pendencias`. Papéis: `gestor`, `admin`, `secretaria`, `professor` (desde que atribuído à turma em qualquer disciplina).
+  - O boletim (`GET /api/v1/academico/boletim/:aluno_id`) passa a incluir `periodos_fechados: [..]` e `pareceres: [{periodo, parecer, encaminhamento}]`, permitindo que a família veja a situação de cada período e os pareceres registrados.
+  - A UI do Pedagógico ganha a aba "Fechamento e conselho" (`tabKey: 'fechamento'`) para escolher turma, fechar/reabrir períodos e registrar pareceres por aluno. A tela de lançamento de notas mostra aviso e desabilita o salvamento quando o período selecionado está fechado.
 
 - **API do Professor (mobile)**:
   - `GET /api/v1/professor/minhas-turmas`
@@ -167,7 +179,7 @@ O processo avaliativo opera pelo lançamento de notas por período letivo e falt
 
 Organização após o refactor B12 (só moveu código, sem mudança de regra):
 
-- `PedagocioNutricaoSection.tsx` orquestra o Pedagógico (estado, carregamento, handlers, abas); `frontend/src/components/pedagogico/` só exibe, via props: `MatrizPanel`, `HorariosPanel`, `TriPanel`, `ProjetosPanel` e os modais `NovaDisciplinaModal`, `AdicionarMatrizModal`, `AtribuirProfessorModal`, `NovoHorarioModal`, `NovoSimuladoModal`.
+- `PedagocioNutricaoSection.tsx` orquestra o Pedagógico (estado, carregamento, handlers, abas); `frontend/src/components/pedagogico/` só exibe, via props: `MatrizPanel`, `HorariosPanel`, `TriPanel`, `ProjetosPanel`, `FechamentoPanel` e os modais `NovaDisciplinaModal`, `AdicionarMatrizModal`, `AtribuirProfessorModal`, `NovoHorarioModal`, `NovoSimuladoModal`.
 - `PortalAlunoSection.tsx` orquestra o Portal do Aluno; `frontend/src/components/portal_aluno/` só exibe: `BoletimTab`, `DiplomaTab`, `FinanceiroTab`, `RotinaTab`, `AvaliacoesTab`, `OcorrenciasTab` e `PixModal` (separado do Pix do Financeiro).
 - `ProfessorSection.tsx` orquestra a área do professor ("Meu dia"); `frontend/src/components/professor/` só exibe: `AulasHojePanel`, `LancarNotasPanel` e `AvaliacoesPanel`.
 - `MobileBottomNav.tsx` exibe a barra de navegação inferior no celular para todos os perfis.
@@ -185,3 +197,4 @@ Organização após o refactor B12 (só moveu código, sem mudança de regra):
 - **Prioridade não é escolhida por quem registra**: no Diário do Fundamental a prioridade é derivada do tipo (elogio → baixa; atraso e falta de material → média; comportamento e saúde → alta). A rotina da Educação Infantil continua gravando `urgente`, como antes.
 - **Sem aviso automático à família**: a observação não dispara push, e-mail ou WhatsApp; `notificado_responsavel` apenas registra a intenção do aviso. A coluna `lido_pelo_responsavel` existe no banco, mas não há rota para a família marcar a leitura — o portal não mostra selo de "lido".
 - **Ocorrências no celular sem internet**: o registro de observação exige conexão (não entra na fila offline do diário); se falhar, o modal mostra o erro e nada é gravado.
+- **Fechamento e conselho**: a reabertura exige o `id` do registro de `fechamentos_periodo`; a UI lista os fechamentos e descobre o id automaticamente. A média do conselho é a média aritmética simples das notas do período (não ponderada por carga horária). Não há notificação automática para a família quando um parecer é registrado.

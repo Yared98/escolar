@@ -93,3 +93,29 @@ export interface AlunoTurmaRoster {
   numero_chamada?: number | null;
   status: string;
 }
+
+export type PeriodoFechamento =
+  | '1_bimestre'
+  | '2_bimestre'
+  | '3_bimestre'
+  | '4_bimestre'
+  | '1_trimestre'
+  | '2_trimestre'
+  | '3_trimestre'
+  | 'recuperacao';
+
+export interface FechamentoPeriodo {
+  periodo: PeriodoFechamento;
+  fechado: boolean;
+  fechado_por?: string | null;
+  fechado_em?: string | null;
+}
+
+export interface AlunoConselho {
+  aluno_id: string;
+  aluno_nome: string;
+  numero_chamada?: number | null;
+  media_periodo?: number | null;
+  parecer?: string | null;
+  encaminhamento?: 'recuperacao' | 'acompanhamento' | 'sem_pendencias' | null;
+}

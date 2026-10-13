@@ -1,10 +1,28 @@
 import React from 'react';
 import type { BoletimData } from './types';
 import { formatNumero } from '@/lib/formatters';
+import { Lock, Unlock, MessageSquare } from 'lucide-react';
 
 export interface BoletimTabProps {
   boletim: BoletimData | null;
 }
+
+const LABEL_PERIODO: Record<string, string> = {
+  '1_bimestre': '1º Bimestre',
+  '2_bimestre': '2º Bimestre',
+  '3_bimestre': '3º Bimestre',
+  '4_bimestre': '4º Bimestre',
+  '1_trimestre': '1º Trimestre',
+  '2_trimestre': '2º Trimestre',
+  '3_trimestre': '3º Trimestre',
+  recuperacao: 'Recuperação',
+};
+
+const ENCAMINHAMENTO_LABEL: Record<string, string> = {
+  recuperacao: 'Recuperação',
+  acompanhamento: 'Acompanhamento pedagógico',
+  sem_pendencias: 'Sem pendências',
+};
 
 export function BoletimTab({
   boletim,
@@ -122,6 +140,78 @@ export function BoletimTab({
           </tbody>
         </table>
       </div>
+
+      {/* Períodos fechados e pareceres do conselho */}
+      {boletim && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="p-4 bg-salvia-50/70 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 rounded-2xl">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-salvia-800 dark:text-salvia-200 mb-3 flex items-center space-x-2">
+              <Lock className="w-4 h-4" />
+              <span>Situação dos períodos</span>
+            </h3>
+            <div className="space-y-2">
+              {Object.keys(LABEL_PERIODO).map((periodo) => {
+                const fechado = boletim.periodos_fechados?.includes(periodo) ?? false;
+                return (
+                  <div
+                    key={periodo}
+                    className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-salvia-900/60 border border-salvia-200 dark:border-salvia-800"
+                  >
+                    <span className="text-xs font-bold text-slate-900 dark:text-salvia-50">
+                      {LABEL_PERIODO[periodo]}
+                    </span>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center space-x-1 ${
+                        fechado
+                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
+                          : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
+                      }`}
+                    >
+                      {fechado ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
+                      <span>{fechado ? 'Fechado' : 'Em aberto (pode mudar)'}</span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="p-4 bg-salvia-50/70 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 rounded-2xl">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-salvia-800 dark:text-salvia-200 mb-3 flex items-center space-x-2">
+              <MessageSquare className="w-4 h-4" />
+              <span>Pareceres do conselho de classe</span>
+            </h3>
+            {boletim.pareceres && boletim.pareceres.length > 0 ? (
+              <div className="space-y-2">
+                {boletim.pareceres.map((p, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3 rounded-xl bg-white dark:bg-salvia-900/60 border border-salvia-200 dark:border-salvia-800"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-salvia-700 dark:text-salvia-300">
+                        {LABEL_PERIODO[p.periodo] || p.periodo}
+                      </span>
+                      {p.encaminhamento && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                          {ENCAMINHAMENTO_LABEL[p.encaminhamento] || p.encaminhamento}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-800 dark:text-salvia-100 whitespace-pre-wrap">
+                      {p.parecer}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-salvia-600 dark:text-salvia-400">
+                Nenhum parecer do conselho registrado ainda.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

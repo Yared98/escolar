@@ -128,6 +128,14 @@ pub fn validar_e_arredondar_nota(nota: Option<f64>) -> Result<Option<f64>, AppEr
     }
 }
 
+/// Verifica se um período está fechado para uma turma, bloqueando o lançamento de notas.
+/// Retorna true se o período está fechado (bloqueia), false caso contrário.
+/// Esta função é pura e testável sem banco de dados.
+pub fn periodo_fechado_bloqueia(fechado: bool, _role: &str) -> bool {
+    // Gestor/admin também são bloqueados — precisam reabrir o período antes.
+    fechado
+}
+
 /// Converte uma data no fuso de Brasília para o dia da semana usado no banco:
 /// 1 = segunda … 6 = sábado. Domingo retorna `None`.
 pub fn data_para_dia_semana(data: NaiveDate) -> Option<i32> {
@@ -491,6 +499,28 @@ pub async fn lancar_notas_lote(
 
     validar_periodo(&dto.periodo)?;
 
+    // Verifica se o período está fechado para esta turma.
+    let fechado: bool = sqlx::query_scalar(
+        r#"
+        SELECT EXISTS(
+            SELECT 1 FROM fechamentos_periodo
+            WHERE tenant_id = $1 AND turma_id = $2 AND periodo = $3
+        )
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(dto.turma_id)
+    .bind(&dto.periodo)
+    .fetch_one(&mut *db)
+    .await?;
+
+    if periodo_fechado_bloqueia(fechado, &auth_user.role) {
+        return Err(AppError::Conflict(format!(
+            "O {} desta turma está fechado. Peça à coordenação para reabrir.",
+            dto.periodo
+        )));
+    }
+
     if dto.notas.is_empty() {
         return Err(AppError::BadRequest(
             "A lista de notas não pode estar vazia.".to_string(),
@@ -737,5 +767,19 @@ mod tests {
         ));
         assert!(crate::middleware::rbac::eh_gestao("GestorEscolar"));
         assert!(!crate::middleware::rbac::eh_gestao("professor"));
+    }
+
+    #[test]
+    fn test_periodo_fechado_bloqueia() {
+        // Período fechado bloqueia todos os papéis, incluindo gestor e admin.
+        assert!(periodo_fechado_bloqueia(true, "professor"));
+        assert!(periodo_fechado_bloqueia(true, "gestor"));
+        assert!(periodo_fechado_bloqueia(true, "admin"));
+        assert!(periodo_fechado_bloqueia(true, "GestorEscolar"));
+
+        // Período em aberto não bloqueia ninguém.
+        assert!(!periodo_fechado_bloqueia(false, "professor"));
+        assert!(!periodo_fechado_bloqueia(false, "gestor"));
+        assert!(!periodo_fechado_bloqueia(false, "admin"));
     }
 }
