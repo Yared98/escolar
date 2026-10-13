@@ -43,6 +43,7 @@ export interface DreReport {
   inadimplencia_total: number;
   total_faturas_pagas: number;
   total_faturas_pendentes: number;
+  total_faturas_atrasadas?: number;
   dfc_caixa_projetado: number;
 }
 

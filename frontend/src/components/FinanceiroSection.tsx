@@ -45,6 +45,8 @@ import { CobrancaPanel } from './financeiro/CobrancaPanel';
 import { NfsePanel } from './financeiro/NfsePanel';
 import { BiPanel } from './financeiro/BiPanel';
 
+export const FATOR_RECUPERACAO_INADIMPLENCIA = 0.4; // estimativa de recuperação de inadimplência (MVP)
+
 export const calcularDiasAtrasoFatura = (dataVencimentoStr: string): number => {
   if (!dataVencimentoStr) return 0;
   const parts = dataVencimentoStr.split('-');
@@ -310,7 +312,7 @@ export function FinanceiroSection() {
           total_faturas_pagas: prev.total_faturas_pagas + 1,
           total_faturas_pendentes: Math.max(0, prev.total_faturas_pendentes - 1),
           resultado_liquido: novoResultado,
-          dfc_caixa_projetado: novoResultado + novaInadimp * 0.4,
+          dfc_caixa_projetado: novoResultado + novaInadimp * FATOR_RECUPERACAO_INADIMPLENCIA,
         };
       });
       setToastMessage(`Fatura "${fatura.descricao}" liquidada com sucesso!`);
@@ -508,7 +510,7 @@ export function FinanceiroSection() {
           ...prev,
           despesas_totais: novasDespesas,
           resultado_liquido: novoResultado,
-          dfc_caixa_projetado: novoResultado + prev.inadimplencia_total * 0.4,
+          dfc_caixa_projetado: novoResultado + prev.inadimplencia_total * FATOR_RECUPERACAO_INADIMPLENCIA,
         };
       });
       setShowNovaDespesaModal(false);
@@ -607,7 +609,7 @@ export function FinanceiroSection() {
             R$ {(dre?.inadimplencia_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
           <span className="text-[10px] text-salvia-500 font-medium">
-            {dre?.total_faturas_pendentes || 0} pendentes de cobrança
+            {dre?.total_faturas_atrasadas ?? dre?.total_faturas_pendentes ?? 0} atrasada(s)
           </span>
         </div>
 

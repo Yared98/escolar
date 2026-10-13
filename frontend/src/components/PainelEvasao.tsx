@@ -8,10 +8,13 @@ interface DetalhesEvasao {
   faturas_atrasadas: number;
   frequencia_ultimos_30_dias: number;
   media_disciplinas: number;
+  sem_chamadas?: boolean;
 }
 
 interface AlertaEvasao {
   aluno_id: string;
+  aluno_nome?: string;
+  turma_nome?: string;
   score_risco_evasao: number;
   nivel_urgencia: string; // 'alta', 'media', 'baixa'
   fator_principal: string; // 'faltas_reiteradas', 'inadimplencia', 'queda_desempenho'
@@ -107,7 +110,12 @@ export function PainelEvasao() {
                       {getFatorIcon(alerta.fator_principal)}
                     </div>
                     <div>
-                      <h4 className="font-bold text-gray-900 font-mono text-xs text-gray-400 mb-0.5">ID: {alerta.aluno_id.split('-')[0]}...</h4>
+                      <h4 className="font-bold text-gray-900 text-sm mb-0.5" title={`ID: ${alerta.aluno_id}`}>
+                        {alerta.aluno_nome || `ID: ${alerta.aluno_id.split('-')[0]}...`}
+                      </h4>
+                      {alerta.turma_nome && (
+                        <p className="text-[10px] text-gray-500 mb-0.5">{alerta.turma_nome}</p>
+                      )}
                       <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${getUrgencyColor(alerta.nivel_urgencia)}`}>
                         Risco {alerta.nivel_urgencia}
                       </span>
@@ -141,9 +149,13 @@ export function PainelEvasao() {
                 <div className="grid grid-cols-3 gap-2">
                   <div className="bg-white border border-gray-100 rounded-lg p-2 text-center">
                     <span className="block text-[10px] text-gray-500 font-medium mb-0.5">Frequência</span>
-                    <span className={`font-bold text-sm ${alerta.detalhes.frequencia_ultimos_30_dias < 75 ? 'text-rose-600' : 'text-gray-900'}`}>
-                      {alerta.detalhes.frequencia_ultimos_30_dias.toFixed(0)}%
-                    </span>
+                    {alerta.detalhes.sem_chamadas ? (
+                      <span className="font-bold text-sm text-gray-500">Sem chamadas registradas</span>
+                    ) : (
+                      <span className={`font-bold text-sm ${alerta.detalhes.frequencia_ultimos_30_dias < 75 ? 'text-rose-600' : 'text-gray-900'}`}>
+                        {alerta.detalhes.frequencia_ultimos_30_dias.toFixed(0)}%
+                      </span>
+                    )}
                   </div>
                   <div className="bg-white border border-gray-100 rounded-lg p-2 text-center">
                     <span className="block text-[10px] text-gray-500 font-medium mb-0.5">Média Geral</span>

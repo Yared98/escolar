@@ -44,7 +44,8 @@ Campos relevantes em `faturas`: `contrato_id`, `parcela_numero`/`parcela_total`,
 
 - **Conciliação** `POST /financeiro/conciliacao/processar`: aceita lote JSON; se `fatura_id`/`despesa_id` omitidos, tenta match por valor (±0,02) e proximidade de vencimento. OFX via upload na UI de DRE. Sem CNAB.
 - **NFS-e** `POST /financeiro/nfse/emitir` + `GET /financeiro/nfse`: persistência de emissão **simulada** (não transmite à prefeitura).
-- **DRE/DFC** `GET /financeiro/relatorios/dre`: receita de faturas pagas, despesas (exceto cancelado/estornada), inadimplência (atrasado + pendente vencido), DFC = resultado + 40% da inadimplência. Relatório gerencial, não contábil.
+- **DRE/DFC** `GET /financeiro/relatorios/dre`: receita de faturas pagas, despesas (exceto cancelado/estornada), inadimplência (atrasado + pendente vencido). O JSON inclui `total_faturas_pendentes` (pendente + atrasado) e `total_faturas_atrasadas` (vencidas e não pagas). O DFC projetado = resultado líquido + (`FATOR_RECUPERACAO_INADIMPLENCIA` × inadimplência). Relatório gerencial, não contábil.
+- **Limitação MVP — fator de recuperação**: o DFC utiliza 0,4 (40%) como estimativa de recuperação de inadimplência, materializada na constante `FATOR_RECUPERACAO_INADIMPLENCIA`. Esse valor é uma premissa gerencial de tesouraria para demonstração e deve ser parametrizável antes de uso contábil/fiscal real.
 
 ## 4. UI (Financeiro)
 

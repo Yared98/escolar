@@ -1436,6 +1436,8 @@ pub fn calcular_score_evasao(aluno_id: Uuid, metricas: DetalhesEvasao) -> Prediz
 
     PredizerEvasaoResponse {
         aluno_id,
+        aluno_nome: String::new(),
+        turma_nome: None,
         score_risco_evasao: score_final,
         nivel_urgencia,
         fator_principal,
@@ -1480,13 +1482,13 @@ pub async fn predizer_risco_evasao(
     .fetch_one(&mut *db)
     .await?;
 
-    let frequencia_ultimos_30_dias = if freq_row.0 > 0 {
+    let (frequencia_ultimos_30_dias, sem_chamadas) = if freq_row.0 > 0 {
         let pct = (freq_row.1 as f64 / freq_row.0 as f64) * 100.0;
-        (pct * 10.0).round() / 10.0
+        ((pct * 10.0).round() / 10.0, false)
     } else {
         let freq_geral = sqlx::query_as::<_, (i64, i64)>(
             r#"
-            SELECT 
+            SELECT
                 COUNT(id) as total_aulas,
                 COUNT(id) FILTER (WHERE presente = true) as total_presentes
             FROM presencas
@@ -1500,9 +1502,9 @@ pub async fn predizer_risco_evasao(
 
         if freq_geral.0 > 0 {
             let pct = (freq_geral.1 as f64 / freq_geral.0 as f64) * 100.0;
-            (pct * 10.0).round() / 10.0
+            ((pct * 10.0).round() / 10.0, false)
         } else {
-            100.0
+            (100.0, true)
         }
     };
 
@@ -1544,8 +1546,13 @@ pub async fn predizer_risco_evasao(
         faturas_atrasadas,
         frequencia_ultimos_30_dias,
         media_disciplinas,
+        sem_chamadas,
     };
     let resultado = calcular_score_evasao(aluno_id, metricas);
+    let resultado = PredizerEvasaoResponse {
+        aluno_nome: aluno.1.clone(),
+        ..resultado
+    };
 
     if resultado.score_risco_evasao > 75.0 {
         // Throttling de 24h para evitar saturação de notificações idênticas
@@ -1687,9 +1694,9 @@ mod tests {
     fn test_calcular_score_baixo_risco_aluno_regular() {
         let aluno_id = Uuid::new_v4();
         let metricas = DetalhesEvasao {
-            faturas_atrasadas: 0,
             frequencia_ultimos_30_dias: 98.0,
             media_disciplinas: 8.5,
+            ..Default::default()
         };
 
         let resultado = calcular_score_evasao(aluno_id, metricas);
@@ -1706,6 +1713,7 @@ mod tests {
             faturas_atrasadas: 2,
             frequencia_ultimos_30_dias: 95.0,
             media_disciplinas: 7.5,
+            ..Default::default()
         };
 
         let resultado = calcular_score_evasao(aluno_id, metricas);
@@ -1717,9 +1725,9 @@ mod tests {
     fn test_calcular_score_faltas_reiteradas_dominante() {
         let aluno_id = Uuid::new_v4();
         let metricas = DetalhesEvasao {
-            faturas_atrasadas: 0,
             frequencia_ultimos_30_dias: 60.0,
             media_disciplinas: 8.0,
+            ..Default::default()
         };
 
         let resultado = calcular_score_evasao(aluno_id, metricas);
@@ -1731,9 +1739,9 @@ mod tests {
     fn test_calcular_score_queda_desempenho_dominante() {
         let aluno_id = Uuid::new_v4();
         let metricas = DetalhesEvasao {
-            faturas_atrasadas: 0,
             frequencia_ultimos_30_dias: 95.0,
             media_disciplinas: 4.0,
+            ..Default::default()
         };
 
         let resultado = calcular_score_evasao(aluno_id, metricas);
@@ -1748,6 +1756,7 @@ mod tests {
             faturas_atrasadas: 2,
             frequencia_ultimos_30_dias: 72.0,
             media_disciplinas: 6.1,
+            ..Default::default()
         };
 
         let resultado = calcular_score_evasao(aluno_id, metricas);
@@ -2034,15 +2043,21 @@ pub async fn listar_alertas_evasao(
     )?;
     let tenant_id = active_tenant.0;
 
-    let alunos = sqlx::query_scalar::<_, Uuid>(
-        "SELECT id FROM alunos WHERE tenant_id = $1 ORDER BY nome LIMIT 200",
+    let alunos = sqlx::query_as::<_, (Uuid, String)>(
+        r#"
+        SELECT a.id, a.nome
+        FROM alunos a
+        WHERE a.tenant_id = $1
+        ORDER BY a.nome
+        LIMIT 200
+        "#,
     )
     .bind(tenant_id)
     .fetch_all(&mut *db)
     .await?;
 
     let mut alertas = Vec::new();
-    for aluno_id in alunos {
+    for (aluno_id, aluno_nome) in alunos {
         let freq_row = sqlx::query_as::<_, (i64, i64)>(
             r#"
             SELECT COUNT(id), COUNT(id) FILTER (WHERE presente = true)
@@ -2055,10 +2070,13 @@ pub async fn listar_alertas_evasao(
         .fetch_one(&mut *db)
         .await?;
 
-        let frequencia_ultimos_30_dias = if freq_row.0 > 0 {
-            ((freq_row.1 as f64 / freq_row.0 as f64) * 1000.0).round() / 10.0
+        let (frequencia_ultimos_30_dias, sem_chamadas) = if freq_row.0 > 0 {
+            (
+                ((freq_row.1 as f64 / freq_row.0 as f64) * 1000.0).round() / 10.0,
+                false,
+            )
         } else {
-            100.0
+            (100.0, true)
         };
 
         let faturas_atrasadas = sqlx::query_scalar::<_, i64>(
@@ -2084,16 +2102,36 @@ pub async fn listar_alertas_evasao(
         .await?
         .unwrap_or(7.0);
 
+        let turma_nome = sqlx::query_scalar::<_, String>(
+            r#"
+            SELECT t.nome
+            FROM turmas t
+            JOIN turma_alunos ta ON t.id = ta.turma_id AND t.tenant_id = ta.tenant_id
+            WHERE ta.tenant_id = $1 AND ta.aluno_id = $2 AND ta.status = 'ativo'
+            ORDER BY t.ano_letivo DESC
+            LIMIT 1
+            "#,
+        )
+        .bind(tenant_id)
+        .bind(aluno_id)
+        .fetch_optional(&mut *db)
+        .await?;
+
         let resultado = calcular_score_evasao(
             aluno_id,
             DetalhesEvasao {
                 faturas_atrasadas,
                 frequencia_ultimos_30_dias,
                 media_disciplinas: (media * 10.0).round() / 10.0,
+                sem_chamadas,
             },
         );
         if resultado.score_risco_evasao >= 40.0 {
-            alertas.push(resultado);
+            alertas.push(PredizerEvasaoResponse {
+                aluno_nome,
+                turma_nome,
+                ..resultado
+            });
         }
     }
 

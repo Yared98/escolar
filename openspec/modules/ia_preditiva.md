@@ -47,17 +47,23 @@ Quando múltiplos gatilhos críticos ocorrem simultaneamente (inadimplência e f
 ```json
 {
   "aluno_id": "b1234567-89ab-cdef-0123-456789abcdef",
+  "aluno_nome": "Maria Souza",
+  "turma_nome": "1º Ano A",
   "score_risco_evasao": 85.5,
   "nivel_urgencia": "alta",
   "fator_principal": "inadimplencia",
   "detalhes": {
     "faturas_atrasadas": 2,
     "frequencia_ultimos_30_dias": 72.0,
-    "media_disciplinas": 6.1
+    "media_disciplinas": 6.1,
+    "sem_chamadas": false
   },
   "recomendacao": "Agendar reunião de acolhimento pedagógico e oferecer plano de parcelamento financeiro."
 }
 ```
+- **Campos novos (retrocompatíveis):**
+  - `aluno_nome` e `turma_nome`: identificação amigável do estudante e turma ativa (preenchidos em `GET /ia/evasao/alertas` e `GET /ia/evasao/predizer/:aluno_id`).
+  - `detalhes.sem_chamadas`: `true` quando não há registro de chamada para o aluno no período analisado.
 - **Response 404 Not Found:** `{ "error": "Aluno não encontrado", "status": 404 }`
 - **Response 403 Forbidden:** `{ "error": "Acesso não autorizado ao aluno solicitado", "status": 403 }`
 
@@ -71,3 +77,7 @@ Quando múltiplos gatilhos críticos ocorrem simultaneamente (inadimplência e f
    - Todo cálculo executado é persistido na tabela `analise_evasao_logs(tenant_id, aluno_id, score_risco_evasao, fator_principal, calculado_em)` indexado por `(tenant_id, score_risco_evasao DESC)`.
 3. **Trilha de Auditoria**:
    - Operação registrada com código `PREDIZER_RISCO_EVASAO` na tabela `audit_logs` contendo o ID do operador.
+
+## 4. Limitações MVP
+
+- **Ausência de chamadas**: quando o aluno não possui registros de presença (`presencas`), o sistema não pode calcular frequência real. Nesses casos, `detalhes.sem_chamadas` é `true`, `frequencia_ultimos_30_dias` permanece 100% apenas para não inflar artificialmente o risco de faltas, e a interface exibe "Sem chamadas registradas" em vez de 0%. O score continua considerando inadimplência e notas.

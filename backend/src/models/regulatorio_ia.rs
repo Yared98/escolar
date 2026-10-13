@@ -67,11 +67,30 @@ pub struct DetalhesEvasao {
     pub faturas_atrasadas: i64,
     pub frequencia_ultimos_30_dias: f64,
     pub media_disciplinas: f64,
+    /// Quando true, indica que não há chamadas registradas para o aluno no período.
+    /// Frequência continua sendo 100% para não distorcer o score; a UI exibe "Sem chamadas".
+    #[serde(default)]
+    pub sem_chamadas: bool,
+}
+
+impl Default for DetalhesEvasao {
+    fn default() -> Self {
+        Self {
+            faturas_atrasadas: 0,
+            frequencia_ultimos_30_dias: 100.0,
+            media_disciplinas: 7.0,
+            sem_chamadas: false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PredizerEvasaoResponse {
     pub aluno_id: Uuid,
+    #[serde(default)]
+    pub aluno_nome: String,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub turma_nome: Option<String>,
     pub score_risco_evasao: f64,
     pub nivel_urgencia: String,
     pub fator_principal: String,

@@ -159,6 +159,8 @@ pub struct DreReportDto {
     pub inadimplencia_total: f64,
     pub total_faturas_pagas: i64,
     pub total_faturas_pendentes: i64,
+    /// Total de faturas vencidas e não pagas (atrasado ou pendente com vencimento < hoje).
+    pub total_faturas_atrasadas: i64,
     pub dfc_caixa_projetado: f64,
 }
 
