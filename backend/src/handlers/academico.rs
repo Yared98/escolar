@@ -22,10 +22,10 @@ use crate::{
         BoletimDisciplinaDto, Cardapio, ConsultarDiarioQuery, CreateCardapioDto,
         CreateDisciplinaDto, CreateHorarioTurmaDto, CreateProjetoEducacionalDto, CreateSimuladoDto,
         DiarioClasse, DiarioDiaResponse, DiarioRecenteItem, DiariosRecentesQuery, Disciplina,
-        HorarioTurma, HorarioTurmaDetalhado, Nota, PresencaDiaDto, ProjetoEducacional,
-        ResultadoTriDto, SimuladoItem, SimuladoResposta, SimuladoTri, SyncDiarioDto,
-        TurmaDisciplina, TurmaDisciplinaDetalhada, TurmaProfessor, TurmaProfessorDetalhado,
-        UpdateDisciplinaDto,
+        HorarioTurma, HorarioTurmaDetalhado, Nota, ParecerBoletimDto, PresencaDiaDto,
+        ProjetoEducacional, ResultadoTriDto, SimuladoItem, SimuladoResposta, SimuladoTri,
+        SyncDiarioDto, TurmaDisciplina, TurmaDisciplinaDetalhada, TurmaProfessor,
+        TurmaProfessorDetalhado, UpdateDisciplinaDto,
     },
 };
 
@@ -691,12 +691,43 @@ pub async fn consultar_boletim(
         freq_geral,
     );
 
+    // Períodos fechados das turmas do aluno.
+    let periodos_fechados: Vec<String> = sqlx::query_scalar(
+        r#"
+        SELECT DISTINCT fp.periodo
+        FROM fechamentos_periodo fp
+        JOIN turma_alunos ta ON ta.turma_id = fp.turma_id AND ta.tenant_id = fp.tenant_id
+        WHERE fp.tenant_id = $1 AND ta.aluno_id = $2
+        ORDER BY fp.periodo
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(aluno_id)
+    .fetch_all(&mut *db)
+    .await?;
+
+    // Pareceres do conselho para o aluno.
+    let pareceres: Vec<ParecerBoletimDto> = sqlx::query_as(
+        r#"
+        SELECT periodo, parecer, encaminhamento
+        FROM pareceres_conselho
+        WHERE tenant_id = $1 AND aluno_id = $2
+        ORDER BY periodo
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(aluno_id)
+    .fetch_all(&mut *db)
+    .await?;
+
     Ok(Json(BoletimCompletoDto {
         aluno_id,
         nome_aluno: aluno_nome.0,
         disciplinas,
         media_geral,
         status_aprovacao,
+        periodos_fechados,
+        pareceres,
     }))
 }
 

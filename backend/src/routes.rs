@@ -46,6 +46,9 @@ use crate::{
             whatsapp_webhook_verify,
         },
         documentos::emitir_documento,
+        fechamento::{
+            fechar_periodo, listar_conselhos, listar_fechamentos, reabrir_periodo, salvar_parecer,
+        },
         financeiro::{
             atualizar_despesa, atualizar_fatura, deletar_despesa, deletar_fatura, emitir_nfse,
             estornar_despesa, executar_regua_cobranca, gerar_despesa, gerar_fatura,
@@ -224,6 +227,15 @@ pub fn create_router(state: AppState) -> Router {
         .route("/academico/boletim/:aluno_id", get(consultar_boletim))
         .route("/academico/notas", get(listar_notas))
         .route("/academico/notas/lote", post(lancar_notas_lote))
+        .route(
+            "/academico/fechamentos",
+            get(listar_fechamentos).post(fechar_periodo),
+        )
+        .route("/academico/fechamentos/:id", delete(reabrir_periodo))
+        .route(
+            "/academico/conselho",
+            get(listar_conselhos).put(salvar_parecer),
+        )
         .route("/professor/minhas-turmas", get(minhas_turmas))
         .route("/professor/aulas", get(aulas_do_dia))
         .route("/avaliacoes", get(listar_avaliacoes).post(criar_avaliacao))

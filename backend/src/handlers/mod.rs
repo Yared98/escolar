@@ -4,6 +4,7 @@ pub mod auth;
 pub mod avaliacoes;
 pub mod crm_lms;
 pub mod documentos;
+pub mod fechamento;
 pub mod financeiro;
 pub mod notificacoes;
 pub mod nutricao;

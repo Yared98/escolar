@@ -22,6 +22,7 @@ import type {
   NotaAluno,
   PeriodoNota,
   ToastMsg,
+  FechamentoPeriodo,
 } from '@/lib/types/academico';
 import { PERIODOS_NOTA } from '@/lib/types/academico';
 import { parseNotaInput } from '@/lib/notas';
@@ -103,6 +104,10 @@ export function ProfessorSection({ onRouteChange }: ProfessorSectionProps) {
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState<ToastMsg | null>(null);
 
+  const [fechamentos, setFechamentos] = useState<FechamentoPeriodo[]>([]);
+  const [loadingFechamentos, setLoadingFechamentos] = useState(false);
+  const [erroFechamentos, setErroFechamentos] = useState<string | null>(null);
+
   const [avaliacoes, setAvaliacoes] = useState<AvaliacaoCalendario[]>([]);
   const [loadingAvaliacoes, setLoadingAvaliacoes] = useState(false);
   const [erroAvaliacoes, setErroAvaliacoes] = useState<string | null>(null);
@@ -113,6 +118,10 @@ export function ProfessorSection({ onRouteChange }: ProfessorSectionProps) {
     const turma = minhasTurmas.find((t) => t.turma_id === turmaId);
     return turma?.disciplinas || [];
   }, [minhasTurmas, turmaId]);
+
+  const periodoFechado = useMemo(() => {
+    return fechamentos.find((f) => f.periodo === periodo)?.fechado ?? false;
+  }, [fechamentos, periodo]);
 
   const showToast = useCallback((toast: ToastMsg) => {
     setMensagem(toast);
@@ -153,6 +162,26 @@ export function ProfessorSection({ onRouteChange }: ProfessorSectionProps) {
       setLoadingAulas(false);
     }
   }, [dataAula]);
+
+  const carregarFechamentos = useCallback(async () => {
+    if (!turmaId) {
+      setFechamentos([]);
+      return;
+    }
+    setLoadingFechamentos(true);
+    setErroFechamentos(null);
+    try {
+      const data = await apiFetch<FechamentoPeriodo[]>(
+        `/academico/fechamentos?turma_id=${encodeURIComponent(turmaId)}`
+      );
+      setFechamentos(data || []);
+    } catch (err: unknown) {
+      setErroFechamentos(err instanceof Error ? err.message : 'Não foi possível carregar os fechamentos.');
+      setFechamentos([]);
+    } finally {
+      setLoadingFechamentos(false);
+    }
+  }, [turmaId]);
 
   const carregarNotas = useCallback(async () => {
     if (!turmaId || !disciplinaId) {
@@ -208,6 +237,10 @@ export function ProfessorSection({ onRouteChange }: ProfessorSectionProps) {
   useEffect(() => {
     void carregarNotas();
   }, [carregarNotas]);
+
+  useEffect(() => {
+    void carregarFechamentos();
+  }, [carregarFechamentos]);
 
   useEffect(() => {
     if (activeTab === 'avaliacoes') {
@@ -495,6 +528,9 @@ export function ProfessorSection({ onRouteChange }: ProfessorSectionProps) {
           onAlterarNota={aoAlterarNota}
           onSalvar={salvarNotas}
           salvando={salvando}
+          periodoFechado={periodoFechado}
+          loadingFechamentos={loadingFechamentos}
+          erroFechamentos={erroFechamentos}
         />
       )}
     </section>
