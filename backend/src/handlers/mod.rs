@@ -10,6 +10,7 @@ pub mod notificacoes;
 pub mod nutricao;
 pub mod opensec;
 pub mod professor;
+pub mod recuperacao_senha;
 pub mod regulatorio_ia;
 pub mod secretaria;
 pub mod tenant_settings;

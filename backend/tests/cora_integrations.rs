@@ -3,7 +3,7 @@ use axum::{
     http::{Request, StatusCode},
 };
 use escolar_backend::{
-    config::{development_signing_material, AppState, Config, CoraMode},
+    config::{development_signing_material, AppState, Config, CoraMode, EmailMode},
     handlers::auth::generate_jwt,
     realtime::MessageHub,
     routes::create_router,
@@ -124,6 +124,8 @@ async fn run_cora_integration_checks(pool: &PgPool) -> Result<(), String> {
         account_lock_max_attempts: 5,
         account_lock_window_minutes: 15,
         cora_mode: CoraMode::Mock,
+        email_mode: EmailMode::Simulado,
+        app_public_url: "http://localhost:3000".to_string(),
     };
 
     let app_state = AppState {

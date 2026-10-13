@@ -232,10 +232,10 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?;
 
-        // Garantir que as 65 tabelas com tenant_id estejam presentes no schema
-        if tables_with_tenant.len() != 65 {
+        // Garantir que as 67 tabelas com tenant_id estejam presentes no schema
+        if tables_with_tenant.len() != 67 {
             return Err(format!(
-                "Esperado 65 tabelas com tenant_id no schema public, encontrado {}",
+                "Esperado 67 tabelas com tenant_id no schema public, encontrado {}",
                 tables_with_tenant.len()
             ));
         }
@@ -399,6 +399,8 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
                 "contratos" => format!("INSERT INTO {tbl} (id, tenant_id, aluno_id, ano_letivo, valor_total, status) VALUES ($1, $2, '{aluno_b_id}', 2027, 13000.0, 'rascunho') ON CONFLICT DO NOTHING"),
                 "despesas" => format!("INSERT INTO {tbl} (id, tenant_id, descricao, categoria, valor, data_vencimento, status) VALUES ($1, $2, 'Despesa Extra B', 'outros', 250.0, CURRENT_DATE, 'pendente') ON CONFLICT DO NOTHING"),
                 "diarios_classe" => format!("INSERT INTO {tbl} (id, tenant_id, turma_id, professor_id, data_aula, conteudo_ministrado) VALUES ($1, $2, '{turma_b_id}', '{user_b}', CURRENT_DATE, 'Conteúdo B')"),
+                "emails_saida" => format!("INSERT INTO {tbl} (id, tenant_id, destinatario, assunto, corpo, modo) VALUES ($1, $2, 'gestor@escola.test', 'Recuperação de senha', 'corpo do e-mail', 'simulado')"),
+                "tokens_recuperacao_senha" => format!("INSERT INTO {tbl} (id, tenant_id, user_id, token_hash, expires_at) VALUES ($1, $2, '{user_b}', 'hash12345678901234567890123456789012345678901234567890123456', NOW() + INTERVAL '30 minutes')"),
                 "diplomas_digitais" => format!("INSERT INTO {tbl} (id, tenant_id, aluno_id, curso_nome, xml_diplomado, xml_documentacao, hash_xades) VALUES ($1, $2, '{aluno_b_id}', 'Curso B', '<xml/>', '<xml/>', 'hashb123')"),
                 "disciplinas" => format!("INSERT INTO {tbl} (id, tenant_id, nome, codigo) VALUES ($1, $2, 'Física B', 'FIS-B') ON CONFLICT DO NOTHING"),
                 "eventos_calendario" => format!("INSERT INTO {tbl} (id, tenant_id, titulo, data_inicio, data_fim, tipo, criado_por) VALUES ($1, $2, 'Evento B', CURRENT_DATE, CURRENT_DATE + INTERVAL '1 day', 'outro', '{user_b}')"),
@@ -690,6 +692,8 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
             account_lock_max_attempts: 5,
             account_lock_window_minutes: 15,
             cora_mode: escolar_backend::config::CoraMode::Mock,
+            email_mode: escolar_backend::config::EmailMode::Simulado,
+            app_public_url: "http://localhost:3000".to_string(),
         },
         message_hub: escolar_backend::realtime::MessageHub::new(),
         ip_rate_limiter: escolar_backend::middleware::security::IpRateLimiter::default(),

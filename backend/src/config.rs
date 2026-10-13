@@ -34,6 +34,40 @@ pub fn parse_cora_mode(val: Option<&str>) -> Result<CoraMode, String> {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum EmailMode {
+    Simulado,
+}
+
+impl std::fmt::Display for EmailMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EmailMode::Simulado => write!(f, "simulado"),
+        }
+    }
+}
+
+pub fn parse_email_mode(val: Option<&str>, is_production: bool) -> Result<EmailMode, String> {
+    match val {
+        Some(s) if !s.trim().is_empty() => match s.trim().to_lowercase().as_str() {
+            "simulado" => Ok(EmailMode::Simulado),
+            _ => {
+                let msg = format!(
+                    "Configuração inválida: EMAIL_MODE='{s}'. Nesta versão só é suportado 'simulado'."
+                );
+                if is_production {
+                    Err(msg)
+                } else {
+                    tracing::warn!("{msg} Usando simulado.");
+                    Ok(EmailMode::Simulado)
+                }
+            }
+        },
+        _ => Ok(EmailMode::Simulado),
+    }
+}
+
 #[derive(Clone)]
 pub struct Config {
     pub database_url: String,
@@ -49,6 +83,8 @@ pub struct Config {
     pub account_lock_max_attempts: i64,
     pub account_lock_window_minutes: i64,
     pub cora_mode: CoraMode,
+    pub email_mode: EmailMode,
+    pub app_public_url: String,
 }
 
 impl std::fmt::Debug for Config {
@@ -69,6 +105,8 @@ impl std::fmt::Debug for Config {
                 &self.account_lock_window_minutes,
             )
             .field("cora_mode", &self.cora_mode)
+            .field("email_mode", &self.email_mode)
+            .field("app_public_url", &self.app_public_url)
             .finish()
     }
 }
@@ -333,6 +371,9 @@ impl Config {
             .unwrap_or(15);
 
         let cora_mode = parse_cora_mode(env::var("CORA_MODE").ok().as_deref())?;
+        let email_mode = parse_email_mode(env::var("EMAIL_MODE").ok().as_deref(), is_production)?;
+        let app_public_url =
+            env::var("APP_PUBLIC_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
 
         Ok(Config {
             database_url,
@@ -347,6 +388,8 @@ impl Config {
             account_lock_max_attempts,
             account_lock_window_minutes,
             cora_mode,
+            email_mode,
+            app_public_url,
         })
     }
 }
@@ -366,6 +409,8 @@ impl Default for Config {
             account_lock_max_attempts: 5,
             account_lock_window_minutes: 15,
             cora_mode: CoraMode::Mock,
+            email_mode: EmailMode::Simulado,
+            app_public_url: "http://localhost:3000".to_string(),
         }
     }
 }
@@ -417,6 +462,8 @@ mod tests {
             account_lock_max_attempts: 5,
             account_lock_window_minutes: 15,
             cora_mode: CoraMode::Mock,
+            email_mode: EmailMode::Simulado,
+            app_public_url: "http://localhost:3000".to_string(),
         };
 
         let debug_repr = format!("{:?}", config);
@@ -424,5 +471,36 @@ mod tests {
         assert!(!debug_repr.contains("BEGIN PRIVATE KEY"));
         assert!(debug_repr.contains("database_url: \"***\""));
         assert!(debug_repr.contains("jwt_private_pem: \"***\""));
+    }
+
+    #[test]
+    fn test_email_mode_simulado_default() {
+        assert_eq!(parse_email_mode(None, false).unwrap(), EmailMode::Simulado);
+        assert_eq!(
+            parse_email_mode(Some(""), false).unwrap(),
+            EmailMode::Simulado
+        );
+        assert_eq!(
+            parse_email_mode(Some("simulado"), false).unwrap(),
+            EmailMode::Simulado
+        );
+        assert_eq!(
+            parse_email_mode(Some("SIMULADO"), false).unwrap(),
+            EmailMode::Simulado
+        );
+    }
+
+    #[test]
+    fn test_email_mode_invalido_dev_cai_para_simulado() {
+        assert_eq!(
+            parse_email_mode(Some("smtp"), false).unwrap(),
+            EmailMode::Simulado
+        );
+    }
+
+    #[test]
+    fn test_email_mode_invalido_prod_erro() {
+        let err = parse_email_mode(Some("smtp"), true).unwrap_err();
+        assert!(err.contains("EMAIL_MODE='smtp'"));
     }
 }

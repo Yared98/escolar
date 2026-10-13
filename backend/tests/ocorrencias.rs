@@ -107,6 +107,8 @@ fn app_state(pool: PgPool) -> AppState {
             account_lock_max_attempts: 5,
             account_lock_window_minutes: 15,
             cora_mode: escolar_backend::config::CoraMode::Mock,
+            email_mode: escolar_backend::config::EmailMode::Simulado,
+            app_public_url: "http://localhost:3000".to_string(),
         },
         message_hub: escolar_backend::realtime::MessageHub::new(),
         ip_rate_limiter: escolar_backend::middleware::security::IpRateLimiter::default(),

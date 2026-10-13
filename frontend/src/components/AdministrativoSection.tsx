@@ -40,6 +40,14 @@ interface AuditLogItem {
   created_at: string;
 }
 
+interface EmailSaida {
+  id: string;
+  destinatario: string;
+  assunto: string;
+  corpo: string;
+  created_at: string;
+}
+
 export function AdministrativoSection() {
   const searchParams = useSearchParams();
   const routeParam = searchParams ? searchParams.get('route') : null;
@@ -59,6 +67,7 @@ export function AdministrativoSection() {
   const [logsAuditoria, setLogsAuditoria] = useState<AuditLogItem[]>([]);
   const [usuarios, setUsuarios] = useState<UsuarioItem[]>([]);
   const [alunos, setAlunos] = useState<AlunoOption[]>([]);
+  const [emailsSaida, setEmailsSaida] = useState<EmailSaida[]>([]);
   const [loading, setLoading] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -103,19 +112,22 @@ export function AdministrativoSection() {
   const loadUsuariosData = useCallback(async () => {
     setLoading(true);
     try {
-      const [usuariosData, alunosData] = await Promise.all([
+      const [usuariosData, alunosData, emailsData] = await Promise.all([
         apiFetch<UsuarioItem[]>('/administrativo/usuarios'),
         // A rota é paginada ({ items, total }) e aceita até 200 por página.
         apiFetch<{ items: { id: string; nome: string }[] }>('/secretaria/alunos?status=ativo&limit=200').catch(
           () => ({ items: [] })
         ),
+        apiFetch<EmailSaida[]>('/administrativo/emails-saida').catch(() => []),
       ]);
       setUsuarios(Array.isArray(usuariosData) ? usuariosData : []);
       setAlunos((alunosData?.items ?? []).map((a) => ({ id: a.id, nome: a.nome })));
+      setEmailsSaida(Array.isArray(emailsData) ? emailsData : []);
       setLoadError(null);
     } catch (err: unknown) {
       setUsuarios([]);
       setAlunos([]);
+      setEmailsSaida([]);
       setLoadError(err instanceof Error ? err.message : 'Não foi possível carregar os usuários.');
     } finally {
       setLoading(false);
@@ -237,16 +249,57 @@ export function AdministrativoSection() {
 
       {/* TAB: USUÁRIOS E ACESSOS */}
       {subTab === 'usuarios' && (
-        <UsuariosPanel
-          usuarios={usuarios}
-          alunos={alunos}
-          loading={loading}
-          error={loadError}
-          onRecarregar={loadUsuariosData}
-          onCriar={handleCriarUsuario}
-          onAtualizar={handleAtualizarUsuario}
-          onRedefinirSenha={handleRedefinirSenha}
-        />
+        <div className="space-y-6">
+          <UsuariosPanel
+            usuarios={usuarios}
+            alunos={alunos}
+            loading={loading}
+            error={loadError}
+            onRecarregar={loadUsuariosData}
+            onCriar={handleCriarUsuario}
+            onAtualizar={handleAtualizarUsuario}
+            onRedefinirSenha={handleRedefinirSenha}
+          />
+
+          <div className="p-4 bg-amber-50/60 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-700/50 rounded-xl space-y-3">
+            <h3 className="text-sm font-bold text-amber-900 dark:text-amber-200">
+              E-mails enviados (modo simulado)
+            </h3>
+            <p className="text-xs text-amber-800 dark:text-amber-300">
+              Nesta versão os e-mails não são enviados de verdade; repasse o link à pessoa.
+            </p>
+
+            {emailsSaida.length === 0 ? (
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                Nenhum e-mail de recuperação registrado.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {emailsSaida.map((email) => (
+                  <div
+                    key={email.id}
+                    className="bg-white dark:bg-salvia-900 border border-amber-200 dark:border-amber-700/50 rounded-xl p-3 space-y-2"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
+                      <span className="font-bold text-slate-900 dark:text-salvia-50">
+                        {email.destinatario}
+                      </span>
+                      <span className="text-salvia-500 font-mono">
+                        {new Date(email.created_at).toLocaleString('pt-BR')}
+                      </span>
+                    </div>
+                    <p className="text-xs font-semibold text-salvia-700 dark:text-salvia-300">
+                      {email.assunto}
+                    </p>
+                    <pre className="text-[11px] text-salvia-600 dark:text-salvia-400 whitespace-pre-wrap break-words font-mono bg-salvia-50 dark:bg-salvia-950/60 rounded-lg p-2 max-h-40 overflow-y-auto">
+                      {email.corpo}
+                    </pre>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* TAB 1: CORPO DOCENTE & RH */}

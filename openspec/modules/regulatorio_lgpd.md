@@ -77,3 +77,4 @@ A emissão de diplomas opera em modo cadastral interno com hash de integridade S
 
 ## 5. Central Gerencial de Registro de Envios Auditáveis
 - **Auditoria Multicanal Isolada**: Tela restrita a Administradores/Emissores registrando data/hora, aluno vinculado, responsável destinatário, emissor, canal e status de entrega/leitura.
+- **Caixa de Saída de E-mail Simulado**: A tela administrativa (Pessoas > Usuários e acessos) lista os últimos 50 e-mails gerados pelo sistema no modo simulado, incluindo destinatário, assunto, data/hora e corpo completo. O modo simulado é usado para recuperação de senha (`tokens_recuperacao_senha` / `emails_saida`) e exibe aviso explícito de que os e-mails não são enviados de verdade; a gestão deve repassar o link manualmente.

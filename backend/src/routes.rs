@@ -67,6 +67,7 @@ use crate::{
         },
         opensec::obter_status_opensec,
         professor::{aulas_do_dia, lancar_notas_lote, listar_notas, minhas_turmas},
+        recuperacao_senha::{esqueci_senha, listar_emails_saida_handler, redefinir_senha_publico},
         regulatorio_ia::{
             baixar_educacenso, cadastrar_credencial_perimetral, consultar_diploma_digital,
             emitir_diploma_digital, exportar_educacenso, listar_alertas_evasao,
@@ -370,6 +371,10 @@ pub fn create_router(state: AppState) -> Router {
             "/administrativo/usuarios/:id/redefinir-senha",
             post(redefinir_senha),
         )
+        .route(
+            "/administrativo/emails-saida",
+            get(listar_emails_saida_handler),
+        )
         // 4. Agenda Digital App & Ocorrências (Comunicação Centralizada Auditável, Ocorrências & Tracking)
         .route(
             "/agenda/mensagens",
@@ -519,6 +524,8 @@ pub fn create_router(state: AppState) -> Router {
         .route("/auth/register-tenant", post(register_tenant))
         .route("/auth/login", post(login))
         .route("/auth/refresh", post(refresh_session))
+        .route("/auth/esqueci-senha", post(esqueci_senha))
+        .route("/auth/redefinir-senha", post(redefinir_senha_publico))
         .route("/auth/oauth/token", post(oauth_token))
         .route(
             "/.well-known/openid-configuration",
