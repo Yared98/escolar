@@ -27,6 +27,8 @@ const ENCAMINHAMENTO_LABEL: Record<string, string> = {
 export function BoletimTab({
   boletim,
 }: BoletimTabProps) {
+  // Sem nenhuma disciplina com nota, a API devolve média 0: não é "abaixo da média", é "sem notas".
+  const semNotas = !boletim || boletim.media_geral == null || (boletim.disciplinas?.length ?? 0) === 0;
   return (
     <div className="space-y-6">
       {/* Cards de Resumo Geral */}
@@ -34,12 +36,12 @@ export function BoletimTab({
         <div className="p-4 bg-salvia-50/70 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 rounded-2xl">
           <span className="text-[11px] font-semibold text-salvia-600 dark:text-salvia-400 block">Média Geral Ponderada</span>
           <div className="mt-1 text-2xl font-bold font-mono text-slate-900 dark:text-salvia-50">
-            {boletim && boletim.media_geral != null ? formatNumero(boletim.media_geral, 2) : '—'}
+            {boletim && !semNotas ? formatNumero(boletim.media_geral, 2) : '—'}
           </div>
           <span className="text-[10px] text-salvia-500 font-medium mt-1 inline-block">
             {!boletim
               ? 'Boletim não carregado'
-              : boletim.media_geral == null
+              : semNotas || boletim.media_geral == null
                 ? 'Ainda sem notas lançadas'
                 : boletim.media_geral >= 7
                   ? 'Acima da média mínima (7.00)'
