@@ -117,7 +117,7 @@ O módulo cobre o **ciclo de vida completo do estudante** (matrícula com duplo 
   - Leitura do livro de chamada também repara `pre_matricula` com vínculo ativo residual → `ativo` (consistência de ciclo de vida).
   - Prontuário permanece na ficha do aluno (`GET/PUT /secretaria/prontuarios/:aluno_id`); não há cadastro paralelo de estudante no Pedagógico.
 - **Livro de Chamada & Renumeração Alfabética (A-Z, 1..N)**:
-  - Consulta do livro de chamada (`GET /api/v1/secretaria/turmas/:turma_id/alunos`): retorna alunos operacionais com número de chamada, data de nascimento, CPF, responsável legal e status do vínculo.
+  - Consulta do livro de chamada (`GET /api/v1/secretaria/turmas/:turma_id/alunos`): retorna alunos operacionais com número de chamada, data de nascimento, CPF, responsável legal (incluindo `responsavel_user_id` e `responsavel_nome` resolvidos via `alunos.responsavel_user_id` ou vínculo em `responsaveis_alunos` com conta de usuário no portal) e status do vínculo.
   - Renumeração automática (`POST /api/v1/secretaria/turmas/:turma_id/renumerar-chamada`): executa transação no banco reordenando os estudantes ativos em ordem alfabética (`ORDER BY a.nome ASC`) e atualizando `numero_chamada = 1..N`.
 - **Desenturmação e Transferência Atômica entre Turmas**:
   - Desenturmação (`DELETE /api/v1/secretaria/turmas/:turma_id/alunos/:aluno_id`): remove vínculo ativo do estudante da turma, liberando vaga imediatamente.

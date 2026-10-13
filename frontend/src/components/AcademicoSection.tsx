@@ -9,10 +9,14 @@ import {
   WifiOff,
   RefreshCw,
   Check,
+  ArrowRight,
+  X,
 } from 'lucide-react';
 import {
   PRIORIDADE_OCORRENCIA,
   isTurmaInfantil,
+  formatarAvisoRecadoEnviado,
+  urlConversaAgenda,
   type AlunoChamada,
   type NovaOcorrenciaPayload,
   type OcorrenciaAluno,
@@ -26,6 +30,7 @@ import {
   OcorrenciaModal,
   type OcorrenciaFormData,
 } from './academico/OcorrenciaModal';
+import { RecadoFamiliaModal } from './academico/RecadoFamiliaModal';
 import { etapaEnsinoLabel } from '@/lib/etapas';
 
 const hojeLocal = () => {
@@ -74,6 +79,15 @@ export function AcademicoSection() {
   const [ocorrenciaAluno, setOcorrenciaAluno] = useState<AlunoChamada | null>(null);
   const [salvandoOcorrencia, setSalvandoOcorrencia] = useState(false);
   const [erroOcorrencia, setErroOcorrencia] = useState<string | null>(null);
+
+  // Recado do professor à família direto da chamada
+  const [recadoAluno, setRecadoAluno] = useState<AlunoChamada | null>(null);
+  const [salvandoRecado, setSalvandoRecado] = useState(false);
+  const [erroRecado, setErroRecado] = useState<string | null>(null);
+  const [avisoRecado, setAvisoRecado] = useState<{
+    responsavel: string;
+    conversaId: string;
+  } | null>(null);
 
   const carregarOcorrencias = useCallback(async () => {
     if (!turmaId || !dataAula || !isOnline) {
@@ -184,6 +198,59 @@ export function AcademicoSection() {
     }
   };
 
+  const abrirRecadoFamilia = (aluno: AlunoChamada) => {
+    setAvisoRecado(null);
+    setErroRecado(null);
+    setRecadoAluno(aluno);
+  };
+
+  const fecharRecadoFamilia = () => {
+    setRecadoAluno(null);
+    setErroRecado(null);
+  };
+
+  const enviarRecadoFamilia = async (conteudo: string) => {
+    const aluno = recadoAluno;
+    if (!aluno) return;
+    if (!isOnline) {
+      setErroRecado(
+        'Sem conexão com a internet. O recado só pode ser enviado online.'
+      );
+      return;
+    }
+
+    setErroRecado(null);
+    setSalvandoRecado(true);
+    try {
+      const res = await apiFetch<{ id: string; thread_id?: string | null }>(
+        '/agenda/mensagens',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            aluno_id: aluno.id,
+            turma_id: turmaId || undefined,
+            canal: 'responsavel',
+            titulo: `Recado sobre ${aluno.nome}`,
+            conteudo,
+          }),
+        }
+      );
+      const conversaId = res.thread_id || res.id;
+      const responsavel = aluno.responsavel_nome?.trim() || 'o responsável';
+      setAvisoRecado({
+        responsavel,
+        conversaId,
+      });
+      setRecadoAluno(null);
+    } catch (err: unknown) {
+      setErroRecado(
+        err instanceof Error ? err.message : 'Não foi possível enviar o recado.'
+      );
+    } finally {
+      setSalvandoRecado(false);
+    }
+  };
+
   return (
     <section
       id="academico"
@@ -266,6 +333,32 @@ export function AcademicoSection() {
         </div>
       )}
 
+      {avisoRecado && (
+        <div className="mb-4 p-4 rounded-2xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 text-xs font-bold text-emerald-900 dark:text-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center space-x-2">
+            <Check className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <span>{formatarAvisoRecadoEnviado(avisoRecado.responsavel)}</span>
+          </div>
+          <div className="flex items-center space-x-2 shrink-0">
+            <a
+              href={urlConversaAgenda(avisoRecado.conversaId)}
+              className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white dark:bg-emerald-600 dark:hover:bg-emerald-500 min-h-[44px] transition-all"
+            >
+              <span>Abrir conversa</span>
+              <ArrowRight className="w-4 h-4" />
+            </a>
+            <button
+              type="button"
+              onClick={() => setAvisoRecado(null)}
+              className="p-2 text-emerald-700 hover:text-emerald-900 dark:text-emerald-300 dark:hover:text-white min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl"
+              aria-label="Fechar aviso de recado"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {listaErro && (
         <p className="mb-4 text-xs font-medium text-amber-700 dark:text-amber-300">{listaErro}</p>
       )}
@@ -291,6 +384,7 @@ export function AcademicoSection() {
         onSaved={() => setRefreshKey((k) => k + 1)}
         ocorrenciasPorAluno={ocorrenciasPorAluno}
         onAbrirOcorrencia={abrirOcorrencia}
+        onAbrirRecadoFamilia={abrirRecadoFamilia}
       />
 
       <OcorrenciaModal
@@ -300,6 +394,16 @@ export function AcademicoSection() {
         erro={erroOcorrencia}
         onClose={fecharOcorrencia}
         onSave={salvarOcorrencia}
+      />
+
+      <RecadoFamiliaModal
+        open={!!recadoAluno}
+        alunoNome={recadoAluno?.nome}
+        responsavelNome={recadoAluno?.responsavel_nome}
+        salvando={salvandoRecado}
+        erro={erroRecado}
+        onClose={fecharRecadoFamilia}
+        onSend={enviarRecadoFamilia}
       />
 
       {infantil && (

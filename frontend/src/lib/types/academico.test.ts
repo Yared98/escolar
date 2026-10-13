@@ -3,7 +3,11 @@ import {
   OCORRENCIA_DESCRICAO_MAX,
   TIPO_OCORRENCIA_LABEL,
   TIPOS_OCORRENCIA_FUNDAMENTAL,
+  alunoTemResponsavel,
+  dicaRecadoFamilia,
+  formatarAvisoRecadoEnviado,
   tipoOcorrenciaLabel,
+  urlConversaAgenda,
 } from './academico';
 
 describe('tipoOcorrenciaLabel', () => {
@@ -38,5 +42,47 @@ describe('tipoOcorrenciaLabel', () => {
 
   it('limita a descrição a 1000 caracteres', () => {
     expect(OCORRENCIA_DESCRICAO_MAX).toBe(1000);
+  });
+});
+
+describe('helpers de recado à família (C16)', () => {
+  it('alunoTemResponsavel identifica se o aluno possui responsável vinculado', () => {
+    expect(alunoTemResponsavel({ responsavel_user_id: 'uuid-123' })).toBe(true);
+    expect(alunoTemResponsavel({ responsavel_user_id: null })).toBe(false);
+    expect(alunoTemResponsavel({ responsavel_user_id: undefined })).toBe(false);
+    expect(alunoTemResponsavel({ responsavel_user_id: '' })).toBe(false);
+  });
+
+  it('dicaRecadoFamilia retorna a dica correta conforme o vínculo', () => {
+    expect(dicaRecadoFamilia({ responsavel_user_id: 'uuid-123' })).toBe(
+      'Enviar recado à família',
+    );
+    expect(dicaRecadoFamilia({ responsavel_user_id: null })).toBe(
+      'Aluno sem responsável cadastrado',
+    );
+    expect(dicaRecadoFamilia({ responsavel_user_id: undefined })).toBe(
+      'Aluno sem responsável cadastrado',
+    );
+  });
+
+  it('formatarAvisoRecadoEnviado interpola o nome do responsável com fallback', () => {
+    expect(formatarAvisoRecadoEnviado('Maria Silva')).toBe(
+      'Recado enviado para Maria Silva',
+    );
+    expect(formatarAvisoRecadoEnviado('  João Santos  ')).toBe(
+      'Recado enviado para João Santos',
+    );
+    expect(formatarAvisoRecadoEnviado('')).toBe(
+      'Recado enviado para os responsáveis',
+    );
+    expect(formatarAvisoRecadoEnviado(undefined)).toBe(
+      'Recado enviado para os responsáveis',
+    );
+  });
+
+  it('urlConversaAgenda monta a rota com parâmetros esperados', () => {
+    expect(urlConversaAgenda('msg-uuid-999')).toBe(
+      '/?route=agenda&tab=comunicacao&conversa=msg-uuid-999',
+    );
   });
 });
