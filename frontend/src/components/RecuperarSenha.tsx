@@ -9,6 +9,8 @@ interface RecuperarSenhaProps {
   tokenInicial?: string | null;
   escolaInicial?: string | null;
   onVoltar: () => void;
+  /** Chamado depois de redefinir: a tela volta ao login (e o token sai da URL). */
+  onRedefinida?: () => void;
 }
 
 export function RecuperarSenha({
@@ -16,6 +18,7 @@ export function RecuperarSenha({
   tokenInicial = null,
   escolaInicial = null,
   onVoltar,
+  onRedefinida,
 }: RecuperarSenhaProps) {
   const [modo, setModo] = useState<'esqueci' | 'redefinir'>(modoInicial);
   const [tenantSlug, setTenantSlug] = useState(escolaInicial || '');
@@ -81,10 +84,14 @@ export function RecuperarSenha({
           nova_senha: novaSenha,
         }),
       });
-      setSucesso('Senha redefinida com sucesso. Faça login com a nova senha.');
-      setModo('esqueci');
       setNovaSenha('');
       setConfirmarSenha('');
+      if (onRedefinida) {
+        onRedefinida();
+      } else {
+        setSucesso('Senha redefinida com sucesso. Faça login com a nova senha.');
+        setModo('esqueci');
+      }
     } catch (err: unknown) {
       setErro(err instanceof Error ? err.message : 'Não foi possível redefinir a senha.');
     } finally {

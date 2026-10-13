@@ -146,6 +146,7 @@ function DashboardContent() {
   const [password, setPassword] = useState(modoDemo ? DEMO_SENHA : '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [avisoLogin, setAvisoLogin] = useState<string | null>(null);
 
   // Register form state
   const [schoolName, setSchoolName] = useState('');
@@ -379,6 +380,18 @@ function DashboardContent() {
           modoInicial={tokenRedefinir && escolaRedefinir ? 'redefinir' : 'esqueci'}
           tokenInicial={tokenRedefinir}
           escolaInicial={escolaRedefinir}
+          onRedefinida={() => {
+            setAvisoLogin('Senha redefinida. Entre com a nova senha.');
+            if (escolaRedefinir) setTenantSlug(escolaRedefinir);
+            setEmail('');
+            setPassword('');
+            setMostrarRecuperacao(false);
+            const params = new URLSearchParams(searchParams ? searchParams.toString() : '');
+            params.delete('redefinir');
+            params.delete('escola');
+            const q = params.toString();
+            router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
+          }}
           onVoltar={() => {
             setMostrarRecuperacao(false);
             const params = new URLSearchParams(searchParams ? searchParams.toString() : '');
@@ -424,6 +437,12 @@ function DashboardContent() {
               <span>Cadastrar Escola</span>
             </button>
           </div>
+          )}
+
+          {avisoLogin && !error && (
+            <div className="mb-4 p-3 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-500/40 text-emerald-800 dark:text-emerald-300 text-xs rounded-xl font-medium">
+              {avisoLogin}
+            </div>
           )}
 
           {error && (
