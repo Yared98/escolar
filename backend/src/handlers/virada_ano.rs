@@ -600,6 +600,146 @@ pub async fn obter_previa_virada_ano(
     }))
 }
 
+/// Turma de destino escolhida na virada precisa existir e ser do ano de destino
+/// (evita reativar a enturmação do ano anterior).
+async fn validar_turma_do_ano(
+    conn: &mut sqlx::PgConnection,
+    tenant_id: Uuid,
+    turma_id: Uuid,
+    ano_destino: i32,
+) -> Result<(), AppError> {
+    let ano: Option<i32> =
+        sqlx::query_scalar("SELECT ano_letivo FROM turmas WHERE id = $1 AND tenant_id = $2")
+            .bind(turma_id)
+            .bind(tenant_id)
+            .fetch_optional(&mut *conn)
+            .await?;
+    match ano {
+        None => Err(AppError::BadRequest(format!(
+            "Turma de destino {} não encontrada.",
+            turma_id
+        ))),
+        Some(a) if a != ano_destino => Err(AppError::BadRequest(format!(
+            "A turma de destino precisa ser do ano letivo {}.",
+            ano_destino
+        ))),
+        Some(_) => Ok(()),
+    }
+}
+
+/// Turma da mesma série (etapa, série e turno) no ano de destino para quem foi retido.
+/// Usa uma turma ativa que já exista nesse ano; se não houver, cria uma com o mesmo nome,
+/// copiando a matriz de disciplinas (e os professores, se pedido). Devolve (id, criada).
+async fn garantir_turma_mesma_serie(
+    conn: &mut sqlx::PgConnection,
+    tenant_id: Uuid,
+    turma_origem_id: Uuid,
+    ano_destino: i32,
+    copiar_professores: bool,
+) -> Result<(Uuid, bool), AppError> {
+    let origem = sqlx::query(
+        r#"
+        SELECT sala_id, codigo, nome, etapa_ensino, serie, turno, capacidade_maxima, professor_regente_id
+        FROM turmas
+        WHERE id = $1 AND tenant_id = $2
+        "#,
+    )
+    .bind(turma_origem_id)
+    .bind(tenant_id)
+    .fetch_optional(&mut *conn)
+    .await?
+    .ok_or(AppError::NotFound)?;
+
+    let etapa: String = origem.get("etapa_ensino");
+    let serie: Option<String> = origem.get("serie");
+    let turno: String = origem.get("turno");
+
+    let existente: Option<Uuid> = sqlx::query_scalar(
+        r#"
+        SELECT id FROM turmas
+        WHERE tenant_id = $1 AND ano_letivo = $2 AND status = 'ativo'
+          AND etapa_ensino = $3 AND serie IS NOT DISTINCT FROM $4 AND turno = $5
+        ORDER BY nome
+        LIMIT 1
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(ano_destino)
+    .bind(&etapa)
+    .bind(&serie)
+    .bind(&turno)
+    .fetch_optional(&mut *conn)
+    .await?;
+    if let Some(id) = existente {
+        return Ok((id, false));
+    }
+
+    let nova_id = Uuid::new_v4();
+    let regente: Option<Uuid> = if copiar_professores {
+        origem.get("professor_regente_id")
+    } else {
+        None
+    };
+    sqlx::query(
+        r#"
+        INSERT INTO turmas (
+            id, tenant_id, sala_id, codigo, nome, etapa_ensino,
+            serie, turno, ano_letivo, capacidade_maxima,
+            professor_regente_id, status
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'ativo')
+        "#,
+    )
+    .bind(nova_id)
+    .bind(tenant_id)
+    .bind(origem.get::<Option<Uuid>, _>("sala_id"))
+    .bind(origem.get::<Option<String>, _>("codigo"))
+    .bind(origem.get::<String, _>("nome"))
+    .bind(&etapa)
+    .bind(&serie)
+    .bind(&turno)
+    .bind(ano_destino)
+    .bind(origem.get::<i32, _>("capacidade_maxima"))
+    .bind(regente)
+    .execute(&mut *conn)
+    .await?;
+
+    sqlx::query(
+        r#"
+        INSERT INTO turma_disciplinas (tenant_id, turma_id, disciplina_id, carga_horaria_semanal, carga_horaria_anual)
+        SELECT tenant_id, $2, disciplina_id, carga_horaria_semanal, carga_horaria_anual
+        FROM turma_disciplinas
+        WHERE tenant_id = $1 AND turma_id = $3
+        ON CONFLICT (tenant_id, turma_id, disciplina_id) DO NOTHING
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(nova_id)
+    .bind(turma_origem_id)
+    .execute(&mut *conn)
+    .await?;
+
+    if copiar_professores {
+        sqlx::query(
+            r#"
+            INSERT INTO turma_professores (tenant_id, turma_id, disciplina_id, professor_id, ano_letivo)
+            SELECT tenant_id, $2, disciplina_id, professor_id, $4
+            FROM turma_professores
+            WHERE tenant_id = $1 AND turma_id = $3
+            ON CONFLICT (tenant_id, turma_id, disciplina_id, professor_id) DO NOTHING
+            "#,
+        )
+        .bind(tenant_id)
+        .bind(nova_id)
+        .bind(turma_origem_id)
+        .bind(ano_destino)
+        .execute(&mut *conn)
+        .await?;
+    }
+
+    Ok((nova_id, true))
+}
+
 /// POST /api/v1/secretaria/virada-ano/executar
 /// Executa a virada de ano letivo e rematrícula em transação atômica idempotente.
 pub async fn executar_virada_ano(
@@ -718,20 +858,7 @@ pub async fn executar_virada_ano(
             destino_turma_id = new_id;
             turmas_criadas_count += 1;
         } else if let Some(dest_id) = turma_item.turma_destino_id {
-            let existe = sqlx::query_scalar::<_, bool>(
-                "SELECT EXISTS(SELECT 1 FROM turmas WHERE id = $1 AND tenant_id = $2)",
-            )
-            .bind(dest_id)
-            .bind(tenant_id)
-            .fetch_one(&mut *tx)
-            .await?;
-
-            if !existe {
-                return Err(AppError::BadRequest(format!(
-                    "Turma de destino {} não encontrada.",
-                    dest_id
-                )));
-            }
+            validar_turma_do_ano(&mut tx, tenant_id, dest_id, dto.ano_destino).await?;
             destino_turma_id = dest_id;
         } else {
             return Err(AppError::BadRequest(format!(
@@ -783,6 +910,7 @@ pub async fn executar_virada_ano(
     let mut alunos_retidos = 0;
     let mut alunos_nao_rematriculados = 0;
     let mut contratos_gerados = 0;
+    let mut map_retencao: std::collections::HashMap<Uuid, Uuid> = std::collections::HashMap::new();
 
     for aluno_item in &dto.alunos {
         let aluno_id = aluno_item.aluno_id;
@@ -822,7 +950,35 @@ pub async fn executar_virada_ano(
         match aluno_item.acao.as_str() {
             "promover" | "reter" => {
                 let dest_id = if let Some(target) = aluno_item.turma_destino_id {
+                    validar_turma_do_ano(&mut tx, tenant_id, target, dto.ano_destino).await?;
                     target
+                } else if aluno_item.acao == "reter" {
+                    // Retido refaz a mesma série no ano novo: nunca vai para a turma de promoção
+                    // nem volta para a turma do ano anterior.
+                    let origem_id = turma_origem_aluno.ok_or_else(|| {
+                        AppError::BadRequest(format!(
+                            "Turma de destino não informada para o aluno {}.",
+                            aluno_id
+                        ))
+                    })?;
+                    match map_retencao.get(&origem_id) {
+                        Some(&id) => id,
+                        None => {
+                            let (id, criada) = garantir_turma_mesma_serie(
+                                &mut tx,
+                                tenant_id,
+                                origem_id,
+                                dto.ano_destino,
+                                dto.copiar_professores,
+                            )
+                            .await?;
+                            if criada {
+                                turmas_criadas_count += 1;
+                            }
+                            map_retencao.insert(origem_id, id);
+                            id
+                        }
+                    }
                 } else if let Some(origem_id) = turma_origem_aluno {
                     match map_origem_para_destino.get(&origem_id) {
                         Some(&id) => id,

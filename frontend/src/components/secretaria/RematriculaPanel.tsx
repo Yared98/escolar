@@ -808,6 +808,12 @@ export function RematriculaPanel({
               • As enturmações anteriores serão finalizadas como concluídas, sem remoção de nenhum
               registro.
             </p>
+            {countReter > 0 && (
+              <p>
+                • Alunos retidos refazem a mesma série em {anoDestino}: entram numa turma dessa
+                série no novo ano (se ainda não existir, ela é criada com o mesmo nome).
+              </p>
+            )}
             {gerarContratos && (
               <p>
                 • Os novos contratos serão gerados como &quot;pendente de assinatura&quot;. Nenhuma

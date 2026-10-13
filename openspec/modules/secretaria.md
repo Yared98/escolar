@@ -148,8 +148,8 @@ O módulo cobre o **ciclo de vida completo do estudante** (matrícula com duplo 
 
 - Assistente e endpoints para transição de ano letivo e rematrícula em lote da secretaria escolar:
   - `GET /api/v1/secretaria/virada-ano/previa?ano_origem=<ano>&ano_destino=<ano>`: Calcula a prévia da virada sem modificar o banco. Agrupa turmas ativas do ano de origem, sugere turma de destino (série seguinte ou repetência), analisa o boletim de cada aluno com notas e faltas (média anual >= 6.0 e presença >= 75% -> aprovado e promovido; reprovado se abaixo), sugerindo se o aluno avança de série ou repete de ano, com indicador de pendência financeira do ano anterior.
-  - `POST /api/v1/secretaria/virada-ano/executar`: Executa a virada de ano atômica sob transação (`sqlx::Transaction`). Cria as turmas de destino no novo ano letivo (se já não existirem), matricula os alunos aprovados e retidos conforme a configuração revisada pela secretaria, preserva integralmente as matrículas, turmas e notas do ano anterior (nunca apaga dados históricos).
-  - Tabela `viradas_ano_letivo` com RLS obrigatório (`tenant_id = get_current_tenant()`) registra a execução (`ano_origem`, `ano_destino`, `total_turmas_processadas`, `total_alunos_processados`, `total_promovidos`, `total_retidos`, `total_transferidos_saida`, `executado_por`, `executado_em`).
+  - `POST /api/v1/secretaria/virada-ano/executar`: Executa a virada de ano atômica sob transação (`sqlx::Transaction`). Cria as turmas de destino no novo ano letivo (se já não existirem), matricula os alunos promovidos na turma de destino da turma de origem e os **retidos numa turma da mesma série no novo ano** (usa uma turma ativa de mesma etapa, série e turno que já exista no ano de destino; se não houver, cria uma com o mesmo nome e a mesma matriz). Turma de destino informada precisa ser do ano de destino (400 se for do ano anterior, para não reativar a matrícula antiga). Encerra as enturmações do ano de origem com status `concluido` e preserva integralmente as matrículas, turmas e notas do ano anterior (nunca apaga dados históricos).
+  - Tabela `viradas_ano_letivo` com RLS obrigatório (`tenant_id = get_current_tenant()`) registra a execução (`ano_origem`, `ano_destino`, `executado_por`, `executado_em` e os totais em `detalhes` JSONB: turmas criadas, promovidos, retidos, não rematriculados e contratos gerados).
   - Idempotência: se já houver registro de virada concluída para o par `(ano_origem, ano_destino)` no tenant, nova execução retorna HTTP 409 Conflict impedindo duplicação acidental.
   - Papéis permitidos: `admin`, `gestor`, `secretaria` (usuários `professor` recebem 403 Forbidden).
   - Auditoria: registra evento em `audit_logs` com ação `VIRADA_ANO_LETIVO_EXECUTADA`.
@@ -157,7 +157,8 @@ O módulo cobre o **ciclo de vida completo do estudante** (matrícula com duplo 
 
 ### Limitações MVP
 - Não gera automaticamente os carnês ou cobranças do novo ano letivo (geração de parcelas e mensalidades é de responsabilidade do módulo Financeiro).
-- Não emite contrato de rematrícula assinado digitalmente no ato da virada (contratos devem ser gerados individualmente pela Secretaria após a virada).
+- Com "gerar contratos", cria o contrato do novo ano com o mesmo valor do último contrato do aluno, em `pendente_assinatura`: nada é cobrado até a assinatura. Aluno sem contrato anterior fica sem contrato novo (a Secretaria cria pelo fluxo normal).
+- Aluno "não rematriculado" tem a enturmação encerrada, mas o cadastro continua com o status atual (a Secretaria muda o status, se for o caso).
 - Matrículas de novos alunos ingressantes não fazem parte deste assistente (realizadas pelo fluxo padrão de Matrícula).
 
 ## 7. Mapa de código (frontend)

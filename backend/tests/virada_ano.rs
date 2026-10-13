@@ -416,8 +416,7 @@ async fn test_execucao_e_idempotencia_virada_ano() {
             },
             {
                 "aluno_id": f.aluno_reprovado_id,
-                "acao": "reter",
-                "turma_destino_id": f.turma_id
+                "acao": "reter"
             },
             {
                 "aluno_id": f.aluno_andamento_id,
@@ -425,6 +424,23 @@ async fn test_execucao_e_idempotencia_virada_ano() {
             }
         ]
     });
+
+    // Destino do ano anterior é recusado (reativaria a matrícula de 2026) e nada é gravado.
+    let mut payload_errado = payload.clone();
+    payload_errado["alunos"][1]["turma_destino_id"] = serde_json::json!(f.turma_id);
+    let req_errado = Request::builder()
+        .method("POST")
+        .uri("/api/v1/secretaria/virada-ano/executar")
+        .header("authorization", auth_header(&token))
+        .header("x-tenant-id", f.tenant_id.to_string())
+        .header("content-type", "application/json")
+        .body(Body::from(serde_json::to_vec(&payload_errado).unwrap()))
+        .unwrap();
+    let res_errado = create_router(state.clone())
+        .oneshot(req_errado)
+        .await
+        .unwrap();
+    assert_eq!(res_errado.status(), StatusCode::BAD_REQUEST);
 
     let app = create_router(state.clone());
     let req = Request::builder()
@@ -445,7 +461,7 @@ async fn test_execucao_e_idempotencia_virada_ano() {
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
     assert_eq!(json["sucesso"], true);
-    assert_eq!(json["turmas_criadas"], 1);
+    assert_eq!(json["turmas_criadas"], 2); // 2º Ano A (promoção) e 1º Ano A de 2027 (retido)
     assert_eq!(json["alunos_promovidos"], 1);
     assert_eq!(json["alunos_retidos"], 1);
     assert_eq!(json["alunos_nao_rematriculados"], 1);
@@ -503,6 +519,27 @@ async fn test_execucao_e_idempotencia_virada_ano() {
     .await
     .unwrap();
     assert_eq!(status_novo_alice, "ativo");
+
+    // 3b. Beto (retido) refaz o 1º Ano numa turma de 2027, não na de 2026 nem no 2º Ano
+    let (serie_beto, ano_beto) = sqlx::query_as::<_, (Option<String>, i32)>(
+        r#"SELECT t.serie, t.ano_letivo FROM turma_alunos ta JOIN turmas t ON t.id = ta.turma_id
+           WHERE ta.aluno_id = $1 AND ta.status = 'ativo'"#,
+    )
+    .bind(f.aluno_reprovado_id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(serie_beto.as_deref(), Some("1º Ano"));
+    assert_eq!(ano_beto, 2027);
+    let status_antigo_beto = sqlx::query_scalar::<_, String>(
+        "SELECT status FROM turma_alunos WHERE turma_id = $1 AND aluno_id = $2",
+    )
+    .bind(f.turma_id)
+    .bind(f.aluno_reprovado_id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(status_antigo_beto, "concluido");
 
     // 4. Contrato 2027 gerado para Alice com status 'pendente_assinatura' e mesmo valor 12000.0
     let contrato_alice = sqlx::query_as::<_, (f64, String)>(
