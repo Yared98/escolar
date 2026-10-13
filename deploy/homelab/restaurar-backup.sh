@@ -43,12 +43,23 @@ sleep 10
 echo "Parando backend e worker durante a restauração..."
 docker compose stop backend worker
 
+# Religa os serviços mesmo se a restauração falhar no meio.
+religar() {
+  echo "Religando backend e worker..."
+  docker compose start backend worker
+}
+trap religar EXIT
+
+# Recria o banco vazio: restaurar com --clean sobre tabelas com RLS e dependências gera conflitos.
+# Os papéis (escolar_runtime) ficam no servidor e as permissões vêm do próprio dump.
+echo "Recriando o banco $POSTGRES_DB vazio..."
+docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d postgres \
+  -c "DROP DATABASE IF EXISTS \"$POSTGRES_DB\" WITH (FORCE);" \
+  -c "CREATE DATABASE \"$POSTGRES_DB\" OWNER \"$POSTGRES_USER\";"
+
 echo "Restaurando backup..."
 docker compose exec -T postgres pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-  --clean --if-exists --no-owner --no-privileges < "$DUMP_FILE"
-
-echo "Religando backend e worker..."
-docker compose start backend worker
+  --exit-on-error < "$DUMP_FILE"
 
 echo ""
 echo "Restauração concluída."
