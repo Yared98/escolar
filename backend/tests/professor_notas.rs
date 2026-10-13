@@ -99,7 +99,7 @@ fn app_state(pool: PgPool) -> AppState {
             jwt_public_pem: public_pem,
             jwt_public_x: public_x,
             port: 8000,
-            allowed_origins: "*".into(),
+            allowed_origins: "http://localhost:3000".into(),
             environment: "test".into(),
             trusted_proxy: false,
             rate_limit_public_rpm: 60,
@@ -344,13 +344,9 @@ async fn professor_lanca_notas_propria_turma_e_isolamento() {
         .header("X-Tenant-ID", tenant_b.to_string())
         .body(Body::empty())
         .unwrap();
+    // O RLS esconde as atribuições do tenant A, então o professor B não tem vínculo com a turma: 403.
     let res3 = app.clone().oneshot(req3).await.unwrap();
-    assert_eq!(res3.status(), StatusCode::OK);
-    let bytes = axum::body::to_bytes(res3.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    let lista: Vec<serde_json::Value> = serde_json::from_slice(&bytes).unwrap();
-    assert!(lista.is_empty());
+    assert_eq!(res3.status(), StatusCode::FORBIDDEN);
 
     // 4. Professor A consegue ler as notas que lançou
     let req4 = Request::builder()
