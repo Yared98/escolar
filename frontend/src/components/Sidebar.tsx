@@ -14,6 +14,7 @@ import {
   Megaphone,
   Brain,
   CalendarDays,
+  CalendarCheck,
   GraduationCap,
   Sparkles,
   ChevronRight,
@@ -51,7 +52,8 @@ export type NavRoute =
   | 'portal_aluno'
   | 'calendario'
   | 'crm'
-  | 'ia_evasao';
+  | 'ia_evasao'
+  | 'professor';
 
 export interface NavSubItem {
   id: string;
@@ -74,6 +76,16 @@ export interface SidebarProps {
 }
 
 export const MENU_ITEMS: NavItem[] = [
+  {
+    id: 'professor',
+    label: 'Meu dia',
+    icon: CalendarCheck,
+    defaultTab: 'hoje',
+    subItems: [
+      { id: 'prof-hoje', label: 'Aulas de hoje', tabKey: 'hoje', icon: CalendarCheck },
+      { id: 'prof-notas', label: 'Lançar notas', tabKey: 'notas', icon: BookOpen },
+    ],
+  },
   {
     id: 'overview',
     label: 'Visão Geral',
@@ -202,7 +214,9 @@ export const isRouteAllowed = (route: NavRoute, role?: string): boolean => {
 
   switch (route) {
     case 'overview':
-      return normalized !== 'responsavel';
+      return normalized !== 'responsavel' && normalized !== 'professor';
+    case 'professor':
+      return normalized === 'professor' || normalized === 'gestor' || normalized === 'admin';
     case 'secretaria':
       return normalized === 'financeiro' || normalized === 'secretaria';
     case 'financeiro':

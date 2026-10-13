@@ -1,10 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
-import type { AlunoChamada, TurmaOpcao } from '@/lib/types/academico';
+import type { AlunoChamada, MinhaTurma, TurmaOpcao } from '@/lib/types/academico';
 
-export function useTurmaAlunos() {
+export function useTurmaAlunos(preferredRole?: string) {
+  const { user } = useAuth();
+  const role = preferredRole || user?.role || 'admin';
   const [turmasOpcoes, setTurmasOpcoes] = useState<TurmaOpcao[]>([]);
   const [turmaId, setTurmaId] = useState('');
   const [turmaNome, setTurmaNome] = useState('');
@@ -14,14 +17,26 @@ export function useTurmaAlunos() {
   const [loadingTurmas, setLoadingTurmas] = useState(true);
   const [loadingAlunos, setLoadingAlunos] = useState(false);
 
+  const isProfessor = role === 'professor';
+
   useEffect(() => {
     let ativo = true;
     async function carregarTurmas() {
       setLoadingTurmas(true);
       try {
-        const data = await apiFetch<TurmaOpcao[]>('/secretaria/turmas');
+        let lista: TurmaOpcao[] = [];
+        if (isProfessor) {
+          const data = await apiFetch<MinhaTurma[]>('/professor/minhas-turmas');
+          lista = (data || []).map((t) => ({
+            id: t.turma_id,
+            nome: t.turma_nome,
+            etapa_ensino: t.etapa_ensino,
+          }));
+        } else {
+          const data = await apiFetch<TurmaOpcao[]>('/secretaria/turmas');
+          lista = data || [];
+        }
         if (!ativo) return;
-        const lista = data || [];
         setTurmasOpcoes(lista);
         setListaErro(null);
         if (lista.length > 0) {
@@ -40,7 +55,7 @@ export function useTurmaAlunos() {
     return () => {
       ativo = false;
     };
-  }, []);
+  }, [isProfessor]);
 
   const selecionarTurma = useCallback(
     (id: string) => {

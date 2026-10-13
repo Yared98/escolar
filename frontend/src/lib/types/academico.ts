@@ -125,3 +125,60 @@ export interface CreatePortfolioPayload {
 }
 
 export type ToastMsg = { text: string; type: 'success' | 'warn' };
+
+export interface MinhaTurmaDisciplina {
+  disciplina_id: string;
+  disciplina_nome: string;
+}
+
+export interface MinhaTurma {
+  turma_id: string;
+  turma_nome: string;
+  etapa_ensino: string;
+  total_alunos: number;
+  disciplinas: MinhaTurmaDisciplina[];
+}
+
+export interface AulaDia {
+  horario_id: string;
+  turma_id: string;
+  turma_nome: string;
+  disciplina_id: string;
+  disciplina_nome: string;
+  sala_nome?: string | null;
+  hora_inicio: string;
+  hora_fim: string;
+  chamada_registrada: boolean;
+}
+
+export interface NotaAluno {
+  aluno_id: string;
+  aluno_nome: string;
+  numero_chamada?: number | null;
+  nota?: number | null;
+}
+
+export type PeriodoNota =
+  | '1_bimestre'
+  | '2_bimestre'
+  | '3_bimestre'
+  | '4_bimestre'
+  | '1_trimestre'
+  | '2_trimestre'
+  | '3_trimestre'
+  | 'recuperacao';
+
+export const PERIODOS_NOTA: { value: PeriodoNota; label: string }[] = [
+  { value: '1_bimestre', label: '1º Bimestre' },
+  { value: '2_bimestre', label: '2º Bimestre' },
+  { value: '3_bimestre', label: '3º Bimestre' },
+  { value: '4_bimestre', label: '4º Bimestre' },
+  { value: 'recuperacao', label: 'Recuperação' },
+];
+
+export interface LoteNotasPayload {
+  turma_id: string;
+  disciplina_id: string;
+  periodo: PeriodoNota;
+  notas: { aluno_id: string; nota: number | null }[];
+}

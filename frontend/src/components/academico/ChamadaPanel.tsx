@@ -50,10 +50,10 @@ export function ChamadaPanel({
   const alunosKey = alunos.map((a) => a.id).join(',');
   const [conteudo, setConteudo] = useState('');
   const [observacao, setObservacao] = useState('');
-  const [horarioLocal, setHorarioLocal] = useState('07:30 - 08:20 (1º Horário)');
   const [historico, setHistorico] = useState<DiarioRecenteItem[]>([]);
   const [carregandoDia, setCarregandoDia] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [erroConteudo, setErroConteudo] = useState<string | null>(null);
 
   const setStatusPresenca = (alunoId: string, status: StatusPresenca) => {
     setAlunos((prev) => prev.map((a) => (a.id === alunoId ? { ...a, status } : a)));
@@ -146,12 +146,12 @@ export function ChamadaPanel({
       return;
     }
 
+    setErroConteudo(null);
     setSaving(true);
     const syncPayload: SyncDiarioPayload = {
       turma_id: turmaId,
       data_aula: dataAula,
-      conteudo_ministrado:
-        conteudo || (infantil ? CONTEUDO_PADRAO_INFANTIL : 'Conteúdo Programático da Aula'),
+      conteudo_ministrado: conteudo || (infantil ? CONTEUDO_PADRAO_INFANTIL : ''),
       observacao: observacao.slice(0, OBSERVACAO_DIARIO_MAX),
       presencas: alunos.map((a) => ({
         aluno_id: a.id,
@@ -183,8 +183,12 @@ export function ChamadaPanel({
         if (eventUuid) await removeByUuid(eventUuid);
         await carregarHistorico();
         onSaved?.();
-      } catch {
+      } catch (err: unknown) {
         syncOk = false;
+        const msg = err instanceof Error ? err.message : '';
+        if (msg.toLowerCase().includes('conteúdo') || msg.toLowerCase().includes('conteudo')) {
+          setErroConteudo('Informe o conteúdo da aula');
+        }
       }
     }
 
@@ -202,26 +206,7 @@ export function ChamadaPanel({
   return (
     <div className="space-y-6">
       <div className="p-4 bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 rounded-2xl grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-        {!infantil && (
           <div>
-            <label className="block text-salvia-700 dark:text-salvia-300 font-bold mb-1">
-              Horário (referência local):
-            </label>
-            <select
-              value={horarioLocal}
-              onChange={(e) => setHorarioLocal(e.target.value)}
-              className="w-full bg-white dark:bg-salvia-900 border border-salvia-300 dark:border-salvia-700 rounded-xl px-3 py-2 font-bold text-slate-900 dark:text-salvia-50 focus:outline-none focus:border-salvia-600"
-            >
-              <option value="07:30 - 08:20 (1º Horário)">07:30 - 08:20 (1º Horário)</option>
-              <option value="08:20 - 09:10 (2º Horário)">08:20 - 09:10 (2º Horário)</option>
-              <option value="09:30 - 10:20 (3º Horário)">09:30 - 10:20 (3º Horário)</option>
-              <option value="10:20 - 11:10 (4º Horário)">10:20 - 11:10 (4º Horário)</option>
-            </select>
-            <p className="mt-1 text-[10px] text-salvia-500">Não é gravado no servidor.</p>
-          </div>
-        )}
-
-        <div>
           <label className="block text-salvia-700 dark:text-salvia-300 font-bold mb-1">Resumo:</label>
           <div className="flex items-center space-x-2 pt-1 font-mono font-bold">
             <span className="text-emerald-600">{alunos.filter((a) => a.status === 'presente').length} P</span>
@@ -242,14 +227,24 @@ export function ChamadaPanel({
           <input
             type="text"
             value={conteudo}
-            onChange={(e) => setConteudo(e.target.value)}
+            onChange={(e) => {
+              setConteudo(e.target.value);
+              if (erroConteudo) setErroConteudo(null);
+            }}
             placeholder={
               infantil
                 ? 'Ex: Roda de música e pintura com as mãos...'
                 : 'Ex: Resolução de exercícios e debate temático...'
             }
-            className="w-full bg-white dark:bg-salvia-900 border border-salvia-300 dark:border-salvia-700 rounded-xl px-3.5 py-2 font-medium text-slate-900 dark:text-salvia-50 focus:outline-none focus:border-salvia-600 placeholder-salvia-400"
+            className={`w-full bg-white dark:bg-salvia-900 border rounded-xl px-3.5 py-2 font-medium text-slate-900 dark:text-salvia-50 focus:outline-none placeholder-salvia-400 ${
+              erroConteudo
+                ? 'border-rose-400 focus:border-rose-500'
+                : 'border-salvia-300 dark:border-salvia-700 focus:border-salvia-600'
+            }`}
           />
+          {erroConteudo && (
+            <p className="mt-1 text-[10px] font-bold text-rose-600 dark:text-rose-400">{erroConteudo}</p>
+          )}
         </div>
 
         <div className="sm:col-span-2">
@@ -280,7 +275,7 @@ export function ChamadaPanel({
           </h3>
           <button
             onClick={() => setAlunos((prev) => prev.map((a) => ({ ...a, status: 'presente' })))}
-            className="px-2.5 py-1 bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950 dark:hover:bg-emerald-900 text-emerald-800 dark:text-emerald-200 rounded-lg transition-all text-[10px] font-bold"
+            className="px-3 py-2 bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950 dark:hover:bg-emerald-900 text-emerald-800 dark:text-emerald-200 rounded-lg transition-all text-xs font-bold min-h-[44px] flex items-center"
           >
             Marcar Todos Presentes
           </button>
@@ -303,9 +298,9 @@ export function ChamadaPanel({
                     : 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800/60'
               }`}
             >
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col max-sm:space-y-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-salvia-50">{aluno.nome}</h4>
+                  <h4 className="text-sm sm:text-xs font-bold text-slate-900 dark:text-salvia-50">{aluno.nome}</h4>
                   <span
                     className={`text-[10px] font-mono font-bold uppercase mt-0.5 block ${
                       aluno.status === 'presente'
@@ -328,7 +323,7 @@ export function ChamadaPanel({
                       key={st}
                       title={st}
                       onClick={() => setStatusPresenca(aluno.id, st)}
-                      className={`w-9 h-9 rounded-xl font-mono font-bold text-xs flex items-center justify-center transition-all ${
+                      className={`w-9 h-9 max-sm:w-11 max-sm:h-11 rounded-xl font-mono font-bold text-sm sm:text-xs flex items-center justify-center transition-all ${
                         aluno.status === st
                           ? st === 'presente'
                             ? 'bg-emerald-600 text-white shadow-md scale-105'
@@ -357,7 +352,7 @@ export function ChamadaPanel({
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t border-salvia-200 dark:border-salvia-800">
+      <div className="hidden sm:flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t border-salvia-200 dark:border-salvia-800">
         <p className="text-xs text-salvia-600 dark:text-salvia-400">
           A chamada fica neste aparelho até o servidor confirmar. Turma: {turmaNome || '—'}.
         </p>
@@ -365,6 +360,19 @@ export function ChamadaPanel({
           onClick={handleSalvar}
           disabled={saving || !turmaId || alunos.length === 0}
           className="w-full sm:w-auto bg-salvia-700 hover:bg-salvia-800 text-white dark:bg-salvia-600 px-6 py-3 rounded-2xl text-xs font-bold flex items-center justify-center space-x-2 transition-all shadow-md disabled:opacity-50"
+        >
+          <CheckCheck className="w-4 h-4" />
+          <span>
+            {saving ? 'Salvando...' : infantil ? 'Salvar presença do dia' : 'Salvar chamada'}
+          </span>
+        </button>
+      </div>
+
+      <div className="sm:hidden fixed bottom-20 left-0 right-0 z-40 px-4">
+        <button
+          onClick={handleSalvar}
+          disabled={saving || !turmaId || alunos.length === 0}
+          className="w-full bg-salvia-700 hover:bg-salvia-800 disabled:opacity-50 text-white dark:bg-salvia-600 dark:hover:bg-salvia-500 px-4 py-3.5 rounded-2xl text-sm font-bold flex items-center justify-center space-x-2 transition-all shadow-lg"
         >
           <CheckCheck className="w-4 h-4" />
           <span>
@@ -401,8 +409,12 @@ export function ChamadaPanel({
                       {Math.max(0, h.total_presencas - h.total_presentes)} ausentes
                     </span>
                   </div>
-                  {h.conteudo_ministrado && (
+                  {h.conteudo_ministrado ? (
                     <p className="text-[11px] text-salvia-500 truncate max-w-md">{h.conteudo_ministrado}</p>
+                  ) : (
+                    <p className="text-[11px] text-salvia-500 truncate max-w-md italic">
+                      Conteúdo não informado
+                    </p>
                   )}
                   {h.observacao && (
                     <p className="text-[11px] text-salvia-500 truncate max-w-md">{h.observacao}</p>
