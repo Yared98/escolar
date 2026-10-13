@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -10,11 +10,22 @@ import {
   RefreshCw,
   Check,
 } from 'lucide-react';
-import { isTurmaInfantil } from '@/lib/types/academico';
+import {
+  PRIORIDADE_OCORRENCIA,
+  isTurmaInfantil,
+  type AlunoChamada,
+  type NovaOcorrenciaPayload,
+  type OcorrenciaAluno,
+} from '@/lib/types/academico';
+import { apiFetch } from '@/lib/api';
 import { useTurmaAlunos } from './academico/useTurmaAlunos';
 import { useOfflineSyncQueue } from './academico/useOfflineSyncQueue';
 import { ChamadaPanel } from './academico/ChamadaPanel';
 import { InfantilRotinaPanel } from './academico/InfantilRotinaPanel';
+import {
+  OcorrenciaModal,
+  type OcorrenciaFormData,
+} from './academico/OcorrenciaModal';
 import { etapaEnsinoLabel } from '@/lib/etapas';
 
 const hojeLocal = () => {
@@ -58,6 +69,37 @@ export function AcademicoSection() {
 
   const infantil = isTurmaInfantil(turmaSelecionada);
 
+  // Observações (ocorrências) do Fundamental: contagem por aluno na data do diário.
+  const [ocorrenciasPorAluno, setOcorrenciasPorAluno] = useState<Record<string, number>>({});
+  const [ocorrenciaAluno, setOcorrenciaAluno] = useState<AlunoChamada | null>(null);
+  const [salvandoOcorrencia, setSalvandoOcorrencia] = useState(false);
+  const [erroOcorrencia, setErroOcorrencia] = useState<string | null>(null);
+
+  const carregarOcorrencias = useCallback(async () => {
+    if (!turmaId || !dataAula || !isOnline) {
+      setOcorrenciasPorAluno({});
+      return;
+    }
+    try {
+      const lista = await apiFetch<OcorrenciaAluno[]>(
+        `/agenda/ocorrencias?turma_id=${encodeURIComponent(turmaId)}&data=${encodeURIComponent(dataAula)}`
+      );
+      const contagem: Record<string, number> = {};
+      for (const ocorrencia of lista || []) {
+        contagem[ocorrencia.aluno_id] = (contagem[ocorrencia.aluno_id] || 0) + 1;
+      }
+      setOcorrenciasPorAluno(contagem);
+    } catch {
+      // Sem dados não inventa contagem: o painel segue sem o selo.
+      setOcorrenciasPorAluno({});
+    }
+  }, [turmaId, dataAula, isOnline]);
+
+  useEffect(() => {
+    void carregarOcorrencias();
+    // Recarrega sempre que a chamada do dia é salva ou a turma/data muda.
+  }, [carregarOcorrencias, refreshKey]);
+
   useEffect(() => {
     const turmaParam = searchParams?.get('turma');
     const dataParam = searchParams?.get('data');
@@ -85,6 +127,61 @@ export function AcademicoSection() {
     setDiarioDisciplinaId('');
     setDiarioHorarioId('');
     selecionarTurma(id);
+  };
+
+  const abrirOcorrencia = (aluno: AlunoChamada) => {
+    setErroOcorrencia(null);
+    setOcorrenciaAluno(aluno);
+  };
+
+  const fecharOcorrencia = () => {
+    setOcorrenciaAluno(null);
+    setErroOcorrencia(null);
+  };
+
+  const salvarOcorrencia = async (dados: OcorrenciaFormData) => {
+    const aluno = ocorrenciaAluno;
+    if (!aluno) return;
+    if (!isOnline) {
+      setErroOcorrencia(
+        'Sem conexão com a internet. A observação só pode ser registrada online.'
+      );
+      return;
+    }
+    if (!turmaId) {
+      setErroOcorrencia('Selecione uma turma antes de registrar a observação.');
+      return;
+    }
+
+    setErroOcorrencia(null);
+    setSalvandoOcorrencia(true);
+    const payload: NovaOcorrenciaPayload = {
+      aluno_id: aluno.id,
+      turma_id: turmaId,
+      tipo_ocorrencia: dados.tipo,
+      descricao: dados.descricao,
+      prioridade: PRIORIDADE_OCORRENCIA[dados.tipo] || 'media',
+      notificado_responsavel: dados.avisarFamilia,
+    };
+
+    try {
+      await apiFetch('/agenda/ocorrencias', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      showToast({
+        text: 'Observação registrada. A família vê no Portal da família.',
+        type: 'success',
+      });
+      setOcorrenciaAluno(null);
+      await carregarOcorrencias();
+    } catch (err: unknown) {
+      setErroOcorrencia(
+        err instanceof Error ? err.message : 'Não foi possível registrar a observação.'
+      );
+    } finally {
+      setSalvandoOcorrencia(false);
+    }
   };
 
   return (
@@ -189,6 +286,17 @@ export function AcademicoSection() {
         removeByUuid={removeByUuid}
         showToast={showToast}
         onSaved={() => setRefreshKey((k) => k + 1)}
+        ocorrenciasPorAluno={ocorrenciasPorAluno}
+        onAbrirOcorrencia={abrirOcorrencia}
+      />
+
+      <OcorrenciaModal
+        open={!!ocorrenciaAluno}
+        alunoNome={ocorrenciaAluno?.nome}
+        salvando={salvandoOcorrencia}
+        erro={erroOcorrencia}
+        onClose={fecharOcorrencia}
+        onSave={salvarOcorrencia}
       />
 
       {infantil && (

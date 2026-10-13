@@ -123,6 +123,7 @@ O processo avaliativo opera pelo lançamento de notas por período letivo e falt
   - Com `disciplina_id` na URL, o cabeçalho mostra "Turma · Disciplina · horário" e o painel grava/carrega o diário daquela disciplina (inclusive na fila offline, que já salva o payload inteiro).
   - Sem disciplina na URL, o comportamento é o de sempre: diário do dia inteiro da turma. A troca manual de turma no Diário sai do contexto da aula.
   - Turmas de Educação Infantil não mudam: seguem no diário do dia integrado com rotina infantil.
+  - **Observação do aluno**: no Fundamental, cada aluno tem o botão "Observação" (44px de altura no celular), que abre o modal de registro. O botão mostra um contador quando o aluno já tem observação registrada na data do diário. A chamada de API (`POST /agenda/ocorrencias` e a contagem por turma/data) fica em `AcademicoSection.tsx`; `ChamadaPanel.tsx` e `OcorrenciaModal.tsx` só exibem e recebem callbacks por props. Regras e contrato completo em `openspec/modules/agenda_calendario.md`.
 
 - **Simulados TRI (parcial)**:
   - `POST/GET /api/v1/academico/simulados`: cria/lista simulados com itens e parâmetros a/b/c manuais.
@@ -160,16 +161,18 @@ O processo avaliativo opera pelo lançamento de notas por período letivo e falt
 - **Boletim & Desempenho**: Exibição das notas, frequência calculada e pareceres bimestrais.
 - **Grade de Horários**: Visualização da agenda semanal de aulas do estudante.
 - **Provas e Trabalhos**: aba "Provas e trabalhos" (`tabKey: portal_avaliacoes`) lista, em ordem de data, as avaliações das turmas dos filhos, com título, tipo (prova, trabalho ou atividade), turma, disciplina, data e orientações do professor. Somente leitura — criação e remoção são do professor, da gestão ou da administração (contrato em `openspec/modules/agenda_calendario.md`).
+- **Observações da escola**: aba "Observações" (`tabKey: portal_ocorrencias`) lista as ocorrências do estudante selecionado, da mais recente para a mais antiga, com tipo amigável (Comportamento, Atraso, Falta de material, Saúde, Elogio, Outros), data/hora e descrição. Disponível para **qualquer etapa** de ensino, não só Educação Infantil. Somente leitura: a família não cria nem edita observações e não há ação de "marcar como lida".
 
 ## 5. Mapa de código (frontend)
 
 Organização após o refactor B12 (só moveu código, sem mudança de regra):
 
 - `PedagocioNutricaoSection.tsx` orquestra o Pedagógico (estado, carregamento, handlers, abas); `frontend/src/components/pedagogico/` só exibe, via props: `MatrizPanel`, `HorariosPanel`, `TriPanel`, `ProjetosPanel` e os modais `NovaDisciplinaModal`, `AdicionarMatrizModal`, `AtribuirProfessorModal`, `NovoHorarioModal`, `NovoSimuladoModal`.
-- `PortalAlunoSection.tsx` orquestra o Portal do Aluno; `frontend/src/components/portal_aluno/` só exibe: `BoletimTab`, `DiplomaTab`, `FinanceiroTab`, `RotinaTab`, `AvaliacoesTab` e `PixModal` (separado do Pix do Financeiro).
+- `PortalAlunoSection.tsx` orquestra o Portal do Aluno; `frontend/src/components/portal_aluno/` só exibe: `BoletimTab`, `DiplomaTab`, `FinanceiroTab`, `RotinaTab`, `AvaliacoesTab`, `OcorrenciasTab` e `PixModal` (separado do Pix do Financeiro).
 - `ProfessorSection.tsx` orquestra a área do professor ("Meu dia"); `frontend/src/components/professor/` só exibe: `AulasHojePanel`, `LancarNotasPanel` e `AvaliacoesPanel`.
 - `MobileBottomNav.tsx` exibe a barra de navegação inferior no celular para todos os perfis.
 - O gate de spec (`scripts/check-agent-gates.mjs`) associa `pedagogico/**`, `portal_aluno/**`, `ProfessorSection.tsx`, `MobileBottomNav.tsx`, `academico/ChamadaPanel.tsx` e `academico/useTurmaAlunos.ts` a este módulo.
+- Observações do aluno: `AcademicoSection.tsx` orquestra a chamada de API e a contagem por aluno; `academico/OcorrenciaModal.tsx` e `academico/ChamadaPanel.tsx` só exibem (props e callbacks). Tipos amigáveis e o mapeamento de prioridade ficam em `frontend/src/lib/types/academico.ts`.
 
 ## 6. Limitações MVP
 
@@ -178,3 +181,7 @@ Organização após o refactor B12 (só moveu código, sem mudança de regra):
 - O lançamento em lote não valida se a disciplina faz parte da matriz da turma; apenas exige atribuição docente (para professores) ou permissão de gestão.
 - O diário sem `disciplina_id` continua sendo por **turma e dia** (`disciplina_id IS NULL`): é o registro do dia inteiro usado pela Educação Infantil e Fundamental I, e nele a última chamada salva prevalece sobre as anteriores.
 - **Avaliações no calendário**: a disciplina da prova/trabalho mora em `eventos_calendario.disciplina_id`. Eventos criados antes dessa coluna (ou pela gestão, que não a preenche) ficam com disciplina nula e a família vê a avaliação sem o nome da disciplina. Marcar uma avaliação não avisa ninguém automaticamente: não há push, e-mail ou WhatsApp disparados, apenas a listagem no portal. Regras e contrato completos em `openspec/modules/agenda_calendario.md`.
+- **Observações do aluno (ocorrências)**: o professor só registra observação para aluno de turma em que tem atribuição (`turma_professores`) ou da qual é regente (`turmas.professor_regente_id`); sem vínculo a API devolve 403. Um professor regente sem linha em `turma_professores` enxerga e registra as ocorrências da turma, mas continua sem acesso ao restante do diário de outros professores.
+- **Prioridade não é escolhida por quem registra**: no Diário do Fundamental a prioridade é derivada do tipo (elogio → baixa; atraso e falta de material → média; comportamento e saúde → alta). A rotina da Educação Infantil continua gravando `urgente`, como antes.
+- **Sem aviso automático à família**: a observação não dispara push, e-mail ou WhatsApp; `notificado_responsavel` apenas registra a intenção do aviso. A coluna `lido_pelo_responsavel` existe no banco, mas não há rota para a família marcar a leitura — o portal não mostra selo de "lido".
+- **Ocorrências no celular sem internet**: o registro de observação exige conexão (não entra na fila offline do diário); se falhar, o modal mostra o erro e nada é gravado.

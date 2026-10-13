@@ -29,9 +29,10 @@ use crate::{
             criar_funcionario, deletar_evento_calendario, deletar_fornecedor, deletar_funcionario,
             enviar_mensagem_agenda, listar_autorizacoes_medicamento, listar_contatos_escola,
             listar_eventos_calendario, listar_fornecedores, listar_funcionarios,
-            listar_mensagens_agenda, listar_ocorrencias_aluno, listar_rsvps_evento,
-            marcar_mensagem_lida, registrar_ocorrencia, registrar_rotina_diaria,
-            relatorios_operacionais_auditoria, responder_rsvp, stream_mensagens_agenda,
+            listar_mensagens_agenda, listar_ocorrencias_aluno, listar_ocorrencias_turma,
+            listar_rsvps_evento, marcar_mensagem_lida, registrar_ocorrencia,
+            registrar_rotina_diaria, relatorios_operacionais_auditoria, responder_rsvp,
+            stream_mensagens_agenda,
         },
         auth::{
             alterar_senha, jwks, login, logout, me, oauth_authorize, oauth_token,
@@ -374,7 +375,10 @@ pub fn create_router(state: AppState) -> Router {
             "/agenda/diario-infantil/:aluno_id",
             get(consultar_diario_infantil),
         )
-        .route("/agenda/ocorrencias", post(registrar_ocorrencia))
+        .route(
+            "/agenda/ocorrencias",
+            post(registrar_ocorrencia).get(listar_ocorrencias_turma),
+        )
         .route(
             "/agenda/ocorrencias/:aluno_id",
             get(listar_ocorrencias_aluno),
