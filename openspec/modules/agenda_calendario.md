@@ -108,7 +108,9 @@ Organização após o refactor B12 (só moveu código, sem mudança de regra) e 
   - `ConversaChat`: cabeçalho fixo, balões (`BolhaMensagem`), separadores de data, caixa de envio fixa com textarea que cresce e envio por Enter no desktop.
   - `BolhaMensagem`: mensagens do usuário à direita (verde-sálvia) e dos outros à esquerda (branco), com nome, perfil amigável e horário.
   - `WhatsappPanel`: fila de atendimento WhatsApp (sem alteração no C12).
-  - `ComposerModal`: criação de novo comunicado/mensagem privada.
+  - `ComposerModal`: criação de novo comunicado/mensagem privada. A mensagem privada (gestão, secretaria, professor) é escolhida em dois passos: **1. turma → 2. aluno · responsável** (C17). A lista de alunos vem de `GET /secretaria/alunos?status=ativo&turma_id=` só depois de escolher a turma (antes carregava os 200 primeiros alunos da escola, o que escondia famílias em escolas grandes). Turma com mais de 12 alunos mostra busca por aluno ou responsável. O professor só vê as próprias turmas (`GET /professor/minhas-turmas`).
+  - Irmãos: a conversa é ligada ao aluno (`aluno_id`). Um responsável com dois filhos aparece uma vez em cada turma e recebe uma conversa por filho, o que mantém o assunto de cada criança separado.
+  - **Limitação MVP:** o backend entrega ao responsável principal do aluno (`alunos.responsavel_user_id` ou o primeiro de `responsaveis_alunos`); quando pai e mãe têm acesso, só um recebe a mensagem privada. Mandar para todos os responsáveis exige mudar o modelo de destinatário único de `mensagens_agenda`.
   - `types.ts` e `utils.ts`: funções puras de formatação de horário, agrupamento por dia, detecção de mensagem própria e iniciais do nome (com testes Vitest).
 - O gate de spec associa `agenda/**` a este módulo.
 - As avaliações usam código próprio: `backend/src/handlers/avaliacoes.rs` no backend e `frontend/src/components/professor/AvaliacoesPanel.tsx` (orquestrado por `ProfessorSection.tsx`). A aba da família fica em `portal_aluno/AvaliacoesTab.tsx` (ver `academico.md`).

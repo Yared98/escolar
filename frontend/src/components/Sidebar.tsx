@@ -133,7 +133,7 @@ export const MENU_ITEMS: NavItem[] = [
     icon: Utensils,
     defaultTab: 'nutricao',
     subItems: [
-      { id: 'nutri-planner', label: 'Planner de cardápio', tabKey: 'nutricao', icon: Utensils },
+      { id: 'nutri-planner', label: 'Cardápio', tabKey: 'nutricao', icon: Utensils },
     ],
   },
   {
@@ -172,7 +172,7 @@ export const MENU_ITEMS: NavItem[] = [
     icon: UserCheck,
     defaultTab: 'entidades',
     subItems: [
-      { id: 'pessoas-rh', label: 'Corpo docente & RH', tabKey: 'entidades', icon: UserCheck },
+      { id: 'pessoas-rh', label: 'Funcionários', tabKey: 'entidades', icon: UserCheck },
       { id: 'pessoas-usuarios', label: 'Usuários e acessos', tabKey: 'usuarios', icon: ShieldCheck },
     ],
   },

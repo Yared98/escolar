@@ -51,7 +51,7 @@
   "GET /pedagogico/turmas/{}/disciplinas": 1,
   "GET /pedagogico/turmas/{}/horarios": 1,
   "GET /professor/aulas": 1,
-  "GET /professor/minhas-turmas": 2,
+  "GET /professor/minhas-turmas": 3,
   "GET /regulatorio/diploma-digital/{}": 1,
   "GET /secretaria/alunos": 6,
   "GET /secretaria/alunos/meus": 1,

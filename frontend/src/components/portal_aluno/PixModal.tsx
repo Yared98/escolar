@@ -25,7 +25,7 @@ export function PixModal({
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-salvia-50">2ª Via de Pagamento Pix</h3>
-              <span className="text-[10px] text-salvia-500 font-medium">Conferência local • Padrão EMVCo</span>
+              <span className="text-[10px] text-salvia-500 font-medium">Conferido pela tesouraria</span>
             </div>
           </div>
           <button
@@ -57,7 +57,7 @@ export function PixModal({
         {/* Nota de esclarecimento sobre conciliação e geração local */}
         <div className="p-2.5 bg-salvia-100/60 dark:bg-salvia-950/70 border border-salvia-200 dark:border-salvia-800 rounded-xl text-[11px] text-salvia-700 dark:text-salvia-300">
           <p className="leading-snug">
-            Chave Pix gerada no padrão EMVCo para 2ª via. A confirmação do pagamento é verificada pela tesouraria escolar (ou via webhook automático quando o PSP bancário estiver ativo).
+            Pix para pagar a 2ª via. A confirmação do pagamento é feita pela tesouraria da escola (a confirmação automática pelo banco ainda não está ligada).
           </p>
         </div>
 

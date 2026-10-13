@@ -587,7 +587,7 @@ export function ContratosPanel({ alunos, onNavigateToFinanceiro }: ContratosPane
                     <span>Projeção de Faturamento Automático</span>
                   </div>
                   <p className="text-[11px] text-slate-600 dark:text-slate-400">
-                    Ao assinar, serão criadas <strong>12 parcelas mensais de R$ {(parseFloat(novoValorTotal) / 12).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong> com vencimento todo dia 10 e chave Pix EMVCo local.
+                    Ao assinar, serão criadas <strong>12 parcelas mensais de R$ {(parseFloat(novoValorTotal) / 12).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong> com vencimento todo dia 10 e pagamento por Pix.
                   </p>
                 </div>
               )}
@@ -700,7 +700,7 @@ export function ContratosPanel({ alunos, onNavigateToFinanceiro }: ContratosPane
                     <strong>CLÁUSULA 1ª - DO OBJETO:</strong> O presente contrato tem por objeto a prestação de serviços educacionais correspondentes ao ano letivo de {contratoParaAssinar.ano_letivo}, em conformidade com o regimento escolar e a Lei Federal nº 9.394/1996 (LDB).
                   </p>
                   <p>
-                    <strong>CLÁUSULA 2ª - DA CONTRAPRESTAÇÃO FINANCEIRA:</strong> Como contraprestação pelos serviços educacionais contratados, a Contratante pagará a anuidade escolar no valor total de R$ {contratoParaAssinar.valor_total.toFixed(2)}, parcelada em 12 (doze) mensalidades iguais e sucessivas, com vencimento todo dia 10 (dez) de cada mês, emitidas via Pix EMVCo local.
+                    <strong>CLÁUSULA 2ª - DA CONTRAPRESTAÇÃO FINANCEIRA:</strong> Como contraprestação pelos serviços educacionais contratados, a Contratante pagará a anuidade escolar no valor total de R$ {contratoParaAssinar.valor_total.toFixed(2)}, parcelada em 12 (doze) mensalidades iguais e sucessivas, com vencimento todo dia 10 (dez) de cada mês, pagas por Pix.
                   </p>
                   <p>
                     <strong>CLÁUSULA 3ª - DA VALIDADE DA ASSINATURA ELETRÔNICA:</strong> As partes reconhecem a validade, integridade e força executiva extrajudicial deste documento formalizado por assinatura eletrônica avançada, nos termos do Art. 10, § 2º da Medida Provisória nº 2.200-2/2001 e da Lei nº 14.063/2020.

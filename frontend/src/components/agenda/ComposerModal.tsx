@@ -1,6 +1,7 @@
 import React from 'react';
 import { Lock, Send, Users, X } from 'lucide-react';
-import { AlunoResumo, ContatoEscola, TipoEnvio, TurmaOpcao } from './types';
+import { ContatoEscola, TipoEnvio, TurmaOpcao } from './types';
+import { OpcaoAlunoPrivado } from './utils';
 
 export interface ComposerModalProps {
   composerAberto: boolean;
@@ -17,9 +18,13 @@ export interface ComposerModalProps {
   turmas: TurmaOpcao[];
   alunoId: string;
   setAlunoId: (v: string) => void;
-  alunosPrivado: AlunoResumo[];
-  alunos: AlunoResumo[];
-  alunosComResponsavel: AlunoResumo[];
+  turmaPrivadoId: string;
+  setTurmaPrivadoId: (v: string) => void;
+  opcoesPrivado: OpcaoAlunoPrivado[];
+  totalAlunosTurma: number;
+  carregandoAlunos: boolean;
+  buscaAluno: string;
+  setBuscaAluno: (v: string) => void;
   titulo: string;
   setTitulo: (v: string) => void;
   conteudo: string;
@@ -43,9 +48,13 @@ export function ComposerModal({
   turmas,
   alunoId,
   setAlunoId,
-  alunosPrivado,
-  alunos,
-  alunosComResponsavel,
+  turmaPrivadoId,
+  setTurmaPrivadoId,
+  opcoesPrivado,
+  totalAlunosTurma,
+  carregandoAlunos,
+  buscaAluno,
+  setBuscaAluno,
   titulo,
   setTitulo,
   conteudo,
@@ -73,16 +82,16 @@ export function ComposerModal({
             <button
               type="button"
               onClick={() => setTipoEnvio('mural')}
-              className={`flex-1 py-1.5 text-xs font-bold rounded-lg inline-flex items-center justify-center gap-1 ${tipoEnvio === 'mural' ? 'bg-salvia-700 text-white' : ''}`}
+              className={`flex-1 min-h-[44px] sm:min-h-0 py-1.5 text-xs font-bold rounded-lg inline-flex items-center justify-center gap-1 ${tipoEnvio === 'mural' ? 'bg-salvia-700 text-white' : ''}`}
             >
               <Users className="w-3.5 h-3.5" /> Mural da turma
             </button>
             <button
               type="button"
               onClick={() => setTipoEnvio('privado')}
-              className={`flex-1 py-1.5 text-xs font-bold rounded-lg inline-flex items-center justify-center gap-1 ${tipoEnvio === 'privado' ? 'bg-salvia-700 text-white' : ''}`}
+              className={`flex-1 min-h-[44px] sm:min-h-0 py-1.5 text-xs font-bold rounded-lg inline-flex items-center justify-center gap-1 ${tipoEnvio === 'privado' ? 'bg-salvia-700 text-white' : ''}`}
             >
-              <Lock className="w-3.5 h-3.5" /> Privada 1:1
+              <Lock className="w-3.5 h-3.5" /> Mensagem privada
             </button>
           </div>
         )}
@@ -129,21 +138,56 @@ export function ComposerModal({
           </label>
         )}
         {tipoEnvio === 'privado' && (
-          <label className="block text-[11px] font-bold">Aluno / responsável
-            <select required value={alunoId} onChange={(e) => setAlunoId(e.target.value)} className={`${campo} mt-1`} disabled={alunosPrivado.length === 0}>
-              <option value="">{alunosPrivado.length === 0 ? 'Nenhum aluno disponível' : 'Selecione'}</option>
-              {alunosPrivado.map((aluno) => (
-                <option key={aluno.id} value={aluno.id}>
-                  {aluno.nome_responsavel} — {aluno.nome}
+          <>
+            <label className="block text-[11px] font-bold">1. Turma
+              <select
+                required
+                value={turmaPrivadoId}
+                onChange={(e) => setTurmaPrivadoId(e.target.value)}
+                className={`${campo} mt-1`}
+                disabled={turmas.length === 0}
+              >
+                <option value="">{turmas.length === 0 ? 'Nenhuma turma disponível' : 'Selecione a turma'}</option>
+                {turmas.map((turma) => (
+                  <option key={turma.id} value={turma.id}>{turma.nome}</option>
+                ))}
+              </select>
+            </label>
+            {turmaPrivadoId && totalAlunosTurma > 12 && (
+              <input
+                type="search"
+                value={buscaAluno}
+                onChange={(e) => setBuscaAluno(e.target.value)}
+                placeholder="Buscar aluno ou responsável"
+                className={campo}
+              />
+            )}
+            <label className="block text-[11px] font-bold">2. Aluno · responsável
+              <select
+                required
+                value={alunoId}
+                onChange={(e) => setAlunoId(e.target.value)}
+                className={`${campo} mt-1`}
+                disabled={!turmaPrivadoId || carregandoAlunos || opcoesPrivado.length === 0}
+              >
+                <option value="">
+                  {!turmaPrivadoId
+                    ? 'Escolha a turma primeiro'
+                    : carregandoAlunos
+                      ? 'Carregando alunos…'
+                      : opcoesPrivado.length === 0
+                        ? 'Nenhum aluno encontrado'
+                        : 'Selecione o aluno'}
                 </option>
-              ))}
-            </select>
-          </label>
-        )}
-        {tipoEnvio === 'privado' && alunos.length > 0 && alunosComResponsavel.length === 0 && (
-          <p className="text-[11px] text-amber-800 dark:text-amber-200">
-            O envio usa o vínculo do responsável na Secretaria. Se falhar, vincule o responsável ao portal.
-          </p>
+                {opcoesPrivado.map((op) => (
+                  <option key={op.id} value={op.id}>{op.rotulo}</option>
+                ))}
+              </select>
+            </label>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              A mensagem vai para o responsável com acesso ao portal e fica ligada a este aluno. Quem tem dois filhos recebe uma conversa para cada um.
+            </p>
+          </>
         )}
 
         <label className="block text-[11px] font-bold">Título

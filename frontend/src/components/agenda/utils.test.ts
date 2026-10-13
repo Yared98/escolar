@@ -4,8 +4,28 @@ import {
   agruparMensagensPorDia,
   mensagemEhMinha,
   iniciaisNome,
+  opcoesAlunoPrivado,
 } from './utils';
-import { MensagemAgenda } from './types';
+import { AlunoResumo, MensagemAgenda } from './types';
+
+describe('opcoesAlunoPrivado', () => {
+  const alunos: AlunoResumo[] = [
+    { id: '2', nome: 'Bruno Lima', nome_responsavel: 'Carla Lima', responsavel_user_id: 'u1' },
+    { id: '1', nome: 'Ana Souza', nome_responsavel: '', responsavel_user_id: null },
+  ];
+
+  it('ordena por aluno e mostra o responsável ao lado', () => {
+    expect(opcoesAlunoPrivado(alunos)).toEqual([
+      { id: '1', rotulo: 'Ana Souza · responsável não informado' },
+      { id: '2', rotulo: 'Bruno Lima · Carla Lima' },
+    ]);
+  });
+
+  it('filtra pelo nome do aluno ou do responsável', () => {
+    expect(opcoesAlunoPrivado(alunos, 'carla').map((o) => o.id)).toEqual(['2']);
+    expect(opcoesAlunoPrivado(alunos, 'ana').map((o) => o.id)).toEqual(['1']);
+  });
+});
 
 const criarData = (ano: number, mes: number, dia: number, hora = 0, minuto = 0) =>
   new Date(ano, mes - 1, dia, hora, minuto);

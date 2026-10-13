@@ -12,7 +12,7 @@ import {
   Plus,
 } from 'lucide-react';
 
-import { MensagemAgenda, ThreadAgenda, AtendimentoProtocolo, AlunoResumo, TurmaOpcao, FiltroCanal, TipoEnvio, ContatoEscola, tituloTema, agruparThreads, WhatsappPanel, ComunicacaoPanel, ComposerModal } from './agenda';
+import { MensagemAgenda, ThreadAgenda, AtendimentoProtocolo, AlunoResumo, TurmaOpcao, FiltroCanal, TipoEnvio, ContatoEscola, tituloTema, agruparThreads, opcoesAlunoPrivado, WhatsappPanel, ComunicacaoPanel, ComposerModal } from './agenda';
 
 const campo =
   'w-full bg-white dark:bg-salvia-900 border border-salvia-300 dark:border-salvia-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-salvia-50 focus:outline-none focus:border-salvia-600';
@@ -20,6 +20,7 @@ const campo =
 export function AgendaDigitalSection() {
   const { user } = useAuth();
   const isResponsavel = (user?.role || '').toLowerCase() === 'responsavel';
+  const isProfessor = (user?.role || '').toLowerCase() === 'professor';
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -38,8 +39,12 @@ export function AgendaDigitalSection() {
 
   const [mensagens, setMensagens] = useState<MensagemAgenda[]>([]);
   const [protocolos, setProtocolos] = useState<AtendimentoProtocolo[]>([]);
-  const [alunos, setAlunos] = useState<AlunoResumo[]>([]);
   const [turmas, setTurmas] = useState<TurmaOpcao[]>([]);
+  // Mensagem privada: primeiro a turma, depois o aluno (com o responsável ao lado).
+  const [turmaPrivadoId, setTurmaPrivadoId] = useState('');
+  const [alunosTurma, setAlunosTurma] = useState<AlunoResumo[]>([]);
+  const [carregandoAlunos, setCarregandoAlunos] = useState(false);
+  const [buscaAluno, setBuscaAluno] = useState('');
   const [agendaErro, setAgendaErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -81,16 +86,17 @@ export function AgendaDigitalSection() {
   const loadAgendaData = useCallback(async (opts?: { silent?: boolean }) => {
     try {
       if (!opts?.silent) setCarregando(true);
-      const [msgData, protoData, alunosData, turmasData, contatosData] = await Promise.all([
+      const [msgData, protoData, turmasData, contatosData] = await Promise.all([
         apiFetch<MensagemAgenda[]>('/agenda/mensagens').catch(() => []),
         apiFetch<AtendimentoProtocolo[]>('/atendimento/protocolos').catch(() => []),
-        apiFetch<{ items: AlunoResumo[] }>('/secretaria/alunos?status=ativo&limit=200')
-          .then((page) => page.items || [])
-          .catch(() => []),
-        apiFetch<TurmaOpcao[]>('/secretaria/turmas').catch(() => []),
+        // Professor só escreve para as próprias turmas; gestão e secretaria veem todas.
+        isProfessor
+          ? apiFetch<{ turma_id: string; turma_nome: string }[]>('/professor/minhas-turmas')
+              .then((lista) => (lista || []).map((t) => ({ id: t.turma_id, nome: t.turma_nome })))
+              .catch(() => [])
+          : apiFetch<TurmaOpcao[]>('/secretaria/turmas').catch(() => []),
         apiFetch<ContatoEscola[]>('/agenda/contatos-escola').catch(() => []),
       ]);
-      setAlunos(alunosData || []);
       setTurmas(turmasData || []);
       setMensagens(msgData || []);
       setProtocolos(protoData || []);
@@ -101,7 +107,38 @@ export function AgendaDigitalSection() {
     } finally {
       if (!opts?.silent) setCarregando(false);
     }
-  }, []);
+  }, [isProfessor]);
+
+  useEffect(() => {
+    if (!composerAberto || tipoEnvio !== 'privado' || !turmaPrivadoId) {
+      setAlunosTurma([]);
+      return;
+    }
+    let ativo = true;
+    setCarregandoAlunos(true);
+    apiFetch<{ items: AlunoResumo[] }>(
+      `/secretaria/alunos?status=ativo&limit=200&turma_id=${encodeURIComponent(turmaPrivadoId)}`,
+    )
+      .then((page) => {
+        if (ativo) setAlunosTurma(page.items || []);
+      })
+      .catch((err: unknown) => {
+        if (!ativo) return;
+        setAlunosTurma([]);
+        setAgendaErro(err instanceof Error ? err.message : 'Não foi possível carregar os alunos da turma.');
+      })
+      .finally(() => {
+        if (ativo) setCarregandoAlunos(false);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [composerAberto, tipoEnvio, turmaPrivadoId]);
+
+  const opcoesPrivado = useMemo(
+    () => opcoesAlunoPrivado(alunosTurma, buscaAluno),
+    [alunosTurma, buscaAluno],
+  );
 
   useEffect(() => {
     loadAgendaData();
@@ -131,16 +168,6 @@ export function AgendaDigitalSection() {
       return turmas.find((t) => t.id === id)?.nome || 'Turma';
     },
     [turmas],
-  );
-
-  const alunosComResponsavel = useMemo(
-    () => alunos.filter((a) => a.responsavel_user_id),
-    [alunos],
-  );
-
-  const alunosPrivado = useMemo(
-    () => (alunosComResponsavel.length > 0 ? alunosComResponsavel : alunos),
-    [alunos, alunosComResponsavel],
   );
 
   const threads = useMemo(() => {
@@ -233,6 +260,8 @@ export function AgendaDigitalSection() {
     setTitulo('');
     setConteudo('');
     setTurmaId(turmas[0]?.id || '');
+    setTurmaPrivadoId('');
+    setBuscaAluno('');
     setAlunoId('');
     setDestinatarioId(contatos[0]?.id || '');
     setComposerAberto(true);
@@ -392,9 +421,17 @@ export function AgendaDigitalSection() {
           turmas={turmas}
           alunoId={alunoId}
           setAlunoId={setAlunoId}
-          alunosPrivado={alunosPrivado}
-          alunos={alunos}
-          alunosComResponsavel={alunosComResponsavel}
+          turmaPrivadoId={turmaPrivadoId}
+          setTurmaPrivadoId={(id) => {
+            setTurmaPrivadoId(id);
+            setAlunoId('');
+            setBuscaAluno('');
+          }}
+          opcoesPrivado={opcoesPrivado}
+          totalAlunosTurma={alunosTurma.length}
+          carregandoAlunos={carregandoAlunos}
+          buscaAluno={buscaAluno}
+          setBuscaAluno={setBuscaAluno}
           titulo={titulo}
           setTitulo={setTitulo}
           conteudo={conteudo}

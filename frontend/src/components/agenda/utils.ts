@@ -1,4 +1,27 @@
-import { MensagemAgenda, ThreadAgenda } from './types';
+import { AlunoResumo, MensagemAgenda, ThreadAgenda } from './types';
+
+export interface OpcaoAlunoPrivado {
+  id: string;
+  rotulo: string;
+}
+
+// Mensagem privada: depois de escolher a turma, uma linha por aluno com o responsável ao lado.
+// Irmãos em turmas diferentes aparecem em cada turma; a conversa fica ligada ao aluno escolhido.
+export const opcoesAlunoPrivado = (alunos: AlunoResumo[], busca = ''): OpcaoAlunoPrivado[] => {
+  const termo = busca.trim().toLowerCase();
+  return [...alunos]
+    .filter(
+      (a) =>
+        !termo ||
+        a.nome.toLowerCase().includes(termo) ||
+        (a.nome_responsavel || '').toLowerCase().includes(termo),
+    )
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+    .map((a) => ({
+      id: a.id,
+      rotulo: `${a.nome} · ${a.nome_responsavel?.trim() || 'responsável não informado'}`,
+    }));
+};
 
 export const rotuloCanal = (canal: string) => {
   switch (canal) {

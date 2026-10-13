@@ -126,13 +126,13 @@ export function Header() {
           </div>
         )}
 
-        {/* Central de Notificações Unificada */}
+        {/* Notificações */}
         {user && (
           <div className="relative">
             <button
               onClick={() => setShowDropdown(!showDropdown)}
               className="relative p-2 rounded-xl bg-salvia-50 dark:bg-salvia-950 text-salvia-700 dark:text-salvia-300 hover:bg-salvia-100 dark:hover:bg-salvia-800 border border-salvia-200 dark:border-salvia-800 transition-all flex items-center justify-center"
-              title="Central de Notificações Unificada"
+              title="Notificações"
             >
               <Bell className="w-4 h-4" />
               {unreadCount > 0 && (
@@ -148,7 +148,7 @@ export function Header() {
                 <div className="flex items-center justify-between border-b border-salvia-100 dark:border-salvia-800 pb-2">
                   <h3 className="text-xs font-bold text-slate-900 dark:text-salvia-50 flex items-center space-x-1.5">
                     <Bell className="w-3.5 h-3.5 text-salvia-600 dark:text-salvia-400" />
-                    <span>Central de Notificações Unificada</span>
+                    <span>Notificações</span>
                   </h3>
                   <button
                     onClick={handleMarcarTodasLidas}

@@ -104,10 +104,10 @@ export function FinanceiroTab({
         <HelpCircle className="w-4 h-4 shrink-0 text-salvia-600 dark:text-salvia-400 mt-0.5" />
         <div className="space-y-1">
           <span className="font-bold text-slate-900 dark:text-salvia-100 block">
-            2ª via Pix local (EMVCo BR Code) • Tesouraria escolar
+            2ª via por Pix • Tesouraria da escola
           </span>
           <p className="text-[11px] leading-relaxed text-salvia-600 dark:text-salvia-400">
-            O QR Code e o código Pix Copia e Cola são gerados no padrão EMVCo para emissão de 2ª via e conferência pela tesouraria da escola. A conciliação e baixa automática via webhook bancário depende de credenciais PSP ativas em ambiente produtivo.
+            O QR Code e o Pix Copia e Cola servem para pagar a 2ª via. Nesta versão a baixa do pagamento é conferida pela tesouraria da escola (a confirmação automática pelo banco ainda não está ligada).
           </p>
         </div>
       </div>
