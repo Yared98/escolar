@@ -10,6 +10,7 @@ import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { perfilAmigavel } from '@/lib/perfis';
 import { KeyRound, Building2, UserPlus, LogIn, Lock } from 'lucide-react';
 import { TrocarSenha } from '@/components/TrocarSenha';
+import { RecuperarSenha } from '@/components/RecuperarSenha';
 
 // Contas da escola-modelo (seed demo, senha documentada em openspec/CORE_SPEC.md).
 const DEMO_ESCOLA = 'escola-modelo';
@@ -152,6 +153,17 @@ function DashboardContent() {
   const [adminName, setAdminName] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
+
+  // Recuperação de senha
+  const [mostrarRecuperacao, setMostrarRecuperacao] = useState(false);
+  const tokenRedefinir = searchParams ? searchParams.get('redefinir') : null;
+  const escolaRedefinir = searchParams ? searchParams.get('escola') : null;
+
+  useEffect(() => {
+    if (tokenRedefinir && escolaRedefinir) {
+      setMostrarRecuperacao(true);
+    }
+  }, [tokenRedefinir, escolaRedefinir]);
 
   // URL → state only. Must NOT depend on activeRoute: handleRouteChange updates
   // state optimistically before router.push commits, and a stale searchParams
@@ -362,6 +374,21 @@ function DashboardContent() {
           </div>
           <MobileBottomNav activeRoute={activeRoute} onRouteChange={handleRouteChange} />
         </div>
+      ) : mostrarRecuperacao ? (
+        <RecuperarSenha
+          modoInicial={tokenRedefinir && escolaRedefinir ? 'redefinir' : 'esqueci'}
+          tokenInicial={tokenRedefinir}
+          escolaInicial={escolaRedefinir}
+          onVoltar={() => {
+            setMostrarRecuperacao(false);
+            const params = new URLSearchParams(searchParams ? searchParams.toString() : '');
+            params.delete('redefinir');
+            params.delete('escola');
+            const q = params.toString();
+            const targetUrl = q ? `${pathname}?${q}` : pathname;
+            router.replace(targetUrl, { scroll: false });
+          }}
+        />
       ) : (
         <div className="w-full max-w-md mx-auto bg-white dark:bg-salvia-900 border border-salvia-200 dark:border-salvia-800 rounded-2xl p-6 sm:p-8 shadow-md">
           <div className="text-center mb-6">
@@ -458,6 +485,16 @@ function DashboardContent() {
               >
                 {loading ? 'Autenticando...' : 'Entrar'}
               </button>
+
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setMostrarRecuperacao(true)}
+                  className="text-xs font-semibold text-salvia-600 dark:text-salvia-400 hover:text-salvia-800 dark:hover:text-salvia-200 hover:underline"
+                >
+                  Esqueci minha senha
+                </button>
+              </div>
 
               {modoDemo && (
                 <div className="pt-4 mt-2 border-t border-salvia-100 dark:border-salvia-800">

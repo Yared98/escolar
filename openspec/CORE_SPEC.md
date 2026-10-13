@@ -78,13 +78,14 @@ A gestão da escola pode criar contas de acesso para os perfis `gestor`, `secret
 - **Troca obrigatória**: no primeiro login com `deve_trocar_senha = true`, o frontend exibe a tela "Crie sua nova senha" (`POST /api/v1/auth/alterar-senha`). A nova senha deve ter pelo menos 8 caracteres e ser diferente da atual.
 - **Desativação**: gestores podem desativar/rebaixar contas via `PUT /api/v1/administrativo/usuarios/:id`. A escola nunca fica sem ao menos um gestor/admin ativo (bloqueio em 400).
 - **Redefinição de senha**: `POST /api/v1/administrativo/usuarios/:id/redefinir-senha` gera nova senha temporária e força nova troca no próximo acesso.
-- **Auditoria**: criação, alteração, desativação, redefinição de senha e troca da própria senha geram entradas em `audit_logs`. Senhas nunca são logadas.
-- **Isolamento**: a listagem `GET /api/v1/administrativo/usuarios` respeita o tenant do usuário autenticado e só pode ser acessada por `admin`/`gestor`.
+- **Recuperação de senha autoatendimento**: usuários podem solicitar redefinição via `POST /api/v1/auth/esqueci-senha` informando código da escola (`tenant_slug`) e e-mail. A resposta é sempre neutra (`200`) para evitar enumeração de usuários/escolas. Se o usuário existir e estiver ativo, invalida tokens anteriores não usados, gera token aleatório de 32 bytes (base64url), armazena apenas o hash SHA-256 com validade de 30 minutos e registra um e-mail em `emails_saida` no modo simulado. A redefinição propriamente dita ocorre em `POST /api/v1/auth/redefinir-senha` com `tenant_slug`, `token` e `nova_senha` (mínimo 8 caracteres); o link só funciona uma vez, desde que não expirado e que o usuário esteja ativo. Após a redefinição, todos os refresh tokens do usuário são revogados, `deve_trocar_senha` fica `false` e a nova senha é armazenada com Argon2.
+- **Caixa de saída de e-mail simulado**: gestores/admin podem consultar os últimos 50 e-mails em `GET /api/v1/administrativo/emails-saida` para visualizar/repassar o link manualmente.
+- **Auditoria**: criação, alteração, desativação, redefinição de senha, troca da própria senha, solicitação e redefinição de senha por link geram entradas em `audit_logs`. Tokens e senhas nunca são logados.
+- **Isolamento**: a listagem `GET /api/v1/administrativo/usuarios` respeita o tenant do usuário autenticado e só pode ser acessada por `admin`/`gestor`. As tabelas `tokens_recuperacao_senha` e `emails_saida` possuem RLS fail-closed.
 
 ### 3.2 Limitações MVP da Gestão de Usuários
 
-- Não há envio automático de e-mail de convite ou recuperação de senha. A senha temporária deve ser entregue manualmente pela escola.
-- Não há fluxo de "esqueci minha senha" autoatendimento para usuários finais.
+- Não há envio real de e-mail (SMTP) de convite ou recuperação de senha. O modo atual é **simulado**: o e-mail fica gravado em `emails_saida` e a escola deve repassar o link manualmente. Envio real exige implementação de adapter SMTP via variável `EMAIL_MODE`.
 - Não há sincronização de usuários com sistemas externos (Active Directory, Google Workspace etc.).
 
 ---
@@ -124,6 +125,11 @@ Todas as respostas HTTP do gateway injetam compulsoriamente os 6 cabeçalhos de 
 ### Variáveis de ambiente do frontend
 
 - `NEXT_PUBLIC_PERMITIR_CADASTRO_ESCOLA`: quando igual a `'true'`, exibe a aba "Cadastrar Escola" na tela de login. Padrão: oculta.
+
+### Variáveis de ambiente do backend (autenticação e e-mail)
+
+- `EMAIL_MODE`: modo do adapter de e-mail. Nesta versão só existe `simulado` (padrão). Qualquer outro valor gera erro claro no boot em produção (`APP_ENV=production`) ou cai para simulado com aviso em desenvolvimento.
+- `APP_PUBLIC_URL`: URL pública onde o frontend está acessível (ex: `https://escola.seudominio.com.br` em produção, `http://localhost:3000` em desenvolvimento). Usada para montar o link de redefinição de senha enviado por e-mail.
 
 ## 6. Frontend Core UI & Design System (Gift Sálvia Edition)
 
