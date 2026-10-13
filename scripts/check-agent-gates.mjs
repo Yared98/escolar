@@ -46,44 +46,56 @@ export const DEFAULT_CODE_TO_SPEC_RULES = [
   // Secretaria
   {
     pattern:
-      /^(backend\/src\/handlers\/secretaria\.rs|frontend\/src\/components\/(?:secretaria\/.*|SecretariaSection\.tsx))$/,
+      /^(backend\/src\/handlers\/(?:secretaria|documentos)(?:\.rs|\/.*)|frontend\/src\/components\/(?:secretaria\/.*|SecretariaSection\.tsx))$/,
     spec: 'openspec/modules/secretaria.md',
     label: 'Secretaria',
   },
   // Financeiro
   {
     pattern:
-      /^(backend\/src\/handlers\/financeiro\.rs|frontend\/src\/components\/(?:financeiro\/.*|FinanceiroSection\.tsx))$/,
+      /^(backend\/src\/handlers\/financeiro(?:\.rs|\/.*)|frontend\/src\/components\/(?:financeiro\/.*|FinanceiroSection\.tsx))$/,
     spec: 'openspec/modules/financeiro.md',
     label: 'Financeiro',
   },
   // Acadêmico
   {
     pattern:
-      /^(backend\/src\/handlers\/academico\.rs|frontend\/src\/components\/(?:academico\/.*|pedagogico\/.*|portal_aluno\/.*|PedagocioNutricaoSection\.tsx))$/,
+      /^(backend\/src\/handlers\/(?:academico|professor|fechamento)(?:\.rs|\/.*)|frontend\/src\/components\/(?:academico\/.*|pedagogico\/.*|portal_aluno\/.*|professor\/.*|PedagocioNutricaoSection\.tsx|ProfessorSection\.tsx|AcademicoSection\.tsx|PortalAlunoSection\.tsx|MobileBottomNav\.tsx))$/,
     spec: 'openspec/modules/academico.md',
     label: 'Acadêmico',
   },
   // Nutrição
   {
     pattern:
-      /^(backend\/src\/handlers\/nutricao\.rs|frontend\/src\/components\/nutricao\/.*)$/,
+      /^(backend\/src\/handlers\/nutricao(?:\.rs|\/.*)|frontend\/src\/components\/nutricao\/.*)$/,
     spec: 'openspec/modules/nutricao.md',
     label: 'Nutrição',
   },
   // Agenda & Calendário / Notificações (inclui worker)
   {
     pattern:
-      /^(backend\/src\/handlers\/agenda_admin\.rs|frontend\/src\/components\/(?:agenda\/.*|AgendaDigitalSection\.tsx|CalendarioEscolarSection\.tsx)|worker\/.*)$/,
+      /^(backend\/src\/handlers\/(?:agenda_admin|avaliacoes)(?:\.rs|\/.*)|frontend\/src\/components\/(?:agenda\/.*|AgendaDigitalSection\.tsx|CalendarioEscolarSection\.tsx)|worker\/.*)$/,
     spec: 'openspec/modules/agenda_calendario.md',
     label: 'Agenda & Calendário / Notificações',
   },
   // CRM
   {
     pattern:
-      /^(backend\/src\/handlers\/crm_lms\.rs|frontend\/src\/components\/CrmSection\.tsx)$/,
+      /^(backend\/src\/handlers\/crm_lms(?:\.rs|\/(?:mod|crm|whatsapp)\.rs)|frontend\/src\/components\/CrmSection\.tsx)$/,
     spec: 'openspec/modules/crm_atendimento.md',
     label: 'CRM',
+  },
+  // LMS (depois do refactor B13.4 o LMS tem arquivo próprio)
+  {
+    pattern: /^backend\/src\/handlers\/crm_lms\/lms\.rs$/,
+    spec: 'openspec/modules/lms_integracao.md',
+    label: 'LMS / SSO',
+  },
+  // Autenticação e usuários -> CORE_SPEC.md
+  {
+    pattern: /^backend\/src\/handlers\/(?:auth|usuarios)(?:\.rs|\/.*)$/,
+    spec: 'openspec/CORE_SPEC.md',
+    label: 'Core / Autenticação e usuários',
   },
   // IA Evasão
   {
@@ -99,7 +111,7 @@ export const DEFAULT_CODE_TO_SPEC_RULES = [
   },
   // backend/src/handlers/regulatorio_ia.rs cobre tanto IA quanto Regulatório (aceita qualquer um dos dois)
   {
-    pattern: /^backend\/src\/handlers\/regulatorio_ia\.rs$/,
+    pattern: /^backend\/src\/handlers\/regulatorio_ia(?:\.rs|\/.*)$/,
     spec: ['openspec/modules/ia_preditiva.md', 'openspec/modules/regulatorio_lgpd.md'],
     label: 'Regulatório / IA',
   },

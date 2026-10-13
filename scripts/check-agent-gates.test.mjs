@@ -440,3 +440,36 @@ test('Integração runGates: executa com parâmetros customizados e reflete falh
   });
   assert.equal(passRun.success, true, 'runGates deve passar quando há escape');
 });
+
+// -----------------------------------------------------------------------------
+// Caminhos depois do B13 (handlers em diretório) e handlers novos da Onda C
+// -----------------------------------------------------------------------------
+test('Regra 1 (pós-B13): arquivos de handlers em diretório e handlers novos continuam exigindo a spec do módulo', () => {
+  const casos = [
+    ['backend/src/handlers/financeiro/dre.rs', 'openspec/modules/financeiro.md'],
+    ['backend/src/handlers/nutricao/pratos.rs', 'openspec/modules/nutricao.md'],
+    ['backend/src/handlers/crm_lms/whatsapp.rs', 'openspec/modules/crm_atendimento.md'],
+    ['backend/src/handlers/crm_lms/lms.rs', 'openspec/modules/lms_integracao.md'],
+    ['backend/src/handlers/professor.rs', 'openspec/modules/academico.md'],
+    ['backend/src/handlers/documentos.rs', 'openspec/modules/secretaria.md'],
+    ['backend/src/handlers/avaliacoes.rs', 'openspec/modules/agenda_calendario.md'],
+    ['backend/src/handlers/usuarios.rs', 'openspec/CORE_SPEC.md'],
+    ['frontend/src/components/ProfessorSection.tsx', 'openspec/modules/academico.md'],
+  ];
+  for (const [arquivo, spec] of casos) {
+    const result = checkSpecSync({
+      changedFiles: [arquivo],
+      commitMessages: ['feat: mudanca sem spec'],
+      codeToSpecRules: DEFAULT_CODE_TO_SPEC_RULES,
+    });
+    assert.equal(result.passed, false, `${arquivo} deveria exigir ${spec}`);
+    assert.equal(result.violations[0].expectedSpec, spec, arquivo);
+  }
+
+  const regulatorio = checkSpecSync({
+    changedFiles: ['backend/src/handlers/regulatorio_ia/evasao/mod.rs', 'openspec/modules/ia_preditiva.md'],
+    commitMessages: ['feat(ia): ajuste'],
+    codeToSpecRules: DEFAULT_CODE_TO_SPEC_RULES,
+  });
+  assert.equal(regulatorio.passed, true, 'regulatorio_ia/** aceita a spec de IA ou de Regulatório');
+});
