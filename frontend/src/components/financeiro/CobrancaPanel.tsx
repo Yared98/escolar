@@ -60,7 +60,7 @@ export function CobrancaPanel({
           O motor de régua analisa faturas escolares e processa as regras de régua preventiva (D-5 a D-1), aviso no dia (D-0) e cobrança ativa em atraso (D+ com cálculo automático de multa de 2% e juros pro-rata de 1% a.m.).
         </p>
         <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-900 dark:text-amber-200 font-medium">
-          <strong>Aviso de integridade (versão de demonstração):</strong> Os disparos são registrados internamente no banco de dados para rastreabilidade e auditoria. <strong>Não há envio real de mensagens via WhatsApp ou e-mail</strong> para responsáveis ou alunos nesta versão (sem conector omnicanal externo ativo).
+          <strong>Aviso de integridade (versão de demonstração):</strong> Os disparos são registrados internamente no banco de dados para rastreabilidade e auditoria. <strong>Não há envio real de mensagens via WhatsApp ou e-mail</strong> para responsáveis ou alunos nesta versão.
         </div>
       </div>
 
@@ -149,7 +149,7 @@ export function CobrancaPanel({
               <span>Auditoria & Logs de Cobrança ({logsFiltrados.length} de {reguaLogs.length})</span>
             </h3>
             <p className="text-[11px] text-salvia-600 dark:text-salvia-400">
-              Histórico detalhado das notificações geradas localmente com canal, fatura e payload.
+              Histórico detalhado das notificações geradas localmente com canal, fatura e conteúdo.
             </p>
           </div>
 

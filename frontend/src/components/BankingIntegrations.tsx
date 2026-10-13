@@ -66,7 +66,7 @@ export function BankingIntegrations() {
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-3 text-[11px] text-amber-900 dark:text-amber-200">
-        Configuração de gateway (Cora). Pix/boleto gerados pelo sistema são locais/demonstrativos até a emissão pelo PSP estar ligada ao fluxo de faturas.
+        Conexão com o banco (Cora). Nesta versão o Pix e o boleto gerados pelo sistema são de demonstração, até a emissão pelo banco ser ligada às faturas.
       </div>
 
       {msg && (

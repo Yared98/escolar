@@ -85,9 +85,9 @@ export function ConversaChat({
             </span>
             {thread.raiz.turma_id ? (
               <span className="truncate">{nomeTurma(thread.raiz.turma_id)}</span>
-            ) : (
+            ) : isMural ? (
               <span>Toda a escola</span>
-            )}
+            ) : null}
           </div>
         </div>
       </header>

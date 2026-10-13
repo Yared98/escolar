@@ -383,7 +383,7 @@ export function AdministrativoSection() {
                 <span className="text-[10px] uppercase tracking-wider font-bold text-salvia-500 block">Isolamento por escola</span>
                 <span className="font-bold text-slate-900 dark:text-salvia-50 flex items-center space-x-1 text-emerald-600 dark:text-emerald-400">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Isolamento por escola (RLS) no banco</span>
+                  <span>Dados de cada escola separados no banco</span>
                 </span>
               </div>
               <div className="p-3 bg-white dark:bg-salvia-900 border border-salvia-200 dark:border-salvia-800 rounded-xl text-xs space-y-1">

@@ -91,11 +91,11 @@ export function CrmSection() {
       });
       setShowModal(false);
       setFormData(emptyForm);
-      setAviso('Lead registrado no funil.');
+      setAviso('Interessado registrado.');
       loadData();
     } catch (err) {
       console.error(err);
-      setAviso(err instanceof Error ? err.message : 'Não foi possível criar o lead.');
+      setAviso(err instanceof Error ? err.message : 'Não foi possível registrar o interessado.');
     }
   };
 
@@ -137,7 +137,7 @@ export function CrmSection() {
     'w-full bg-white dark:bg-salvia-900 border border-salvia-300 dark:border-salvia-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-salvia-50 focus:outline-none focus:border-salvia-600';
 
   const colunas = [
-    { id: 'novo_lead', title: 'Novos Leads' },
+    { id: 'novo_lead', title: 'Novos interessados' },
     { id: 'visita_agendada', title: 'Visita Agendada' },
     { id: 'proposta_enviada', title: 'Proposta Enviada' },
     { id: 'matriculado', title: 'Matrícula' },
@@ -164,7 +164,7 @@ export function CrmSection() {
           className="bg-salvia-700 dark:bg-salvia-600 hover:bg-salvia-800 dark:hover:bg-salvia-500 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center space-x-2 transition-all shadow-sm"
         >
           <Plus className="w-4 h-4" />
-          <span>Novo lead</span>
+          <span>Novo interessado</span>
         </button>
       </div>
 
@@ -215,7 +215,7 @@ export function CrmSection() {
               </div>
               <div className="flex-1 overflow-y-auto space-y-3 pr-1">
                 {leads.filter((l) => l.estagio_funil === col.id).length === 0 && (
-                  <p className="text-[11px] text-salvia-600 dark:text-salvia-400 px-1">Nenhum lead neste estágio.</p>
+                  <p className="text-[11px] text-salvia-600 dark:text-salvia-400 px-1">Nenhum interessado nesta etapa.</p>
                 )}
                 {leads.filter((l) => l.estagio_funil === col.id).map((lead) => (
                   <article
@@ -282,7 +282,7 @@ export function CrmSection() {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-salvia-900 border border-salvia-200 dark:border-salvia-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
             <div className="px-5 py-4 border-b border-salvia-100 dark:border-salvia-800 flex justify-between items-center">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-salvia-50">Novo lead</h3>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-salvia-50">Novo interessado</h3>
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
@@ -329,7 +329,7 @@ export function CrmSection() {
                   type="submit"
                   className="px-4 py-2 bg-salvia-700 dark:bg-salvia-600 hover:bg-salvia-800 text-white rounded-xl text-xs font-bold shadow-sm"
                 >
-                  Salvar lead
+                  Salvar interessado
                 </button>
               </div>
             </form>
