@@ -55,6 +55,10 @@ pub struct User {
     #[serde(skip_serializing)]
     pub password_hash: String,
     pub role: String,
+    #[sqlx(default)]
+    pub ativo: bool,
+    #[sqlx(default)]
+    pub deve_trocar_senha: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -66,6 +70,8 @@ pub struct UserResponseDto {
     pub name: String,
     pub email: String,
     pub role: String,
+    pub ativo: bool,
+    pub deve_trocar_senha: bool,
     pub created_at: DateTime<Utc>,
     pub features: Vec<String>,
 }
@@ -78,6 +84,8 @@ impl From<User> for UserResponseDto {
             name: user.name,
             email: user.email,
             role: user.role,
+            ativo: user.ativo,
+            deve_trocar_senha: user.deve_trocar_senha,
             created_at: user.created_at,
             features: vec![],
         }

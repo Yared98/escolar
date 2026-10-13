@@ -10,4 +10,5 @@ pub mod professor;
 pub mod regulatorio_ia;
 pub mod secretaria;
 pub mod tenant_settings;
+pub mod usuarios;
 pub mod webhooks_cora;

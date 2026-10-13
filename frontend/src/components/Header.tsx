@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { perfilAmigavel } from '@/lib/perfis';
 import { apiFetch } from '@/lib/api';
+import { TrocarSenha } from '@/components/TrocarSenha';
 import {
   Wifi,
   WifiOff,
@@ -16,6 +17,8 @@ import {
   Moon,
   Bell,
   Shield,
+  KeyRound,
+  ChevronDown,
 } from 'lucide-react';
 
 interface NotificacaoItem {
@@ -36,6 +39,8 @@ export function Header() {
 
   const [notificacoes, setNotificacoes] = useState<NotificacaoItem[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showTrocarSenha, setShowTrocarSenha] = useState(false);
 
   const loadNotificacoes = async () => {
     try {
@@ -229,6 +234,42 @@ export function Header() {
               <span className="text-[11px] text-salvia-700 dark:text-salvia-300 font-medium">{perfilAmigavel(role)}</span>
             </div>
 
+            <div className="relative">
+              <button
+                onClick={() => setShowUserMenu((v) => !v)}
+                className="flex items-center space-x-1 p-2 rounded-xl text-salvia-600 dark:text-salvia-400 hover:bg-salvia-100 dark:hover:bg-salvia-800 transition-colors"
+                aria-label="Menu do usuário"
+              >
+                <UserIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                <ChevronDown className="w-3.5 h-3.5 hidden sm:block" />
+              </button>
+
+              {showUserMenu && (
+                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-salvia-900 border border-salvia-200 dark:border-salvia-800 rounded-2xl shadow-xl z-50 p-2 space-y-1">
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      setShowTrocarSenha(true);
+                    }}
+                    className="w-full flex items-center space-x-2 px-3 py-2.5 rounded-xl text-xs font-semibold text-salvia-800 dark:text-salvia-200 hover:bg-salvia-50 dark:hover:bg-salvia-800/60 text-left"
+                  >
+                    <KeyRound className="w-4 h-4" />
+                    <span>Trocar senha</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      logout();
+                    }}
+                    className="w-full flex items-center space-x-2 px-3 py-2.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-left"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Sair do sistema</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
             <button
               onClick={() => window.dispatchEvent(new CustomEvent('open-mobile-menu'))}
               title="Menu de Navegação"
@@ -244,6 +285,20 @@ export function Header() {
           </div>
         )}
       </div>
+
+      {showTrocarSenha && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-salvia-900/60 backdrop-blur-sm overflow-y-auto">
+          <div className="relative w-full max-w-md mt-10">
+            <button
+              onClick={() => setShowTrocarSenha(false)}
+              className="absolute -top-10 right-0 text-white text-xs font-bold hover:underline"
+            >
+              Fechar
+            </button>
+            <TrocarSenha />
+          </div>
+        </div>
+      )}
     </header>
   );
 }
