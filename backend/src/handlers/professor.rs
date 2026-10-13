@@ -182,8 +182,10 @@ async fn carregar_atribuicoes_professor(
 fn hoje_brasilia() -> NaiveDate {
     // America/Sao_Paulo alterna entre UTC-3 e UTC-2 no horário de verão.
     // Sem chrono-tz, usamos UTC-3 como aproximação robusta para o dia de hoje.
-    let offset = FixedOffset::west_opt(3 * 3600).expect("offset válido");
-    Utc::now().with_timezone(&offset).date_naive()
+    match FixedOffset::west_opt(3 * 3600) {
+        Some(offset) => Utc::now().with_timezone(&offset).date_naive(),
+        None => Utc::now().date_naive(),
+    }
 }
 
 // ============================================================================
@@ -213,7 +215,7 @@ pub async fn minhas_turmas(
                 (SELECT COUNT(*)::bigint
                  FROM turma_alunos ta
                  JOIN alunos a ON a.id = ta.aluno_id
-                 WHERE ta.turma_id = t.id AND a.status = 'ativo') AS total_alunos
+                 WHERE ta.turma_id = t.id AND ta.status = 'ativo' AND a.status = 'ativo') AS total_alunos
             FROM turmas t
             INNER JOIN turma_professores tp ON tp.turma_id = t.id
             INNER JOIN disciplinas d ON d.id = tp.disciplina_id
@@ -238,7 +240,7 @@ pub async fn minhas_turmas(
                 (SELECT COUNT(*)::bigint
                  FROM turma_alunos ta
                  JOIN alunos a ON a.id = ta.aluno_id
-                 WHERE ta.turma_id = t.id AND a.status = 'ativo') AS total_alunos
+                 WHERE ta.turma_id = t.id AND ta.status = 'ativo' AND a.status = 'ativo') AS total_alunos
             FROM turmas t
             LEFT JOIN turma_disciplinas td ON td.turma_id = t.id
             LEFT JOIN disciplinas d ON d.id = td.disciplina_id
@@ -442,6 +444,7 @@ pub async fn listar_notas(
            AND n.disciplina_nome = $3
            AND n.periodo = $4
         WHERE ta.turma_id = $1
+          AND ta.status = 'ativo'
           AND a.status = 'ativo'
         ORDER BY ta.numero_chamada ASC NULLS LAST, a.nome ASC
         "#,
@@ -527,7 +530,7 @@ pub async fn lancar_notas_lote(
         SELECT a.id
         FROM turma_alunos ta
         JOIN alunos a ON a.id = ta.aluno_id
-        WHERE ta.turma_id = $1 AND a.status = 'ativo'
+        WHERE ta.turma_id = $1 AND ta.status = 'ativo' AND a.status = 'ativo'
         "#,
     )
     .bind(dto.turma_id)
