@@ -36,12 +36,13 @@ export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
   });
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const podeVerFinanceiro = isRouteAllowed('financeiro', role);
+  const podeVerSecretaria = isRouteAllowed('secretaria', role);
+  const podeVerIaEvasao = isRouteAllowed('ia_evasao', role);
+  const podeVerAgenda = isRouteAllowed('agenda', role);
+
   useEffect(() => {
     async function loadKpis() {
-      const podeVerFinanceiro = isRouteAllowed('financeiro', role);
-      const podeVerSecretaria = isRouteAllowed('secretaria', role);
-      const podeVerIaEvasao = isRouteAllowed('ia_evasao', role);
-
       try {
         const promises: Promise<unknown>[] = [];
         const indices = {
@@ -96,7 +97,7 @@ export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
       }
     }
     loadKpis();
-  }, [role]);
+  }, [podeVerFinanceiro, podeVerSecretaria, podeVerIaEvasao]);
 
   return (
     <div className="space-y-6">
@@ -124,15 +125,18 @@ export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
 
         {/* High-density KPI Metrics */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+          {podeVerSecretaria && (
           <div className="bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 p-4 rounded-xl">
             <div className="flex items-center justify-between text-salvia-600 dark:text-salvia-400 text-xs mb-1 font-medium">
-              <span>Alunos Ativos</span>
+              <span>Alunos ativos</span>
               <Users className="w-4 h-4 text-salvia-600 dark:text-salvia-400" />
             </div>
             <p className="text-2xl font-bold text-slate-900 dark:text-salvia-50 font-mono">{kpi.totalAlunos}</p>
-            <span className="text-[10px] text-salvia-500 font-medium mt-1 block">Matrículas carregadas</span>
+            <span className="text-[10px] text-salvia-500 font-medium mt-1 block">Matrículas ativas</span>
           </div>
+          )}
 
+          {podeVerFinanceiro && (
           <div className="bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 p-4 rounded-xl">
             <div className="flex items-center justify-between text-salvia-600 dark:text-salvia-400 text-xs mb-1 font-medium">
               <span>Receita do mês</span>
@@ -141,8 +145,9 @@ export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
             <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400 font-mono">
               R$ {kpi.receitaMensal.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
             </p>
-            <span className="text-[10px] text-salvia-500 font-medium mt-1 block">{kpi.adimplencia}% Adimplência no mês</span>
+            <span className="text-[10px] text-salvia-500 font-medium mt-1 block">{kpi.adimplencia}% de adimplência no mês</span>
           </div>
+          )}
 
           <div className="bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 p-4 rounded-xl">
             <div className="flex items-center justify-between text-salvia-600 dark:text-salvia-400 text-xs mb-1 font-medium">
@@ -153,6 +158,7 @@ export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
             <span className="text-[10px] text-salvia-500 font-medium mt-1 block">Sem chamada registrada hoje</span>
           </div>
 
+          {podeVerIaEvasao && (
           <div className="bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 p-4 rounded-xl">
             <div className="flex items-center justify-between text-salvia-600 dark:text-salvia-400 text-xs mb-1 font-medium">
               <span>Alunos em risco de evasão</span>
@@ -165,11 +171,13 @@ export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
               {kpi.totalAlertasEvasao > 0 ? `${kpi.totalAlertasEvasao} alerta(s) crítico(s)` : 'Sem alertas críticos'}
             </span>
           </div>
+          )}
         </div>
 
       </div>
 
       {/* Alerta de saúde */}
+      {podeVerAgenda && (
       <div
         onClick={() => onRouteChange('agenda')}
         className="cursor-pointer bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 p-5 rounded-2xl hover:border-salvia-500 transition-all space-y-2"
@@ -182,6 +190,7 @@ export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
           Restrições alimentares do prontuário aparecem no cardápio quando estão cadastradas.
         </p>
       </div>
+      )}
     </div>
   );
 }

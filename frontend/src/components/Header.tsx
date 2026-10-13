@@ -95,7 +95,7 @@ export function Header() {
       {/* Actions: RBAC Simulator, Notifications, Theme Switcher & Profile */}
       <div className="flex items-center space-x-2 sm:space-x-3">
         {/* Pré-visualização de menu (apenas gestão/admin) */}
-        {user && /^(admin|superadmin|gestor|gestorescolar)$/i.test(role) && (
+        {user && /^(admin|superadmin|gestor|gestorescolar|gestor_escolar)$/i.test(user.role_original ?? role) && (
           <div className="hidden md:flex items-center space-x-1.5 bg-salvia-50 dark:bg-salvia-950 border border-salvia-200 dark:border-salvia-800 px-2.5 py-1 rounded-xl">
             <Shield className="w-3.5 h-3.5 text-salvia-600 dark:text-salvia-400" />
             <span className="text-[11px] font-medium text-salvia-600 dark:text-salvia-400">Pré-visualizar menu de:</span>

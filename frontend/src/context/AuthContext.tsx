@@ -8,6 +8,8 @@ interface User {
   name: string;
   email: string;
   role: string;
+  /** Perfil do login, guardado quando a gestão pré-visualiza o menu de outro perfil. */
+  role_original?: string;
   features?: string[];
 }
 
@@ -121,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const switchRole = (newRole: string) => {
     if (user) {
-      const updatedUser = { ...user, role: newRole };
+      const updatedUser = { ...user, role: newRole, role_original: user.role_original ?? user.role };
       setUser(updatedUser);
       localStorage.setItem('escolar_user', JSON.stringify(updatedUser));
     }
