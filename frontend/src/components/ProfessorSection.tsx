@@ -68,6 +68,11 @@ export function ProfessorSection({ onRouteChange }: ProfessorSectionProps) {
   const tabInicial = searchParams?.get('tab') as 'hoje' | 'notas' | null;
   const [activeTab, setActiveTab] = useState<'hoje' | 'notas'>(tabInicial === 'notas' ? 'notas' : 'hoje');
 
+  // A barra inferior e o menu trocam a aba pela URL com a seção já aberta: acompanhar o parâmetro.
+  useEffect(() => {
+    setActiveTab(tabInicial === 'notas' ? 'notas' : 'hoje');
+  }, [tabInicial]);
+
   const [dataAula, setDataAula] = useState(hojeLocal);
   const [aulas, setAulas] = useState<AulaDia[]>([]);
   const [loadingAulas, setLoadingAulas] = useState(false);

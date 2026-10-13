@@ -61,13 +61,15 @@ export function AulasHojePanel({
         </button>
         <div className="text-center">
           <h3 className="text-sm font-bold text-slate-900 dark:text-salvia-50">{tituloData}</h3>
-          <button
-            type="button"
-            onClick={onHoje}
-            className="text-[11px] font-bold text-salvia-600 dark:text-salvia-400 hover:text-salvia-800 dark:hover:text-salvia-200 underline underline-offset-2"
-          >
-            Voltar para hoje
-          </button>
+          {!tituloData.startsWith('Hoje') && (
+            <button
+              type="button"
+              onClick={onHoje}
+              className="text-[11px] font-bold text-salvia-600 dark:text-salvia-400 hover:text-salvia-800 dark:hover:text-salvia-200 underline underline-offset-2"
+            >
+              Voltar para hoje
+            </button>
+          )}
         </div>
         <button
           type="button"

@@ -93,7 +93,7 @@ Em produção (`APP_ENV=production`) as migrations de **seed demo** são ignorad
 
 ### Instalação de demonstração
 
-Para mostrar o sistema a um cliente com dados de exemplo, use `APP_ENV=demo` no `.env` **antes do primeiro `up`**: o backend aplica as migrations de seed demo (escola `escola-modelo`). O código só filtra os seeds quando `APP_ENV=production`.
+Para mostrar o sistema a um cliente com dados de exemplo, use `APP_ENV=demo` e `MODO_DEMO=true` no `.env` **antes do primeiro `up`** (o segundo faz a tela de login mostrar atalhos para entrar como gestão, professor, secretaria, financeiro, nutrição e família): o backend aplica as migrations de seed demo (escola `escola-modelo`). O código só filtra os seeds quando `APP_ENV=production`.
 
 > A escola-modelo tem senha conhecida (documentada em `openspec/CORE_SPEC.md`). Use um banco SEPARADO para a demonstração e nunca coloque dados reais nele. Para passar a uma escola real, suba outra instalação (outro diretório/volume) com `APP_ENV=production`.
 

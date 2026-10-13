@@ -76,6 +76,8 @@ services:
         NEXT_PUBLIC_API_URL: /api/v1
         # true só durante a criação da primeira escola (ver README)
         NEXT_PUBLIC_PERMITIR_CADASTRO_ESCOLA: ${PERMITIR_CADASTRO_ESCOLA:-false}
+        # true só na instalação de demonstração: o login mostra atalhos das contas da escola-modelo
+        NEXT_PUBLIC_MODO_DEMO: ${MODO_DEMO:-false}
     container_name: escolar_frontend
     restart: always
     environment:

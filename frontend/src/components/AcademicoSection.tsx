@@ -15,6 +15,7 @@ import { useTurmaAlunos } from './academico/useTurmaAlunos';
 import { useOfflineSyncQueue } from './academico/useOfflineSyncQueue';
 import { ChamadaPanel } from './academico/ChamadaPanel';
 import { InfantilRotinaPanel } from './academico/InfantilRotinaPanel';
+import { etapaEnsinoLabel } from '@/lib/etapas';
 
 const hojeLocal = () => {
   const agora = new Date();
@@ -94,7 +95,7 @@ export function AcademicoSection() {
             )}
           </div>
           <p className="text-xs text-salvia-600 dark:text-salvia-400 mt-0.5">
-            A turma escolhida define o diário: educação infantil mostra presença, refeições e rotina; as demais etapas mostram a chamada e o conteúdo.
+            Chamada e registro da aula do dia.
           </p>
         </div>
       </div>
@@ -134,7 +135,7 @@ export function AcademicoSection() {
             }`}
           >
             {turmaSelecionada
-              ? `${infantil ? 'Diário infantil' : 'Chamada'} · ${turmaSelecionada.etapa_ensino || 'etapa não informada'}`
+              ? `${infantil ? 'Diário infantil' : 'Chamada'} · ${etapaEnsinoLabel(turmaSelecionada.etapa_ensino)}`
               : '—'}
           </span>
         </div>

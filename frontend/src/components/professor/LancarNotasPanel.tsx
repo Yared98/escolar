@@ -161,6 +161,7 @@ export function LancarNotasPanel({
                 <input
                   type="text"
                   inputMode="decimal"
+                  aria-label={`Nota de ${aluno.aluno_nome}`}
                   placeholder="—"
                   value={notaDisplay(aluno)}
                   onChange={(e) => onAlterarNota(aluno.aluno_id, e.target.value)}
@@ -178,7 +179,10 @@ export function LancarNotasPanel({
         </div>
       )}
 
-      <div className="fixed bottom-0 left-0 right-0 lg:hidden z-40 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-white/90 dark:bg-salvia-900/90 backdrop-blur-sm border-t border-salvia-200 dark:border-salvia-800">
+      {/* Espaço para a lista não ficar escondida atrás do botão fixo e da barra inferior no celular */}
+      <div className="h-20 lg:hidden" aria-hidden="true" />
+
+      <div className="fixed bottom-20 left-0 right-0 lg:hidden z-40 px-4">
         <button
           type="button"
           onClick={onSalvar}

@@ -10,6 +10,18 @@ import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { perfilAmigavel } from '@/lib/perfis';
 import { KeyRound, Building2, UserPlus, LogIn, Lock } from 'lucide-react';
 
+// Contas da escola-modelo (seed demo, senha documentada em openspec/CORE_SPEC.md).
+const DEMO_ESCOLA = 'escola-modelo';
+const DEMO_SENHA = 'SenhaSegura2026!';
+const DEMO_CONTAS = [
+  { email: 'gestor@escolamodelo.com.br', perfil: 'Gestão' },
+  { email: 'professor@escolamodelo.com.br', perfil: 'Professor(a)' },
+  { email: 'secretaria@escolamodelo.com.br', perfil: 'Secretaria' },
+  { email: 'financeiro@escolamodelo.com.br', perfil: 'Financeiro' },
+  { email: 'nutri@escolamodelo.com.br', perfil: 'Nutrição' },
+  { email: 'familia@escolamodelo.com.br', perfil: 'Família' },
+];
+
 const VALID_ROUTES: NavRoute[] = [
   'overview',
   'secretaria',
@@ -123,10 +135,13 @@ function DashboardContent() {
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   const permitirCadastroEscola = process.env.NEXT_PUBLIC_PERMITIR_CADASTRO_ESCOLA === 'true';
 
-  // Login form state
-  const [tenantSlug, setTenantSlug] = useState('escola-modelo');
-  const [email, setEmail] = useState('gestor@escolamodelo.com.br');
-  const [password, setPassword] = useState('SenhaSegura2026!');
+  // Login form state. A escola-modelo (seed demo) só vem preenchida em demonstração ou desenvolvimento;
+  // numa instalação real os campos começam vazios.
+  const modoDemo =
+    process.env.NEXT_PUBLIC_MODO_DEMO === 'true' || process.env.NODE_ENV === 'development';
+  const [tenantSlug, setTenantSlug] = useState(modoDemo ? DEMO_ESCOLA : '');
+  const [email, setEmail] = useState(modoDemo ? DEMO_CONTAS[0].email : '');
+  const [password, setPassword] = useState(modoDemo ? DEMO_SENHA : '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -353,11 +368,12 @@ function DashboardContent() {
             </p>
           </div>
 
-          {/* Form Tabs */}
-          <div className={`flex bg-salvia-100 dark:bg-salvia-800 p-1 rounded-xl mb-6 ${!permitirCadastroEscola ? 'justify-center' : ''}`}>
+          {/* Abas só existem quando o cadastro de escola está liberado; sem ele, o formulário de login basta. */}
+          {permitirCadastroEscola && (
+          <div className="flex bg-salvia-100 dark:bg-salvia-800 p-1 rounded-xl mb-6">
             <button
               onClick={() => setActiveTab('login')}
-              className={`${permitirCadastroEscola ? 'flex-1' : 'px-6'} py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center space-x-1.5 ${
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center space-x-1.5 ${
                 activeTab === 'login'
                   ? 'bg-salvia-700 dark:bg-salvia-500 text-white shadow-sm'
                   : 'text-salvia-700 dark:text-salvia-300 hover:text-slate-900 dark:hover:text-salvia-50'
@@ -366,20 +382,19 @@ function DashboardContent() {
               <LogIn className="w-3.5 h-3.5" />
               <span>Entrar</span>
             </button>
-            {permitirCadastroEscola && (
-              <button
-                onClick={() => setActiveTab('register')}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center space-x-1.5 ${
-                  activeTab === 'register'
-                    ? 'bg-salvia-700 dark:bg-salvia-500 text-white shadow-sm'
-                    : 'text-salvia-700 dark:text-salvia-300 hover:text-slate-900 dark:hover:text-salvia-50'
-                }`}
-              >
-                <Building2 className="w-3.5 h-3.5" />
-                <span>Cadastrar Escola</span>
-              </button>
-            )}
+            <button
+              onClick={() => setActiveTab('register')}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center space-x-1.5 ${
+                activeTab === 'register'
+                  ? 'bg-salvia-700 dark:bg-salvia-500 text-white shadow-sm'
+                  : 'text-salvia-700 dark:text-salvia-300 hover:text-slate-900 dark:hover:text-salvia-50'
+              }`}
+            >
+              <Building2 className="w-3.5 h-3.5" />
+              <span>Cadastrar Escola</span>
+            </button>
           </div>
+          )}
 
           {error && (
             <div className="mb-4 p-3 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-500/40 text-rose-700 dark:text-rose-300 text-xs rounded-xl font-medium">
@@ -440,6 +455,34 @@ function DashboardContent() {
               >
                 {loading ? 'Autenticando...' : 'Entrar'}
               </button>
+
+              {modoDemo && (
+                <div className="pt-4 mt-2 border-t border-salvia-100 dark:border-salvia-800">
+                  <p className="text-xs font-semibold text-salvia-800 dark:text-salvia-200 mb-2">
+                    Demonstração: entre como
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {DEMO_CONTAS.map((conta) => (
+                      <button
+                        key={conta.email}
+                        type="button"
+                        onClick={() => {
+                          setTenantSlug(DEMO_ESCOLA);
+                          setEmail(conta.email);
+                          setPassword(DEMO_SENHA);
+                        }}
+                        className={`min-h-[44px] px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
+                          email === conta.email
+                            ? 'bg-salvia-100 dark:bg-salvia-800 border-salvia-500 text-salvia-900 dark:text-salvia-50'
+                            : 'border-salvia-200 dark:border-salvia-700 text-salvia-700 dark:text-salvia-300 hover:bg-salvia-50 dark:hover:bg-salvia-900'
+                        }`}
+                      >
+                        {conta.perfil}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </form>
           ) : (
             <form onSubmit={handleRegister} className="space-y-3">
