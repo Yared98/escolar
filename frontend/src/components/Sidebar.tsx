@@ -37,6 +37,7 @@ import {
   UserCheck,
   Truck,
   Building,
+  ClipboardList,
 } from 'lucide-react';
 
 export type NavRoute =
@@ -84,6 +85,7 @@ export const MENU_ITEMS: NavItem[] = [
     subItems: [
       { id: 'prof-hoje', label: 'Aulas de hoje', tabKey: 'hoje', icon: CalendarCheck },
       { id: 'prof-notas', label: 'Lançar notas', tabKey: 'notas', icon: BookOpen },
+      { id: 'prof-avaliacoes', label: 'Avaliações', tabKey: 'avaliacoes', icon: ClipboardList },
     ],
   },
   {
@@ -197,6 +199,12 @@ export const MENU_ITEMS: NavItem[] = [
       { id: 'portal-financeiro', label: 'Mensalidades', tabKey: 'portal_financeiro', icon: DollarSign },
       { id: 'portal-diploma', label: 'Documentos', tabKey: 'portal_diploma', icon: Award },
       { id: 'portal-rotina', label: 'Rotina', tabKey: 'portal_rotina', icon: Baby },
+      {
+        id: 'portal-avaliacoes',
+        label: 'Provas e trabalhos',
+        tabKey: 'portal_avaliacoes',
+        icon: ClipboardList,
+      },
     ],
   },
 ];

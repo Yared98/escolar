@@ -10,12 +10,15 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
   RotateCcw,
   CheckCircle2,
 } from 'lucide-react';
 import type {
   AulaDia,
+  AvaliacaoCalendario,
   MinhaTurma,
+  NovaAvaliacaoPayload,
   NotaAluno,
   PeriodoNota,
   ToastMsg,
@@ -23,6 +26,7 @@ import type {
 import { PERIODOS_NOTA } from '@/lib/types/academico';
 import { parseNotaInput } from '@/lib/notas';
 import { AulasHojePanel } from './professor/AulasHojePanel';
+import { AvaliacoesPanel } from './professor/AvaliacoesPanel';
 import { LancarNotasPanel } from './professor/LancarNotasPanel';
 
 const hojeLocal = () => {
@@ -65,12 +69,16 @@ export function ProfessorSection({ onRouteChange }: ProfessorSectionProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const tabInicial = searchParams?.get('tab') as 'hoje' | 'notas' | null;
-  const [activeTab, setActiveTab] = useState<'hoje' | 'notas'>(tabInicial === 'notas' ? 'notas' : 'hoje');
+  const tabInicial = searchParams?.get('tab') as 'hoje' | 'notas' | 'avaliacoes' | null;
+  const [activeTab, setActiveTab] = useState<'hoje' | 'notas' | 'avaliacoes'>(
+    tabInicial === 'notas' || tabInicial === 'avaliacoes' ? tabInicial : 'hoje'
+  );
 
   // A barra inferior e o menu trocam a aba pela URL com a seção já aberta: acompanhar o parâmetro.
   useEffect(() => {
-    setActiveTab(tabInicial === 'notas' ? 'notas' : 'hoje');
+    setActiveTab(
+      tabInicial === 'notas' || tabInicial === 'avaliacoes' ? tabInicial : 'hoje'
+    );
   }, [tabInicial]);
 
   const [dataAula, setDataAula] = useState(hojeLocal);
@@ -94,6 +102,12 @@ export function ProfessorSection({ onRouteChange }: ProfessorSectionProps) {
   const [errosNota, setErrosNota] = useState<Record<string, string | null>>({});
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState<ToastMsg | null>(null);
+
+  const [avaliacoes, setAvaliacoes] = useState<AvaliacaoCalendario[]>([]);
+  const [loadingAvaliacoes, setLoadingAvaliacoes] = useState(false);
+  const [erroAvaliacoes, setErroAvaliacoes] = useState<string | null>(null);
+  const [criandoAvaliacao, setCriandoAvaliacao] = useState(false);
+  const [removendoAvaliacaoId, setRemovendoAvaliacaoId] = useState<string | null>(null);
 
   const disciplinasDaTurma = useMemo(() => {
     const turma = minhasTurmas.find((t) => t.turma_id === turmaId);
@@ -165,6 +179,24 @@ export function ProfessorSection({ onRouteChange }: ProfessorSectionProps) {
     }
   }, [turmaId, disciplinaId, periodo]);
 
+  const carregarAvaliacoes = useCallback(async () => {
+    setLoadingAvaliacoes(true);
+    setErroAvaliacoes(null);
+    try {
+      const data = await apiFetch<AvaliacaoCalendario[]>(
+        `/avaliacoes?de=${encodeURIComponent(hojeLocal())}`
+      );
+      setAvaliacoes(data || []);
+    } catch (err: unknown) {
+      setErroAvaliacoes(
+        err instanceof Error ? err.message : 'Não foi possível carregar as avaliações.'
+      );
+      setAvaliacoes([]);
+    } finally {
+      setLoadingAvaliacoes(false);
+    }
+  }, []);
+
   useEffect(() => {
     void carregarMinhasTurmas();
   }, [carregarMinhasTurmas]);
@@ -176,6 +208,12 @@ export function ProfessorSection({ onRouteChange }: ProfessorSectionProps) {
   useEffect(() => {
     void carregarNotas();
   }, [carregarNotas]);
+
+  useEffect(() => {
+    if (activeTab === 'avaliacoes') {
+      void carregarAvaliacoes();
+    }
+  }, [activeTab, carregarAvaliacoes]);
 
   useEffect(() => {
     const turma = minhasTurmas.find((t) => t.turma_id === turmaId);
@@ -283,7 +321,46 @@ export function ProfessorSection({ onRouteChange }: ProfessorSectionProps) {
     router.push(`/?${params.toString()}`, { scroll: false });
   };
 
-  const aoTrocarAba = (tab: 'hoje' | 'notas') => {
+  const criarAvaliacao = async (payload: NovaAvaliacaoPayload) => {
+    setCriandoAvaliacao(true);
+    try {
+      const criada = await apiFetch<AvaliacaoCalendario>('/avaliacoes', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      showToast({ text: 'Avaliação marcada no calendário.', type: 'success' });
+      setAvaliacoes((prev) =>
+        [...prev, criada].sort(
+          (a, b) => a.data.localeCompare(b.data) || a.titulo.localeCompare(b.titulo)
+        )
+      );
+    } catch (err: unknown) {
+      showToast({
+        text: err instanceof Error ? err.message : 'Não foi possível marcar a avaliação.',
+        type: 'warn',
+      });
+    } finally {
+      setCriandoAvaliacao(false);
+    }
+  };
+
+  const removerAvaliacao = async (id: string) => {
+    setRemovendoAvaliacaoId(id);
+    try {
+      await apiFetch(`/avaliacoes/${id}`, { method: 'DELETE' });
+      setAvaliacoes((prev) => prev.filter((a) => a.id !== id));
+      showToast({ text: 'Avaliação removida do calendário.', type: 'success' });
+    } catch (err: unknown) {
+      showToast({
+        text: err instanceof Error ? err.message : 'Não foi possível remover a avaliação.',
+        type: 'warn',
+      });
+    } finally {
+      setRemovendoAvaliacaoId(null);
+    }
+  };
+
+  const aoTrocarAba = (tab: 'hoje' | 'notas' | 'avaliacoes') => {
     setActiveTab(tab);
     if (onRouteChange) {
       onRouteChange('professor', tab);
@@ -335,6 +412,18 @@ export function ProfessorSection({ onRouteChange }: ProfessorSectionProps) {
             <BookOpen className="w-3.5 h-3.5" />
             <span>Lançar notas</span>
           </button>
+          <button
+            type="button"
+            onClick={() => aoTrocarAba('avaliacoes')}
+            className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+              activeTab === 'avaliacoes'
+                ? 'bg-white dark:bg-salvia-700 text-salvia-900 dark:text-salvia-50 shadow-sm'
+                : 'text-salvia-700 dark:text-salvia-300 hover:text-slate-900 dark:hover:text-salvia-50'
+            }`}
+          >
+            <ClipboardList className="w-3.5 h-3.5" />
+            <span>Avaliações</span>
+          </button>
         </div>
       </div>
 
@@ -367,6 +456,18 @@ export function ProfessorSection({ onRouteChange }: ProfessorSectionProps) {
           erroTurmas={erroTurmas}
           onTentarTurmas={carregarMinhasTurmas}
           onIrParaChamada={irParaChamada}
+        />
+      ) : activeTab === 'avaliacoes' ? (
+        <AvaliacoesPanel
+          avaliacoes={avaliacoes}
+          loading={loadingAvaliacoes}
+          erro={erroAvaliacoes}
+          onTentarNovamente={carregarAvaliacoes}
+          minhasTurmas={minhasTurmas}
+          criando={criandoAvaliacao}
+          onCriar={criarAvaliacao}
+          onRemover={removerAvaliacao}
+          removendoId={removendoAvaliacaoId}
         />
       ) : (
         <LancarNotasPanel

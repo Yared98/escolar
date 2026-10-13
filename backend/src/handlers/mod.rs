@@ -1,6 +1,7 @@
 pub mod academico;
 pub mod agenda_admin;
 pub mod auth;
+pub mod avaliacoes;
 pub mod crm_lms;
 pub mod financeiro;
 pub mod notificacoes;

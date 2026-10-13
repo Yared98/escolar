@@ -20,7 +20,8 @@ import {
 } from 'lucide-react';
 import type { DiarioInfantilDia } from '@/lib/types/academico';
 
-import { AlunoVinculado, DisciplinaBoletim, PortfolioInfantil, BoletimData, FaturaData, DiplomaData, MensagemPortal, ThreadPortal, tituloTemaPortal, agruparThreadsPortal, BoletimTab, FinanceiroTab, PixModal, DiplomaTab, RotinaTab } from './portal_aluno';
+import { AlunoVinculado, DisciplinaBoletim, PortfolioInfantil, BoletimData, FaturaData, DiplomaData, MensagemPortal, ThreadPortal, tituloTemaPortal, agruparThreadsPortal, BoletimTab, FinanceiroTab, PixModal, DiplomaTab, RotinaTab, AvaliacoesTab } from './portal_aluno';
+import type { AvaliacaoCalendario } from '@/lib/types/academico';
 
 import { useSearchParams } from 'next/navigation';
 
@@ -28,8 +29,8 @@ export function PortalAlunoSection() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
   const tabParam = searchParams ? searchParams.get('tab') : null;
-  const activeTab: 'portal_boletim' | 'portal_financeiro' | 'portal_diploma' | 'portal_rotina' | 'portal_portfolio' =
-    tabParam === 'portal_financeiro' || tabParam === 'portal_diploma' || tabParam === 'portal_rotina' || tabParam === 'portal_portfolio'
+  const activeTab: 'portal_boletim' | 'portal_financeiro' | 'portal_diploma' | 'portal_rotina' | 'portal_portfolio' | 'portal_avaliacoes' =
+    tabParam === 'portal_financeiro' || tabParam === 'portal_diploma' || tabParam === 'portal_rotina' || tabParam === 'portal_portfolio' || tabParam === 'portal_avaliacoes'
       ? tabParam
       : 'portal_boletim';
   const [alunos, setAlunos] = useState<AlunoVinculado[]>([]);
@@ -48,6 +49,7 @@ export function PortalAlunoSection() {
     return new Date(agora.getTime() - agora.getTimezoneOffset() * 60000).toISOString().split('T')[0];
   });
   const [mensagens, setMensagens] = useState<MensagemPortal[]>([]);
+  const [avaliacoes, setAvaliacoes] = useState<AvaliacaoCalendario[]>([]);
   const [diarioInfantil, setDiarioInfantil] = useState<DiarioInfantilDia | null>(null);
   const [threadIdAtiva, setThreadIdAtiva] = useState<string | null>(null);
   const [respostaTexto, setRespostaTexto] = useState('');
@@ -115,6 +117,12 @@ export function PortalAlunoSection() {
         } else {
           setDiploma(null);
         }
+      } else if (activeTab === 'portal_avaliacoes') {
+        // O servidor já devolve só as avaliações das turmas dos filhos.
+        // Se falhar, a lista fica vazia e o erro aparece no aviso da seção.
+        setAvaliacoes([]);
+        const data = await apiFetch<AvaliacaoCalendario[]>('/avaliacoes');
+        setAvaliacoes(data || []);
       } else if (activeTab === 'portal_rotina') {
         const [diario, msgs] = await Promise.all([
           apiFetch<DiarioInfantilDia>(
@@ -371,6 +379,18 @@ export function PortalAlunoSection() {
               respostaTexto={respostaTexto}
               enviandoResposta={enviandoResposta}
               handleResponderThread={handleResponderThread}
+            />
+          )}
+
+          {/* ABA 5: PROVAS E TRABALHOS DAS TURMAS DOS FILHOS */}
+          {activeTab === 'portal_avaliacoes' && (
+            <AvaliacoesTab
+              avaliacoes={avaliacoes}
+              loading={loading}
+              erro={errorMsg}
+              onTentarNovamente={() => {
+                void loadTabData();
+              }}
             />
           )}
         </>

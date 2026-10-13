@@ -37,6 +37,7 @@ use crate::{
             alterar_senha, jwks, login, logout, me, oauth_authorize, oauth_token,
             openid_configuration, refresh_session, register_tenant, userinfo,
         },
+        avaliacoes::{criar_avaliacao, deletar_avaliacao, listar_avaliacoes},
         crm_lms::{
             adicionar_interacao_lead, atualizar_lead, capturar_lead_publico, criar_lead,
             listar_leads, listar_protocolos_atendimento, lti_grade_sync, lti_launch, obter_lead,
@@ -220,6 +221,8 @@ pub fn create_router(state: AppState) -> Router {
         .route("/academico/notas/lote", post(lancar_notas_lote))
         .route("/professor/minhas-turmas", get(minhas_turmas))
         .route("/professor/aulas", get(aulas_do_dia))
+        .route("/avaliacoes", get(listar_avaliacoes).post(criar_avaliacao))
+        .route("/avaliacoes/:id", delete(deletar_avaliacao))
         .route(
             "/academico/simulados",
             post(criar_simulado_tri).get(listar_simulados_tri),
