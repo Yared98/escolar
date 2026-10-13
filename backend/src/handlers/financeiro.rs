@@ -26,6 +26,35 @@ use crate::{
     },
 };
 
+/// Estimativa de recuperação de inadimplência usada no DFC projetado (MVP).
+/// Indicador gerencial: assume que ~40% das faturas atrasadas voltam a entrar
+/// como caixa futuro. Não é previsão contábil/fiscal.
+pub const FATOR_RECUPERACAO_INADIMPLENCIA: f64 = 0.4;
+
+/// Fatura está atrasada quando está marcada como 'atrasado' ou está 'pendente'
+/// com data de vencimento anterior à data de referência. Pagas/canceladas não entram.
+pub fn fatura_esta_atrasada(fatura: &Fatura, hoje: chrono::NaiveDate) -> bool {
+    match fatura.status.as_str() {
+        "atrasado" => true,
+        "pendente" => fatura.data_vencimento < hoje,
+        _ => false,
+    }
+}
+
+/// Calcula o total e a quantidade de faturas atrasadas de forma pura,
+/// recebendo a lista e a data de referência.
+pub fn calcular_inadimplencia(faturas: &[Fatura], hoje: chrono::NaiveDate) -> (f64, usize) {
+    let mut total = 0.0;
+    let mut count = 0usize;
+    for fatura in faturas {
+        if fatura_esta_atrasada(fatura, hoje) {
+            total += fatura.valor;
+            count += 1;
+        }
+    }
+    (total, count)
+}
+
 pub fn calcular_crc16_pix(payload: &str) -> String {
     let mut crc: u16 = 0xFFFF;
     for byte in payload.bytes() {
@@ -1054,13 +1083,14 @@ pub async fn relatorio_dre(
         },
     };
 
-    let metricas_faturas: (Option<f64>, Option<f64>, i64, i64) = sqlx::query_as(
+    let metricas_faturas: (Option<f64>, Option<f64>, i64, i64, i64) = sqlx::query_as(
         r#"
-        SELECT 
+        SELECT
             SUM(CASE WHEN status = 'pago' THEN valor ELSE 0 END) as receita_bruta,
             SUM(CASE WHEN (status = 'atrasado' OR (status = 'pendente' AND data_vencimento < CURRENT_DATE)) THEN valor ELSE 0 END) as inadimplencia,
             COUNT(CASE WHEN status = 'pago' THEN 1 END) as total_pagas,
-            COUNT(CASE WHEN (status = 'pendente' OR status = 'atrasado') THEN 1 END) as total_pendentes
+            COUNT(CASE WHEN (status = 'pendente' OR status = 'atrasado') THEN 1 END) as total_pendentes,
+            COUNT(CASE WHEN (status = 'atrasado' OR (status = 'pendente' AND data_vencimento < CURRENT_DATE)) THEN 1 END) as total_atrasadas
         FROM faturas
         WHERE tenant_id = $1
           AND ($2::date IS NULL OR data_vencimento >= $2)
@@ -1093,11 +1123,14 @@ pub async fn relatorio_dre(
     let inadimplencia_total = metricas_faturas.1.unwrap_or(0.0);
     let total_pagas = metricas_faturas.2;
     let total_pendentes = metricas_faturas.3;
+    let total_atrasadas = metricas_faturas.4;
     let despesas_totais = despesas_totais.unwrap_or(0.0);
 
     let resultado_liquido = ((receita_bruta - despesas_totais) * 100.0).round() / 100.0;
     let dfc_caixa_projetado =
-        ((resultado_liquido + (inadimplencia_total * 0.4)) * 100.0).round() / 100.0;
+        ((resultado_liquido + (inadimplencia_total * FATOR_RECUPERACAO_INADIMPLENCIA)) * 100.0)
+            .round()
+            / 100.0;
 
     Ok(Json(DreReportDto {
         receita_bruta: (receita_bruta * 100.0).round() / 100.0,
@@ -1106,6 +1139,7 @@ pub async fn relatorio_dre(
         inadimplencia_total: (inadimplencia_total * 100.0).round() / 100.0,
         total_faturas_pagas: total_pagas,
         total_faturas_pendentes: total_pendentes,
+        total_faturas_atrasadas: total_atrasadas,
         dfc_caixa_projetado,
     }))
 }
@@ -1195,5 +1229,50 @@ mod tests {
         assert!(linha.starts_with("3419"));
         assert!(linha.contains(" 1 "));
         assert!(linha.ends_with("0000085000")); // 850.00 em centavos com padding
+    }
+
+    fn fatura_teste(status: &str, vencimento: chrono::NaiveDate, valor: f64) -> Fatura {
+        Fatura {
+            id: Uuid::new_v4(),
+            tenant_id: Uuid::new_v4(),
+            aluno_id: Uuid::new_v4(),
+            descricao: "Teste".to_string(),
+            valor,
+            data_vencimento: vencimento,
+            metodo_pagamento: "pix".to_string(),
+            status: status.to_string(),
+            linha_digitavel: None,
+            qr_code_pix: None,
+            gateway_invoice_id: None,
+            gateway_invoice_url: None,
+            gateway_name: None,
+            contrato_id: None,
+            parcela_numero: None,
+            parcela_total: None,
+            valor_original: Some(valor),
+            desconto_percentual: 0.0,
+            multa_percentual: 2.0,
+            juros_mora_mes_percentual: 1.0,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        }
+    }
+
+    #[test]
+    fn test_calcular_inadimplencia_regra() {
+        let hoje = chrono::Utc::now().date_naive();
+        let faturas = vec![
+            fatura_teste("pago", hoje - chrono::Duration::days(5), 100.0),
+            fatura_teste("atrasado", hoje - chrono::Duration::days(5), 250.0),
+            fatura_teste("pendente", hoje - chrono::Duration::days(1), 125.0),
+            fatura_teste("pendente", hoje + chrono::Duration::days(5), 300.0),
+            fatura_teste("cancelado", hoje - chrono::Duration::days(10), 50.0),
+        ];
+
+        let (total, count) = calcular_inadimplencia(&faturas, hoje);
+
+        // A vencer (R$ 300) e paga/cancelada não entram; atrasada + pendente vencida entram.
+        assert_eq!(count, 2);
+        assert!((total - 375.0).abs() < 0.001, "total={}", total);
     }
 }
