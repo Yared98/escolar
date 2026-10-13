@@ -104,14 +104,13 @@ export function AdministrativoSection() {
     try {
       const [usuariosData, alunosData] = await Promise.all([
         apiFetch<UsuarioItem[]>('/administrativo/usuarios'),
-        apiFetch<{ id: string; nome: string }[]>('/secretaria/alunos').catch(() => []),
+        // A rota é paginada ({ items, total }) e aceita até 200 por página.
+        apiFetch<{ items: { id: string; nome: string }[] }>('/secretaria/alunos?status=ativo&limit=200').catch(
+          () => ({ items: [] })
+        ),
       ]);
       setUsuarios(Array.isArray(usuariosData) ? usuariosData : []);
-      setAlunos(
-        Array.isArray(alunosData)
-          ? alunosData.map((a) => ({ id: a.id, nome: a.nome }))
-          : []
-      );
+      setAlunos((alunosData?.items ?? []).map((a) => ({ id: a.id, nome: a.nome })));
       setLoadError(null);
     } catch (err: unknown) {
       setUsuarios([]);

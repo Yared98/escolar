@@ -22,13 +22,35 @@ use crate::{
 const CARACTERES_SENHA: &[u8] = b"ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
 const TAMANHO_SENHA_TEMPORARIA: usize = 12;
 
+/// Senha temporária com letras e números garantidos. Bytes acima do maior múltiplo do tamanho
+/// do alfabeto são descartados para a escolha de cada caractere não ficar enviesada.
 pub fn gerar_senha_temporaria() -> String {
-    let mut bytes = [0u8; TAMANHO_SENHA_TEMPORARIA];
-    OsRng.fill_bytes(&mut bytes);
-    bytes
-        .iter()
-        .map(|b| CARACTERES_SENHA[*b as usize % CARACTERES_SENHA.len()] as char)
-        .collect()
+    let limite = 256 - (256 % CARACTERES_SENHA.len());
+    loop {
+        let mut senha = String::with_capacity(TAMANHO_SENHA_TEMPORARIA);
+        while senha.len() < TAMANHO_SENHA_TEMPORARIA {
+            let mut byte = [0u8; 1];
+            OsRng.fill_bytes(&mut byte);
+            let b = byte[0] as usize;
+            if b < limite {
+                senha.push(CARACTERES_SENHA[b % CARACTERES_SENHA.len()] as char);
+            }
+        }
+        if senha.chars().any(|c| c.is_ascii_digit())
+            && senha.chars().any(|c| c.is_ascii_alphabetic())
+        {
+            return senha;
+        }
+    }
+}
+
+/// A escola precisa continuar com pelo menos um gestor ativo depois da alteração.
+pub fn alteracao_deixa_escola_sem_gestor(
+    alvo_eh_gestor: bool,
+    alvo_perde_poder: bool,
+    outros_gestores_ativos: i64,
+) -> bool {
+    alvo_eh_gestor && alvo_perde_poder && outros_gestores_ativos == 0
 }
 
 pub fn validar_perfil(perfil: &str) -> Result<String, AppError> {
@@ -52,6 +74,20 @@ pub fn validar_perfil(perfil: &str) -> Result<String, AppError> {
     }
     let role = UserRole::from(perfil.to_string());
     Ok(role.to_string())
+}
+
+/// Revoga todos os refresh tokens ativos do usuário (encerra as sessões abertas).
+async fn revogar_sessoes(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    user_id: Uuid,
+) -> Result<(), AppError> {
+    sqlx::query(
+        "UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = $1 AND tenant_id = get_current_tenant() AND revoked_at IS NULL",
+    )
+    .bind(user_id)
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
 }
 
 fn hash_password_argon2(password: &str) -> Result<String, AppError> {
@@ -367,7 +403,7 @@ pub async fn atualizar_usuario(
         .fetch_one(&mut *db)
         .await?;
 
-        if outros_ativos == 0 {
+        if alteracao_deixa_escola_sem_gestor(eh_gestor, perde_poder, outros_ativos) {
             return Err(AppError::BadRequest(
                 "Não é possível desativar ou rebaixar o último gestor ativo da escola.".to_string(),
             ));
@@ -376,6 +412,29 @@ pub async fn atualizar_usuario(
 
     let nome = dto.nome.as_ref().map(|s| s.trim().to_string());
     let ativo = dto.ativo;
+    let role_final = novo_role.clone().unwrap_or_else(|| user.role.clone());
+
+    // Valida os alunos ANTES de mexer nos vínculos, para não deixar a família sem vínculo por erro.
+    if role_final == "responsavel" {
+        if let Some(ref aluno_ids) = dto.aluno_ids {
+            for aluno_id in aluno_ids {
+                let existe: bool = sqlx::query_scalar(
+                    "SELECT EXISTS(SELECT 1 FROM alunos WHERE tenant_id = get_current_tenant() AND id = $1)"
+                )
+                .bind(aluno_id)
+                .fetch_one(&mut *db)
+                .await?;
+                if !existe {
+                    return Err(AppError::BadRequest(
+                        "Um ou mais alunos informados não foram encontrados nesta escola."
+                            .to_string(),
+                    ));
+                }
+            }
+        }
+    }
+
+    let mut tx = (&mut *db).begin().await?;
 
     let updated = sqlx::query_as::<_, User>(
         "UPDATE users SET name = COALESCE($1, name), role = COALESCE($2, role), ativo = COALESCE($3, ativo), updated_at = NOW() WHERE id = $4 AND tenant_id = get_current_tenant() RETURNING *"
@@ -384,43 +443,36 @@ pub async fn atualizar_usuario(
     .bind(novo_role.as_ref())
     .bind(ativo)
     .bind(id)
-    .fetch_one(&mut *db)
+    .fetch_one(&mut *tx)
     .await?;
 
-    if let Some(ref perfil) = novo_role {
-        if perfil == "responsavel" {
-            if let Some(ref aluno_ids) = dto.aluno_ids {
-                sqlx::query("DELETE FROM responsaveis_alunos WHERE tenant_id = get_current_tenant() AND responsavel_user_id = $1")
-                    .bind(id)
-                    .execute(&mut *db)
-                    .await?;
+    if role_final == "responsavel" {
+        if let Some(ref aluno_ids) = dto.aluno_ids {
+            sqlx::query("DELETE FROM responsaveis_alunos WHERE tenant_id = get_current_tenant() AND responsavel_user_id = $1")
+                .bind(id)
+                .execute(&mut *tx)
+                .await?;
 
-                for aluno_id in aluno_ids {
-                    let existe: bool = sqlx::query_scalar(
-                        "SELECT EXISTS(SELECT 1 FROM alunos WHERE tenant_id = get_current_tenant() AND id = $1)"
-                    )
-                    .bind(aluno_id)
-                    .fetch_one(&mut *db)
-                    .await?;
-
-                    if !existe {
-                        return Err(AppError::BadRequest(
-                            "Um ou mais alunos informados não foram encontrados nesta escola."
-                                .to_string(),
-                        ));
-                    }
-
-                    sqlx::query(
-                        "INSERT INTO responsaveis_alunos (tenant_id, responsavel_user_id, aluno_id) VALUES (get_current_tenant(), $1, $2)"
-                    )
-                    .bind(id)
-                    .bind(aluno_id)
-                    .execute(&mut *db)
-                    .await?;
-                }
+            for aluno_id in aluno_ids {
+                sqlx::query(
+                    "INSERT INTO responsaveis_alunos (tenant_id, responsavel_user_id, aluno_id) VALUES (get_current_tenant(), $1, $2) ON CONFLICT DO NOTHING"
+                )
+                .bind(id)
+                .bind(aluno_id)
+                .execute(&mut *tx)
+                .await?;
             }
         }
     }
+
+    // Desativar ou trocar o perfil encerra as sessões abertas da pessoa (o token de acesso
+    // atual ainda vale até expirar, no máximo 15 minutos).
+    let mudou_perfil = novo_role.as_deref().is_some_and(|r| r != user.role);
+    if dto.ativo == Some(false) || mudou_perfil {
+        revogar_sessoes(&mut tx, id).await?;
+    }
+
+    tx.commit().await?;
 
     log_audit(
         &mut *db,
@@ -492,13 +544,17 @@ pub async fn redefinir_senha(
     let senha_temporaria = gerar_senha_temporaria();
     let password_hash = hash_password_argon2(&senha_temporaria)?;
 
+    let mut tx = (&mut *db).begin().await?;
     sqlx::query(
         "UPDATE users SET password_hash = $1, deve_trocar_senha = true, updated_at = NOW() WHERE id = $2 AND tenant_id = get_current_tenant()"
     )
     .bind(&password_hash)
     .bind(id)
-    .execute(&mut *db)
+    .execute(&mut *tx)
     .await?;
+    // Senha redefinida: quem estava logado com a senha antiga precisa entrar de novo.
+    revogar_sessoes(&mut tx, id).await?;
+    tx.commit().await?;
 
     log_audit(
         &mut *db,
@@ -557,8 +613,21 @@ mod tests {
 
     #[test]
     fn test_ultimo_gestor_regra_pura() {
-        let outros_ativos = 0i64;
-        assert_eq!(outros_ativos, 0);
-        // A lógica real é testada nos testes de integração; aqui documentamos a invariante.
+        // Último gestor ativo sendo desativado/rebaixado: bloqueia.
+        assert!(alteracao_deixa_escola_sem_gestor(true, true, 0));
+        // Há outro gestor ativo: pode.
+        assert!(!alteracao_deixa_escola_sem_gestor(true, true, 1));
+        // Alvo não é gestor, ou não perde poder: nunca bloqueia.
+        assert!(!alteracao_deixa_escola_sem_gestor(false, true, 0));
+        assert!(!alteracao_deixa_escola_sem_gestor(true, false, 0));
+    }
+
+    #[test]
+    fn test_senha_temporaria_sempre_tem_letra_e_numero() {
+        for _ in 0..500 {
+            let senha = gerar_senha_temporaria();
+            assert!(senha.chars().any(|c| c.is_ascii_digit()), "{senha}");
+            assert!(senha.chars().any(|c| c.is_ascii_alphabetic()), "{senha}");
+        }
     }
 }

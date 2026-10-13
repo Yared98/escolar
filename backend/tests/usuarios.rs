@@ -3,7 +3,7 @@ use axum::{
     http::{Request, StatusCode},
 };
 use escolar_backend::{
-    config::{AppState, Config},
+    config::{development_signing_material, AppState, Config},
     routes::create_router,
 };
 use sqlx::postgres::PgPoolOptions;
@@ -237,6 +237,10 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
         .as_str()
         .ok_or("token professor ausente")?
         .to_string();
+    let refresh_professor = prof_login["refresh_token"]
+        .as_str()
+        .ok_or("refresh token professor ausente")?
+        .to_string();
     if prof_login["user"]["deve_trocar_senha"].as_bool() != Some(true) {
         return Err("usuário criado deveria ter deve_trocar_senha=true".to_string());
     }
@@ -330,6 +334,23 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
     if res.status() != StatusCode::UNAUTHORIZED {
         return Err(format!(
             "login professor desativado retornou {}",
+            res.status()
+        ));
+    }
+
+    // 7b. A sessão aberta antes da desativação não renova mais (refresh token revogado)
+    let req = Request::builder()
+        .method("POST")
+        .uri("/api/v1/auth/refresh")
+        .header("Content-Type", "application/json")
+        .body(Body::from(
+            serde_json::json!({ "refresh_token": refresh_professor }).to_string(),
+        ))
+        .unwrap();
+    let res = app.clone().oneshot(req).await.map_err(|e| e.to_string())?;
+    if res.status() != StatusCode::UNAUTHORIZED {
+        return Err(format!(
+            "refresh do professor desativado deveria falhar, retornou {}",
             res.status()
         ));
     }
