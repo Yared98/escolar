@@ -108,7 +108,8 @@ export function RematriculaPanel({
         };
 
         for (const al of t.alunos) {
-          novasAcoes[al.aluno_id] = al.acao_sugerida === 'decidir' ? 'promover' : al.acao_sugerida;
+          // Em andamento, em recuperação ou sem notas: a escola decide (nada vem marcado).
+          if (al.acao_sugerida !== 'decidir') novasAcoes[al.aluno_id] = al.acao_sugerida;
         }
       }
 
@@ -127,6 +128,7 @@ export function RematriculaPanel({
   const countNaoRematricular = Object.values(acoesAlunos).filter(
     (a) => a === 'nao_rematricular'
   ).length;
+  const countDecidir = Math.max(0, totalAlunos - countPromover - countReter - countNaoRematricular);
 
   const handleBuscarPrevia = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,7 +161,8 @@ export function RematriculaPanel({
     const alunosPayload: AlunoViradaPayload[] = [];
     for (const t of previaData.turmas) {
       for (const al of t.alunos) {
-        const acao = acoesAlunos[al.aluno_id] || 'promover';
+        const acao = acoesAlunos[al.aluno_id];
+        if (!acao) continue;
         alunosPayload.push({
           aluno_id: al.aluno_id,
           acao,
@@ -184,7 +187,8 @@ export function RematriculaPanel({
     const novasAcoes: Record<string, 'promover' | 'reter' | 'nao_rematricular'> = {};
     for (const t of previaData.turmas) {
       for (const al of t.alunos) {
-        novasAcoes[al.aluno_id] = al.acao_sugerida === 'decidir' ? 'promover' : al.acao_sugerida;
+        // Em andamento, em recuperação ou sem notas: a escola decide (nada vem marcado).
+          if (al.acao_sugerida !== 'decidir') novasAcoes[al.aluno_id] = al.acao_sugerida;
       }
     }
     setAcoesAlunos(novasAcoes);
@@ -451,6 +455,11 @@ export function RematriculaPanel({
                 <span className="px-2.5 py-1 rounded-full bg-salvia-50 dark:bg-salvia-950 text-salvia-700 dark:text-salvia-300 font-bold border border-salvia-300 dark:border-salvia-800">
                   Total: {totalAlunos}
                 </span>
+                {countDecidir > 0 && (
+                  <span className="px-2.5 py-1 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 font-bold border border-rose-300 dark:border-rose-800">
+                    A decidir: {countDecidir}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -466,7 +475,9 @@ export function RematriculaPanel({
               <button
                 type="button"
                 onClick={() => setPasso(3)}
-                className="min-h-[44px] px-4 py-2 bg-salvia-600 hover:bg-salvia-700 text-white text-xs md:text-sm font-semibold rounded-xl transition-all flex items-center space-x-1.5 shadow-sm"
+                disabled={countDecidir > 0}
+                title={countDecidir > 0 ? 'Escolha a situação de todos os alunos para continuar' : undefined}
+                className="disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] px-4 py-2 bg-salvia-600 hover:bg-salvia-700 text-white text-xs md:text-sm font-semibold rounded-xl transition-all flex items-center space-x-1.5 shadow-sm"
               >
                 <span>Avançar para confirmação</span>
                 <ChevronRight className="w-4 h-4" />
@@ -615,7 +626,7 @@ export function RematriculaPanel({
 
                     <div className="space-y-3">
                       {turma.alunos.map((aluno) => {
-                        const acao = acoesAlunos[aluno.aluno_id] || 'promover';
+                        const acao = acoesAlunos[aluno.aluno_id];
 
                         return (
                           <div
@@ -644,7 +655,10 @@ export function RematriculaPanel({
                               </div>
 
                               <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center space-x-3">
-                                <span>Média geral: {aluno.media_geral.toFixed(1)}</span>
+                                {!acao && (
+                                  <span className="font-bold text-rose-700 dark:text-rose-300">Escolha uma opção</span>
+                                )}
+                                <span>Média geral: {aluno.status_boletim === 'Sem notas lançadas' ? '—' : aluno.media_geral.toFixed(1)}</span>
                                 <span>Frequência: {aluno.frequencia_pct.toFixed(0)}%</span>
                               </div>
                             </div>
@@ -727,7 +741,9 @@ export function RematriculaPanel({
             <button
               type="button"
               onClick={() => setPasso(3)}
-              className="min-h-[44px] px-6 py-2 bg-salvia-600 hover:bg-salvia-700 text-white text-xs md:text-sm font-semibold rounded-xl transition-all flex items-center space-x-1.5 shadow-sm"
+              disabled={countDecidir > 0}
+              title={countDecidir > 0 ? 'Escolha a situação de todos os alunos para continuar' : undefined}
+              className="disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] px-6 py-2 bg-salvia-600 hover:bg-salvia-700 text-white text-xs md:text-sm font-semibold rounded-xl transition-all flex items-center space-x-1.5 shadow-sm"
             >
               <span>Avançar para confirmação</span>
               <ChevronRight className="w-4 h-4" />

@@ -291,6 +291,13 @@ export function normalizeFrontendPath(arg1Text) {
 }
 
 /**
+ * true quando o primeiro argumento literal de apiFetch já começa com /api/v1.
+ */
+export function comecaComPrefixoApi(arg1Text) {
+  return /^[`'"]\/api\/v1(\/|[`'"?])/.test((arg1Text || '').trim());
+}
+
+/**
  * Extracts HTTP method information from rest arguments (options parameter).
  * Returns { isDynamic: boolean, method?: string }
  */
@@ -518,6 +525,13 @@ export function checkApiContract(options = {}) {
     } else {
       const method = methodInfo.method;
       const key = `${method} ${norm.path}`;
+
+      // apiFetch já acrescenta /api/v1 (API_BASE): um caminho que começa com /api/v1 vira /api/v1/api/v1 e dá 404.
+      if (comecaComPrefixoApi(call.arg1)) {
+        const errMsg = `${call.file}:${call.line} -> Caminho começa com /api/v1, mas apiFetch já acrescenta esse prefixo (a chamada vira /api/v1/api/v1${norm.path}).`;
+        console.error(`[ERRO] ${errMsg}`);
+        errors.push(errMsg);
+      }
       currentSnapshotMap.set(key, (currentSnapshotMap.get(key) || 0) + 1);
 
       const allowedMethods = backendRoutes.get(norm.path);

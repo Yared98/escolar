@@ -285,6 +285,16 @@ pub fn sugerir_nome_turma(
     format!("{} - {}", proxima_serie, turma_origem_nome)
 }
 
+/// Educação Infantil não tem retenção (LDB, art. 31, I): a sugestão é sempre promover.
+/// Nas demais etapas vale a situação do boletim (ver `sugerir_decisao_aluno`).
+pub fn sugerir_decisao_por_etapa(etapa_ensino: &str, status_boletim_str: &str) -> &'static str {
+    if etapa_ensino.trim().to_lowercase().contains("infantil") {
+        "promover"
+    } else {
+        sugerir_decisao_aluno(status_boletim_str)
+    }
+}
+
 /// Sugere a decisão de rematrícula para o aluno baseado na situação do boletim:
 /// - Aprovado -> "promover"
 /// - Reprovado -> "reter"
@@ -560,7 +570,7 @@ pub async fn obter_previa_virada_ano(
             let total = presenca_row.1.unwrap_or(0);
 
             let (status, media, freq) = calcular_boletim_aluno(&notas, (presentes, total));
-            let acao = sugerir_decisao_aluno(&status);
+            let acao = sugerir_decisao_por_etapa(&t_etapa, &status);
 
             previa_alunos.push(PreviaAlunoDto {
                 aluno_id,
@@ -1232,6 +1242,26 @@ mod tests {
             "6º Ano B"
         );
         assert_eq!(sugerir_nome_turma("Turma A", None, "2º Ano"), "2º Ano A");
+    }
+
+    #[test]
+    fn test_sugerir_decisao_por_etapa_infantil_sempre_promove() {
+        assert_eq!(
+            sugerir_decisao_por_etapa("infantil", "Sem notas lançadas"),
+            "promover"
+        );
+        assert_eq!(
+            sugerir_decisao_por_etapa("Educação Infantil", "Reprovado"),
+            "promover"
+        );
+        assert_eq!(
+            sugerir_decisao_por_etapa("fundamental_1", "Reprovado"),
+            "reter"
+        );
+        assert_eq!(
+            sugerir_decisao_por_etapa("fundamental_1", "Em andamento"),
+            "decidir"
+        );
     }
 
     #[test]

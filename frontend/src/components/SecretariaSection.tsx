@@ -111,7 +111,7 @@ export function SecretariaSection() {
     setErrorPreviaVirada(null);
     try {
       const res = await apiFetch<PreviaViradaData>(
-        `/api/v1/secretaria/virada-ano/previa?ano_origem=${origem}&ano_destino=${destino}`
+        `/secretaria/virada-ano/previa?ano_origem=${origem}&ano_destino=${destino}`
       );
       setPreviaViradaData(res);
     } catch (err: any) {
@@ -126,7 +126,7 @@ export function SecretariaSection() {
     setErrorExecucaoVirada(null);
     try {
       const res = await apiFetch<ExecutarViradaResultado>(
-        '/api/v1/secretaria/virada-ano/executar',
+        '/secretaria/virada-ano/executar',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

@@ -295,3 +295,12 @@ test('9. Compare snapshot detecta chamadas removidas (AUSENTE) e novas (NOVA)', 
   // Cleanup
   fs.rmSync(tmpDir, { recursive: true, force: true });
 });
+
+test('comecaComPrefixoApi acusa caminho que repete o /api/v1 do apiFetch', async () => {
+  const { comecaComPrefixoApi } = await import('./check-api-contract.mjs');
+  assert.equal(comecaComPrefixoApi("'/api/v1/secretaria/virada-ano/executar'"), true);
+  assert.equal(comecaComPrefixoApi('`/api/v1/secretaria/virada-ano/previa?ano=${a}`'), true);
+  assert.equal(comecaComPrefixoApi("'/secretaria/alunos'"), false);
+  assert.equal(comecaComPrefixoApi("'/api/v1x'"), false);
+  assert.equal(comecaComPrefixoApi('endpoint'), false);
+});
