@@ -192,6 +192,9 @@ pub struct CreateOcorrenciaDto {
     pub tipo_ocorrencia: String,
     pub descricao: String,
     pub prioridade: Option<String>,
+    /// Se a família deve ser avisada. Quando ausente, o aviso é padrão `true`.
+    /// `elogio` e `saude` sempre avisam, independentemente deste campo.
+    pub notificado_responsavel: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]

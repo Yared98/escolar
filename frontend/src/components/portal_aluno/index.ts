@@ -6,3 +6,4 @@ export * from './PixModal';
 export * from './DiplomaTab';
 export * from './RotinaTab';
 export * from './AvaliacoesTab';
+export * from './OcorrenciasTab';

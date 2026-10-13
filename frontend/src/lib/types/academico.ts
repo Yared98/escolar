@@ -223,3 +223,97 @@ export interface LoteNotasPayload {
   periodo: PeriodoNota;
   notas: { aluno_id: string; nota: number | null }[];
 }
+
+// ---------------------------------------------------------------------------
+// Ocorrências e observações do aluno
+// ---------------------------------------------------------------------------
+
+/** Tipos oferecidos no Diário do Fundamental (nomes que a escola usa). */
+export type TipoOcorrenciaFundamental =
+  | 'comportamento'
+  | 'atraso'
+  | 'falta_material'
+  | 'saude'
+  | 'elogio'
+  | 'outros';
+
+/** Tipo gravado no banco (inclui os tipos históricos da Educação Infantil). */
+export type TipoOcorrencia =
+  | TipoOcorrenciaFundamental
+  | 'febre'
+  | 'indisposicao'
+  | 'queda_arranhao'
+  | 'atrito_colega'
+  | 'outro';
+
+/** Tamanho máximo da descrição de uma ocorrência. */
+export const OCORRENCIA_DESCRICAO_MAX = 1000;
+
+/** Nomes amigáveis de todos os tipos aceitos pelo sistema. */
+export const TIPO_OCORRENCIA_LABEL: Record<string, string> = {
+  comportamento: 'Comportamento',
+  atraso: 'Atraso',
+  falta_material: 'Falta de material',
+  saude: 'Saúde',
+  elogio: 'Elogio',
+  outros: 'Outros',
+  outro: 'Outros',
+  febre: 'Febre ou indisposição',
+  indisposicao: 'Indisposição',
+  queda_arranhao: 'Queda / arranhão',
+  atrito_colega: 'Atrito com colega',
+};
+
+/** Traduz o tipo gravado para a linguagem da escola. */
+export const tipoOcorrenciaLabel = (tipo: string): string =>
+  TIPO_OCORRENCIA_LABEL[tipo] ?? 'Outros';
+
+/** Tipos que o professor escolhe no Diário do Fundamental. */
+export const TIPOS_OCORRENCIA_FUNDAMENTAL: { value: TipoOcorrenciaFundamental; label: string }[] = [
+  { value: 'comportamento', label: 'Comportamento' },
+  { value: 'atraso', label: 'Atraso' },
+  { value: 'falta_material', label: 'Falta de material' },
+  { value: 'saude', label: 'Saúde' },
+  { value: 'elogio', label: 'Elogio' },
+  { value: 'outros', label: 'Outros' },
+];
+
+/**
+ * Prioridade sugerida por tipo. O professor não escolhe prioridade: um elogio
+ * não é urgente e um caso de saúde precisa de atenção da coordenação.
+ */
+export const PRIORIDADE_OCORRENCIA: Record<string, string> = {
+  comportamento: 'alta',
+  atraso: 'media',
+  falta_material: 'media',
+  saude: 'alta',
+  elogio: 'baixa',
+  outros: 'media',
+  febre: 'urgente',
+  indisposicao: 'urgente',
+  queda_arranhao: 'urgente',
+  atrito_colega: 'alta',
+};
+
+/** Ocorrência registrada pela escola sobre um aluno. */
+export interface OcorrenciaAluno {
+  id: string;
+  aluno_id: string;
+  turma_id: string | null;
+  tipo_ocorrencia: string;
+  descricao: string;
+  prioridade: string;
+  notificado_responsavel: boolean;
+  lido_pelo_responsavel: boolean;
+  created_at: string;
+}
+
+/** Dados enviados pelo professor ao registrar uma observação. */
+export interface NovaOcorrenciaPayload {
+  aluno_id: string;
+  turma_id: string | null;
+  tipo_ocorrencia: string;
+  descricao: string;
+  prioridade: string;
+  notificado_responsavel: boolean;
+}

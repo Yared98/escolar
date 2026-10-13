@@ -205,6 +205,12 @@ export const MENU_ITEMS: NavItem[] = [
         tabKey: 'portal_avaliacoes',
         icon: ClipboardList,
       },
+      {
+        id: 'portal-ocorrencias',
+        label: 'Observações',
+        tabKey: 'portal_ocorrencias',
+        icon: ClipboardList,
+      },
     ],
   },
 ];

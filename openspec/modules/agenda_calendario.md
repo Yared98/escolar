@@ -13,6 +13,7 @@ O módulo cobre o **Calendário Letivo com RSVP de Eventos**, a **Rotina Diária
 | Mensageria Escolar e Mural da Turma | Implementado |
 | Push Notifications Web VAPID | Implementado via adapter (requer `VAPID_*` no ambiente; sem chaves roda em modo simulado) |
 | Calendário de avaliações por turma (provas, trabalhos e atividades) | Implementado (professor marca; família consulta no portal) |
+| Ocorrências e observações do aluno (Educação Infantil e Fundamental) | Implementado (registro pela escola; leitura da família no portal) |
 | Disparo de WhatsApp ativo para lembretes de RSVP / comunicados | **Stub** (simulado via `processWhatsAppWebhook`; sem envio real via Meta Cloud API) |
 
 ### Limitações MVP / Detalhes de Arquitetura
@@ -20,6 +21,7 @@ O módulo cobre o **Calendário Letivo com RSVP de Eventos**, a **Rotina Diária
 - **WhatsApp**: Permanece em modo **Stub** (`{ status: 'simulated', provider: null }`), sem envio externo e sem custos de telefonia.
 - **Calendário de avaliações**: a avaliação é gravada como evento do calendário (`eventos_calendario`) com `tipo` em `prova`, `trabalho` ou `atividade` e `visibilidade = 'todos'`. O vínculo com a disciplina usa `eventos_calendario.disciplina_id` (adicionado na migration `20261014200000_avaliacoes_turma.sql`, `ON DELETE SET NULL`); eventos criados pela gestão antes dessa coluna ficam com `disciplina_id` nulo e aparecem no calendário sem disciplina. Somente a aba "Avaliações" do professor e a aba "Provas e trabalhos" do portal da família consomem esses registros — o calendário geral da gestão continua tratando os tipos históricos (`feriado`, `ferias`, `reuniao_pais`, `festa`, `prova`).
 - **Sem aviso automático**: marcar uma avaliação **não** dispara notificação automática (push, e-mail ou WhatsApp) para a família. O responsável vê a data ao abrir o portal; a escola comunica pelos canais existentes (Comunicados, WhatsApp em modo simulado). Não há lembrete agendado no worker.
+- **Ocorrências sem notificação ativa**: registrar uma ocorrência/observação **não** dispara push, e-mail ou WhatsApp para a família. `notificado_responsavel` é apenas o registro de que a escola assume aquele aviso; a família lê a observação quando abre o Portal da família. Não há marcação de "lido" pela família (a coluna `lido_pelo_responsavel` existe no banco, mas não há rota para marcá-la) e não há aviso de ocorrência no worker.
 - **Worker e Multi-tenancy**: O background worker Node.js (`worker/src/index.js`) consome notificações pendentes com usuário de sistema no banco (`escolar_runtime`), definindo `app.current_tenant` ao processar cada notificação. A função SQL `atualizar_log_disparo(p_tenant, p_notificacao, p_canal, p_status)` confia no parâmetro `p_tenant` fornecido pelo chamador (pois o worker executa como `escolar_runtime` sob isolamento por tenant e define `app.current_tenant`). No worker, a chamada a `atualizar_log_disparo` é envolvida em um bloco `try/catch` dedicado para garantir que uma falha ao atualizar o log de disparo nunca impeça a execução de `concluir_notificacao(id, tenant_id, status)`. A fila `JobQueue` opera em memória no processo do worker.
 
 ---
@@ -72,7 +74,30 @@ Provas, trabalhos e atividades marcadas por turma, para o professor avisar a fam
 
 ---
 
-## 4. Mapa de código (frontend)
+## 4. Ocorrências e Observações do Aluno
+
+Registro de ocorrências individuais (tabela `ocorrencias_aluno`), usado pela rotina da Educação Infantil e, a partir desta entrega, também pelo Diário do Fundamental.
+
+- **Tipos aceitos** (`POST /api/v1/agenda/ocorrencias`):
+  - Fundamentais: `comportamento`, `atraso`, `falta_material`, `saude`, `elogio`, `outros`.
+  - Educação Infantil (histórico): `febre`, `indisposicao`, `queda_arranhao`, `atrito_colega`, `outros` (e a grafia antiga `outro`).
+  - O tipo é normalizado para minúsculas; tipo fora da lista devolve HTTP 400.
+- **Contrato de API** (handler `backend/src/handlers/agenda_admin.rs`):
+  - `POST /api/v1/agenda/ocorrencias` recebe `{ aluno_id, turma_id?, tipo_ocorrencia, descricao, prioridade?, notificado_responsavel? }` e devolve a ocorrência criada. A descrição é obrigatória (até 1000 caracteres após remover espaços) e o aluno precisa existir na escola (404 caso contrário).
+  - `GET /api/v1/agenda/ocorrencias/:aluno_id` devolve as ocorrências do aluno, da mais recente para a mais antiga.
+  - `GET /api/v1/agenda/ocorrencias?turma_id=&data=` devolve as ocorrências de uma turma, opcionalmente de um único dia (`data` no formato `YYYY-MM-DD`, fuso de Brasília). Serve ao Diário do Fundamental para sinalizar os alunos com observação no dia.
+- **Quem registra**: `admin`, `gestor`, `secretaria` e `professor`. O professor só registra para aluno de turma em que tem atribuição (`turma_professores`) ou da qual é regente (`turmas.professor_regente_id`); sem vínculo, HTTP 403. Gestor e secretaria registram em qualquer turma da escola.
+- **Quem consulta**: `admin`, `gestor`, `secretaria` e `professor` (mesma regra de vínculo) em `/agenda/ocorrencias/:aluno_id` e `/agenda/ocorrencias`. O `responsavel` consulta apenas as ocorrências dos próprios filhos (guarda `check_aluno_ownership`); outro aluno da mesma escola devolve 403. Como toda tabela com `tenant_id`, o resultado também é limitado pelo isolamento por escola (RLS + `TenantDb`).
+- **Aviso à família**: `notificado_responsavel` vem do corpo da requisição, com padrão `true`. `elogio` e `saude` **sempre** avisam, mesmo que quem registre desmarque a opção. O aviso é registrado no banco — não há envio automático (ver limitações).
+- **Auditoria**: criar grava `audit_logs` (`REGISTRAR_OCORRENCIA`) com aluno, turma, tipo e o aviso à família.
+- **Interface**:
+  - Professor: em cada aluno do Diário do Fundamental (`academico/ChamadaPanel.tsx`), o botão "Observação" abre `academico/OcorrenciaModal.tsx` (tipo, descrição obrigatória até 1000 caracteres e "Avisar a família" marcado por padrão). A chamada de API e a contagem por aluno ficam em `AcademicoSection.tsx`; o aluno com observação no dia aparece com um contador no botão. A prioridade é definida pelo tipo (elogio → baixa, atraso/falta de material → média, comportamento/saúde → alta) — o professor não escolhe prioridade.
+  - Família: aba "Observações" do Portal da família (`PortalAlunoSection.tsx` orquestra; `portal_aluno/OcorrenciasTab.tsx` exibe), disponível para **qualquer etapa** (não só Educação Infantil), em ordem do mais recente para o mais antigo, com tipo amigável, data/hora e descrição.
+  - A rotina da Educação Infantil mantém o fluxo próprio de "Ocorrência urgente" (`academico/InfantilRotinaPanel.tsx`), agora com os mesmos tipos aceitos pelo backend.
+
+---
+
+## 5. Mapa de código (frontend)
 
 Organização após o refactor B12 (só moveu código, sem mudança de regra):
 
