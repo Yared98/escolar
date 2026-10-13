@@ -5,6 +5,8 @@
 O módulo cobre o **Diário de Classe Digital PWA (offline-first)**, o **Boletim Avaliativo Bimestral/Trimestral**, a **Matriz Curricular BNCC** e o **Controle de Horários Semanal Anti-Choque**.
 O processo avaliativo opera pelo lançamento de notas por período letivo e faltas.
 
+**Código típico (backend):** `backend/src/handlers/academico/**` (diário, boletim, TRI, matriz curricular, horários e infantil), `backend/src/handlers/professor.rs` (Meu dia e notas).
+
 | Capacidade | Status |
 |---|---|
 | Diário de Classe PWA Offline-First (Dexie.js / IndexedDB) | Implementado |
