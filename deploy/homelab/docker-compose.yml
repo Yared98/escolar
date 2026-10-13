@@ -1,0 +1,139 @@
+# Compose de PRODUÇÃO para homelab (escola pequena/média).
+# NÃO use para desenvolvimento local — para isso utilize o docker-compose.yml da raiz.
+# Todas as senhas e chaves são lidas do arquivo .env (veja .env.example).
+services:
+  # 1. Banco de Dados PostgreSQL 16 (não exposto para fora do compose)
+  postgres:
+    image: postgres:16-alpine
+    container_name: escolar_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - escolar
+
+  # 2. Backend Rust (Axum / SQLx) — acessível apenas dentro da rede do compose
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: escolar_backend
+    restart: always
+    environment:
+      # production (escola real, sem seeds demo) ou demo (carrega a escola-modelo de demonstração)
+      APP_ENV: ${APP_ENV:-production}
+      PORT: 8000
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      # Informe a chave diretamente (JWT_ED25519_PRIVATE_PEM) ou o caminho de um arquivo montado (JWT_ED25519_PRIVATE_PEM_FILE).
+      JWT_ED25519_PRIVATE_PEM: ${JWT_ED25519_PRIVATE_PEM:-}
+      JWT_ED25519_PRIVATE_PEM_FILE: ${JWT_ED25519_PRIVATE_PEM_FILE:-/run/segredos/jwt_private.pem}
+      ALLOWED_ORIGINS: https://${DOMINIO}
+      TRUSTED_PROXY: "true"
+      RATE_LIMIT_PUBLIC_RPM: ${RATE_LIMIT_PUBLIC_RPM:-60}
+      ACCOUNT_LOCK_MAX_ATTEMPTS: ${ACCOUNT_LOCK_MAX_ATTEMPTS:-5}
+      ACCOUNT_LOCK_WINDOW_MINUTES: ${ACCOUNT_LOCK_WINDOW_MINUTES:-15}
+      CORA_MODE: ${CORA_MODE:-mock}
+    volumes:
+      # Coloque a chave gerada por gerar-chave-jwt.sh em ./segredos/jwt_private.pem
+      - ./segredos:/run/segredos:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - escolar
+
+  # 3. Worker de notificações e webhooks
+  worker:
+    build:
+      context: ../../worker
+      dockerfile: Dockerfile
+    container_name: escolar_worker
+    restart: always
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      POLL_INTERVAL_MS: ${POLL_INTERVAL_MS:-3000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - escolar
+
+  # 4. Frontend Next.js 14 PWA — buildado com URL de API relativa (/api/v1)
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: /api/v1
+        # true só durante a criação da primeira escola (ver README)
+        NEXT_PUBLIC_PERMITIR_CADASTRO_ESCOLA: ${PERMITIR_CADASTRO_ESCOLA:-false}
+    container_name: escolar_frontend
+    restart: always
+    environment:
+      PORT: 3000
+    depends_on:
+      - backend
+    networks:
+      - escolar
+
+  # 5. Proxy reverso Caddy — único serviço publicado na rede (80/443)
+  caddy:
+    image: caddy:2-alpine
+    container_name: escolar_caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      DOMINIO: ${DOMINIO}
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - escolar
+
+  # 6. Backup diário do banco (dump customizado, mantém os últimos 14 arquivos)
+  backup:
+    image: postgres:16-alpine
+    container_name: escolar_backup
+    restart: always
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    volumes:
+      - ./backups:/backups
+    command: >
+      sh -c "
+        while true; do
+          mkdir -p /backups
+          TIMESTAMP=$$(date +%Y%m%d_%H%M%S)
+          pg_dump -Fc \"$${DATABASE_URL}\" -f \"/backups/escolar_$${TIMESTAMP}.dump\"
+          ls -1t /backups/escolar_*.dump | tail -n +15 | xargs -r rm -f
+          sleep 86400
+        done
+      "
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - escolar
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  escolar:

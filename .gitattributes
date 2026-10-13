@@ -3,3 +3,6 @@
 # mesmos bytes no Windows, no Linux e no CI. Sem isso, um build feito de uma pasta do Windows
 # embute fins de linha diferentes e o sqlx recusa as migrations novas ("previously applied but has been modified").
 backend/migrations/*.sql -text
+
+# Scripts shell da implantação rodam em Linux: sempre LF, mesmo em checkout no Windows.
+deploy/homelab/*.sh text eol=lf

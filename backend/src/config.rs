@@ -258,16 +258,43 @@ impl Config {
             }
         };
 
-        let (jwt_private_pem, jwt_public_pem, jwt_public_x) = if let Ok(pem) =
-            env::var("JWT_ED25519_PRIVATE_PEM")
+        let (jwt_private_pem, jwt_public_pem, jwt_public_x) = if let Ok(path) =
+            env::var("JWT_ED25519_PRIVATE_PEM_FILE")
         {
+            if path.trim().is_empty() {
+                // Variável definida mas vazia: ignore e tente a próxima fonte.
+                if let Ok(pem) = env::var("JWT_ED25519_PRIVATE_PEM") {
+                    if pem.trim().is_empty() {
+                        return Err("JWT_ED25519_PRIVATE_PEM está vazio.".to_string());
+                    }
+                    material_from_private_pem(&pem)?
+                } else if is_production {
+                    return Err(
+                        "ERRO CRÍTICO: em produção, configure JWT_ED25519_PRIVATE_PEM (conteúdo) ou JWT_ED25519_PRIVATE_PEM_FILE (caminho) com uma chave PKCS#8 Ed25519."
+                            .to_string(),
+                    );
+                } else {
+                    development_signing_material()
+                }
+            } else {
+                let pem = std::fs::read_to_string(&path).map_err(|e| {
+                    format!("JWT_ED25519_PRIVATE_PEM_FILE ({path}) não pôde ser lido: {e}")
+                })?;
+                if pem.trim().is_empty() {
+                    return Err(
+                        "JWT_ED25519_PRIVATE_PEM_FILE aponta para arquivo vazio.".to_string()
+                    );
+                }
+                material_from_private_pem(&pem)?
+            }
+        } else if let Ok(pem) = env::var("JWT_ED25519_PRIVATE_PEM") {
             if pem.trim().is_empty() {
                 return Err("JWT_ED25519_PRIVATE_PEM está vazio.".to_string());
             }
             material_from_private_pem(&pem)?
         } else if is_production {
             return Err(
-                "ERRO CRÍTICO: em produção, configure JWT_ED25519_PRIVATE_PEM com uma chave PKCS#8 Ed25519."
+                "ERRO CRÍTICO: em produção, configure JWT_ED25519_PRIVATE_PEM (conteúdo) ou JWT_ED25519_PRIVATE_PEM_FILE (caminho) com uma chave PKCS#8 Ed25519."
                     .to_string(),
             );
         } else {
