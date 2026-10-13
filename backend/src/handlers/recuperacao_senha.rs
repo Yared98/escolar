@@ -146,10 +146,10 @@ pub async fn esqueci_senha(
         clean_slug
     );
 
-    let assunto = "Recuperação de senha - Escolar ERP";
+    let assunto = "Recuperação de senha - Escolar";
     let corpo = format!(
-        "Olá,\n\nVocê solicitou a recuperação de senha da sua conta na escola {}.\n\nClique no link abaixo para criar uma nova senha. Ele é válido por 30 minutos e só pode ser usado uma vez:\n\n{}\n\nSe você não fez essa solicitação, ignore este e-mail.\n\nAtenciosamente,\nEquipe Escolar ERP",
-        tenant.name, link
+        "Olá,\n\nVocê solicitou a recuperação de senha da sua conta na escola {}.\n\nClique no link abaixo para criar uma nova senha. Ele é válido por 30 minutos e só pode ser usado uma vez:\n\n{}\n\nSe você não fez essa solicitação, ignore este e-mail.\n\nAtenciosamente,\n{}",
+        tenant.name, link, tenant.name
     );
 
     let adapter = EmailAdapter::new(AdapterEmailMode::from(state.config.email_mode));
@@ -251,19 +251,24 @@ pub async fn redefinir_senha_publico(
 
     let mut tx = (&mut *db).begin().await?;
 
+    // Marca o token como usado de forma atômica: se outra requisição já o usou (ou expirou)
+    // entre a leitura acima e aqui, nada é atualizado e o link é recusado.
+    let consumido: Option<Uuid> = sqlx::query_scalar(
+        "UPDATE tokens_recuperacao_senha SET usado_em = NOW() WHERE id = $1 AND tenant_id = $2 AND usado_em IS NULL AND expires_at > NOW() RETURNING id",
+    )
+    .bind(token_id)
+    .bind(tenant.id)
+    .fetch_optional(&mut *tx)
+    .await?;
+    if consumido.is_none() {
+        return Err(AppError::BadRequest(MENSAGEM_LINK_INVALIDO.to_string()));
+    }
+
     sqlx::query(
         "UPDATE users SET password_hash = $1, deve_trocar_senha = false, updated_at = NOW() WHERE id = $2 AND tenant_id = $3"
     )
     .bind(&password_hash)
     .bind(user_id)
-    .bind(tenant.id)
-    .execute(&mut *tx)
-    .await?;
-
-    sqlx::query(
-        "UPDATE tokens_recuperacao_senha SET usado_em = NOW() WHERE id = $1 AND tenant_id = $2",
-    )
-    .bind(token_id)
     .bind(tenant.id)
     .execute(&mut *tx)
     .await?;
