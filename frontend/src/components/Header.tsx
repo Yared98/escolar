@@ -65,8 +65,23 @@ export function Header() {
     return () => window.removeEventListener('escolar:mensagem_nova', onMsg);
   }, []);
 
+  // A leitura é gravada no servidor (por pessoa); a lista recarregada confirma o que ficou salvo.
   const handleMarcarTodasLidas = async () => {
     setNotificacoes((prev) => prev.map((n) => ({ ...n, lida: true })));
+    try {
+      await apiFetch('/notificacoes/marcar-todas-lidas', { method: 'POST' });
+    } finally {
+      await loadNotificacoes();
+    }
+  };
+
+  const handleMarcarLida = async (id: string) => {
+    setNotificacoes((prev) => prev.map((n) => (n.id === id ? { ...n, lida: true } : n)));
+    try {
+      await apiFetch(`/notificacoes/marcar-lida/${id}`, { method: 'POST' });
+    } catch {
+      await loadNotificacoes();
+    }
   };
 
   const unreadCount = notificacoes.filter((n) => !n.lida).length;
@@ -152,17 +167,30 @@ export function Header() {
                   </h3>
                   <button
                     onClick={handleMarcarTodasLidas}
-                    className="text-[10px] text-salvia-600 dark:text-salvia-400 hover:text-salvia-900 dark:hover:text-salvia-100 font-bold"
+                    disabled={unreadCount === 0}
+                    className="min-h-[44px] sm:min-h-0 px-2 text-[11px] text-salvia-600 dark:text-salvia-400 hover:text-salvia-900 dark:hover:text-salvia-100 font-bold disabled:opacity-40"
                   >
-                    Marcar lidas
+                    Marcar todas como lidas
                   </button>
                 </div>
 
                 <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                  {notificacoes.length === 0 && (
+                    <p className="text-[11px] text-salvia-600 dark:text-salvia-400 py-2">Nenhuma notificação.</p>
+                  )}
                   {notificacoes.map((item) => (
                     <div
                       key={item.id}
-                      className={`p-3 rounded-xl border text-xs space-y-1 transition-all ${
+                      role={item.lida ? undefined : 'button'}
+                      tabIndex={item.lida ? undefined : 0}
+                      title={item.lida ? undefined : 'Toque para marcar como lida'}
+                      onClick={() => {
+                        if (!item.lida) void handleMarcarLida(item.id);
+                      }}
+                      onKeyDown={(e) => {
+                        if (!item.lida && (e.key === 'Enter' || e.key === ' ')) void handleMarcarLida(item.id);
+                      }}
+                      className={`p-3 rounded-xl border text-xs space-y-1 transition-all ${!item.lida ? 'cursor-pointer' : 'opacity-75'} ${
                         item.prioridade === 'urgente'
                           ? 'bg-rose-50/80 dark:bg-rose-950/40 border-rose-200 dark:border-rose-500/30 text-rose-900 dark:text-rose-200'
                           : 'bg-salvia-50/60 dark:bg-salvia-950/50 border-salvia-200 dark:border-salvia-800 text-slate-800 dark:text-salvia-200'

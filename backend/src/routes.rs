@@ -60,7 +60,7 @@ use crate::{
         frequencia::{alertas_frequencia, frequencia_hoje, relatorio_frequencia},
         notificacoes::{
             criar_notificacao, listar_logs_disparos, listar_notificacoes, marcar_notificacao_lida,
-            registrar_push_subscription, vapid_public_key,
+            marcar_todas_notificacoes_lidas, registrar_push_subscription, vapid_public_key,
         },
         nutricao::{
             atualizar_prato, confirmar_recorrencia_cardapio, criar_prato, editar_cardapio_escopo,
@@ -426,7 +426,7 @@ pub fn create_router(state: AppState) -> Router {
             "/agenda/ocorrencias/:aluno_id",
             get(listar_ocorrencias_aluno),
         )
-        // Central de Notificações Unificada & Disparos Multicanal (WhatsApp, Push, Email)
+        // Notificações e disparos (WhatsApp, push, e-mail)
         .route(
             "/notificacoes",
             post(criar_notificacao).get(listar_notificacoes),
@@ -434,6 +434,10 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/notificacoes/marcar-lida/:id",
             post(marcar_notificacao_lida),
+        )
+        .route(
+            "/notificacoes/marcar-todas-lidas",
+            post(marcar_todas_notificacoes_lidas),
         )
         .route("/notificacoes/logs", get(listar_logs_disparos))
         .route("/notificacoes/push/vapid-public-key", get(vapid_public_key))

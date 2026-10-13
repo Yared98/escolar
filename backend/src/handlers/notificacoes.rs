@@ -83,36 +83,78 @@ pub async fn criar_notificacao(
     Ok(Json(notificacao))
 }
 
+/// Quem vê tudo (gestão e secretaria) acompanha as notificações da escola; os demais veem as suas e
+/// os avisos gerais. Esta regra vale para listar e para marcar como lida.
+fn ve_todas(role: &str) -> bool {
+    matches!(
+        role_key(role).as_str(),
+        "admin" | "gestor" | "superadmin" | "gestorescolar" | "secretaria"
+    )
+}
+
+// `lida` é sempre a leitura de QUEM ESTÁ VENDO: a própria marca em notificacoes_leituras ou, para
+// notificação endereçada a essa pessoa, o `lida` legado da tabela. A leitura de outra pessoa não conta.
+const SELECT_NOTIFICACOES: &str = r#"
+    SELECT n.id, n.tenant_id, n.destinatario_id, n.aluno_id, n.modulo, n.titulo, n.mensagem,
+           n.prioridade,
+           ((n.destinatario_id = $2 AND n.lida)
+             OR EXISTS (
+               SELECT 1 FROM notificacoes_leituras l
+               WHERE l.notificacao_id = n.id AND l.user_id = $2 AND l.tenant_id = n.tenant_id
+             )) AS lida,
+           n.canal_disparo, n.created_at, n.status_processamento, n.tentativas
+    FROM notificacoes_sistema n
+    WHERE n.tenant_id = $1
+      AND ($3 OR n.destinatario_id = $2 OR n.destinatario_id IS NULL)
+    ORDER BY n.created_at DESC
+    LIMIT 30
+"#;
+
 pub async fn listar_notificacoes(
     State(_state): State<AppState>,
     TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<Vec<NotificacaoSistema>>, AppError> {
-    let tenant_id = active_tenant.0;
-    let sees_all = matches!(
-        role_key(&auth_user.role).as_str(),
-        "admin" | "gestor" | "superadmin" | "gestorescolar" | "secretaria"
-    );
-
-    let notificacoes = if sees_all {
-        sqlx::query_as::<_, NotificacaoSistema>(
-            "SELECT * FROM notificacoes_sistema WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 30",
-        )
-        .bind(tenant_id)
-        .fetch_all(&mut *db)
-        .await?
-    } else {
-        sqlx::query_as::<_, NotificacaoSistema>(
-            "SELECT * FROM notificacoes_sistema WHERE tenant_id = $1 AND (destinatario_id = $2 OR destinatario_id IS NULL) ORDER BY created_at DESC LIMIT 30",
-        )
-        .bind(tenant_id)
+    let notificacoes = sqlx::query_as::<_, NotificacaoSistema>(SELECT_NOTIFICACOES)
+        .bind(active_tenant.0)
         .bind(auth_user.id)
+        .bind(ve_todas(&auth_user.role))
         .fetch_all(&mut *db)
-        .await?
-    };
+        .await?;
 
     Ok(Json(notificacoes))
+}
+
+/// Grava a leitura de uma notificação para quem está logado (e o `lida` legado quando ela é
+/// endereçada a essa pessoa). Idempotente.
+async fn registrar_leitura(
+    conn: &mut sqlx::PgConnection,
+    tenant_id: Uuid,
+    user_id: Uuid,
+    notificacao_id: Uuid,
+) -> Result<(), AppError> {
+    sqlx::query(
+        r#"
+        INSERT INTO notificacoes_leituras (notificacao_id, user_id, tenant_id)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (notificacao_id, user_id) DO NOTHING
+        "#,
+    )
+    .bind(notificacao_id)
+    .bind(user_id)
+    .bind(tenant_id)
+    .execute(&mut *conn)
+    .await?;
+    sqlx::query(
+        "UPDATE notificacoes_sistema SET lida = true WHERE id = $1 AND tenant_id = $2 AND destinatario_id = $3",
+    )
+    .bind(notificacao_id)
+    .bind(tenant_id)
+    .bind(user_id)
+    .execute(&mut *conn)
+    .await?;
+    Ok(())
 }
 
 pub async fn marcar_notificacao_lida(
@@ -123,42 +165,82 @@ pub async fn marcar_notificacao_lida(
     Path(id): Path<Uuid>,
 ) -> Result<Json<Value>, AppError> {
     let tenant_id = active_tenant.0;
-    let sees_all = can_notify_others(&auth_user.role) || role_key(&auth_user.role) == "secretaria";
 
-    let result = sqlx::query(
+    let visivel = sqlx::query_scalar::<_, bool>(
         r#"
-        UPDATE notificacoes_sistema
-        SET lida = true
-        WHERE id = $1
-          AND tenant_id = $2
-          AND (destinatario_id = $3 OR destinatario_id IS NULL OR $4)
+        SELECT EXISTS(
+          SELECT 1 FROM notificacoes_sistema
+          WHERE id = $1 AND tenant_id = $2
+            AND ($4 OR destinatario_id = $3 OR destinatario_id IS NULL)
+        )
         "#,
     )
     .bind(id)
     .bind(tenant_id)
     .bind(auth_user.id)
-    .bind(sees_all)
-    .execute(&mut *db)
+    .bind(ve_todas(&auth_user.role))
+    .fetch_one(&mut *db)
     .await?;
-
-    if result.rows_affected() == 0 {
+    if !visivel {
         return Err(AppError::NotFound);
     }
+
+    registrar_leitura(&mut db, tenant_id, auth_user.id, id).await?;
+
+    Ok(Json(
+        json!({ "status": "sucesso", "mensagem": "Notificação marcada como lida" }),
+    ))
+}
+
+/// Marca como lidas, para quem está logado, todas as notificações que essa pessoa vê.
+pub async fn marcar_todas_notificacoes_lidas(
+    State(_state): State<AppState>,
+    TenantDb(mut db): TenantDb,
+    Extension(active_tenant): Extension<ActiveTenant>,
+    Extension(auth_user): Extension<AuthUser>,
+) -> Result<Json<Value>, AppError> {
+    let tenant_id = active_tenant.0;
+    let mut tx = db.begin().await?;
+
+    let inseridas = sqlx::query(
+        r#"
+        INSERT INTO notificacoes_leituras (notificacao_id, user_id, tenant_id)
+        SELECT n.id, $2, n.tenant_id
+        FROM notificacoes_sistema n
+        WHERE n.tenant_id = $1
+          AND ($3 OR n.destinatario_id = $2 OR n.destinatario_id IS NULL)
+        ON CONFLICT (notificacao_id, user_id) DO NOTHING
+        "#,
+    )
+    .bind(tenant_id)
+    .bind(auth_user.id)
+    .bind(ve_todas(&auth_user.role))
+    .execute(&mut *tx)
+    .await?
+    .rows_affected();
+
+    sqlx::query(
+        "UPDATE notificacoes_sistema SET lida = true WHERE tenant_id = $1 AND destinatario_id = $2 AND lida = false",
+    )
+    .bind(tenant_id)
+    .bind(auth_user.id)
+    .execute(&mut *tx)
+    .await?;
+
+    tx.commit().await?;
 
     log_audit(
         &mut *db,
         tenant_id,
         Some(auth_user.id),
-        "MARCAR_NOTIFICACAO_LIDA",
+        "MARCAR_NOTIFICACOES_LIDAS",
         "notificacoes_sistema",
-        Some(id.to_string()),
         None,
+        Some(json!({ "marcadas": inseridas })),
     )
     .await;
 
-    Ok(Json(
-        json!({ "status": "sucesso", "mensagem": "Notificação marcada como lida" }),
-    ))
+    Ok(Json(json!({ "status": "sucesso", "marcadas": inseridas })))
 }
 
 pub async fn listar_logs_disparos(

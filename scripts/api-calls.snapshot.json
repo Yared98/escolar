@@ -99,6 +99,8 @@
   "POST /financeiro/faturas/{}/cora": 1,
   "POST /financeiro/faturas/{}/cora/simular-pagamento": 1,
   "POST /financeiro/nfse/emitir": 1,
+  "POST /notificacoes/marcar-lida/{}": 1,
+  "POST /notificacoes/marcar-todas-lidas": 1,
   "POST /notificacoes/push/subscribe": 1,
   "POST /nutricao/cardapios/recorrencias": 1,
   "POST /nutricao/cardapios/recorrencias/previa": 1,

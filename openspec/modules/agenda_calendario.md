@@ -104,6 +104,13 @@ Registro de ocorrências individuais (tabela `ocorrencias_aluno`), usado pela ro
   - Validação estrita de atribuição docente: caso o remetente seja professor e inicie uma conversa, ele **obrigatoriamente** só pode falar com famílias de alunos matriculados em turmas onde ele leciona (`turma_professores` ou regência titular em `turmas.professor_regente_id`). Se tentar enviar para famílias de alunos fora de suas turmas (seja por `aluno_id` ou `destinatario_id`), a API recusa com HTTP 403 Forbidden.
   - Retorno: devolve a mensagem com `destinatario_id` e `thread_id` para permitir que o frontend exiba aviso de confirmação e link "Abrir conversa" apontando para `/?route=agenda&tab=comunicacao&conversa=<thread_id>`.
 
+## 4.2. Notificações do sino: leitura por pessoa
+
+- A leitura é gravada **por pessoa** em `notificacoes_leituras (notificacao_id, user_id, tenant_id, lida_em)`, com RLS (migration `20261015100000_notificacoes_leituras.sql`). Antes, "Marcar lidas" só mudava a tela (voltava tudo como não lido ao recarregar) e, em aviso geral (sem destinatário), o único campo `lida` da notificação valia para a escola toda.
+- `GET /api/v1/notificacoes` devolve `lida` do ponto de vista de quem está vendo: a própria leitura registrada ou, para notificação endereçada a essa pessoa, o `lida` legado. A leitura de outra pessoa não conta (a gestão abrir a notificação de uma família não a marca como lida para a família).
+- `POST /api/v1/notificacoes/marcar-lida/:id` grava a leitura de uma notificação visível (404 se não for dela nem geral, salvo gestão/secretaria). `POST /api/v1/notificacoes/marcar-todas-lidas` grava a leitura de todas as notificações que a pessoa vê (registra `MARCAR_NOTIFICACOES_LIDAS` em `audit_logs`). Ambas são idempotentes.
+- Tela (`Header.tsx`): "Marcar todas como lidas" (desabilitado sem pendentes) e tocar numa notificação não lida a marca. Teste de integração `backend/tests/notificacoes_leitura.rs`.
+
 ---
 
 ## 5. Mapa de código (frontend)

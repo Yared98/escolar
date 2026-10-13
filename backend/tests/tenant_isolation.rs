@@ -232,10 +232,10 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?;
 
-        // Garantir que as 69 tabelas com tenant_id estejam presentes no schema
-        if tables_with_tenant.len() != 69 {
+        // Garantir que as 70 tabelas com tenant_id estejam presentes no schema
+        if tables_with_tenant.len() != 70 {
             return Err(format!(
-                "Esperado 69 tabelas com tenant_id no schema public, encontrado {}",
+                "Esperado 70 tabelas com tenant_id no schema public, encontrado {}",
                 tables_with_tenant.len()
             ));
         }
@@ -432,6 +432,12 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
                 "notas" => format!("INSERT INTO {tbl} (id, tenant_id, aluno_id, disciplina_nome, nota, periodo) VALUES ($1, $2, '{aluno_b_id}', 'Matemática B', 9.5, '1_bimestre')"),
                 "pareceres_conselho" => format!("INSERT INTO {tbl} (id, tenant_id, turma_id, aluno_id, periodo, parecer, encaminhamento, registrado_por) VALUES ($1, $2, '{turma_b_id}', '{aluno_b_id}', '1_bimestre', 'Parecer teste B', 'sem_pendencias', '{user_b}')"),
                 "notificacoes_disparos_logs" => format!("INSERT INTO {tbl} (id, tenant_id, canal, destino, status_envio) VALUES ($1, $2, 'push', 'destb@test.com', 'enviado')"),
+                "notificacoes_leituras" => {
+                    let notif_id = Uuid::new_v4();
+                    sqlx::query(&format!("INSERT INTO notificacoes_sistema (id, tenant_id, modulo, titulo, mensagem, canal_disparo) VALUES ('{notif_id}', '{tenant_b}', 'geral', 'Notif lida B', 'Mensagem B', 'push_pwa')"))
+                        .execute(pool).await.map_err(|e| e.to_string())?;
+                    format!("INSERT INTO {tbl} (notificacao_id, user_id, tenant_id) SELECT '{notif_id}', '{user_b}', $2 WHERE $1::uuid IS NOT NULL")
+                },
                 "notificacoes_sistema" => format!("INSERT INTO {tbl} (id, tenant_id, modulo, titulo, mensagem, canal_disparo) VALUES ($1, $2, 'geral', 'Notif B', 'Mensagem B', 'push_pwa')"),
                 "oauth_authorization_codes" => format!("INSERT INTO {tbl} (id, tenant_id, user_id, client_id, code, redirect_uri, code_challenge, code_challenge_method, expires_at) VALUES ($1, $2, '{user_b}', 'client_b', 'code_b_123', 'https://redirect.b.com', 'chal_b', 'S256', NOW() + INTERVAL '10 minutes')"),
                 "ocorrencias_aluno" => format!("INSERT INTO {tbl} (id, tenant_id, aluno_id, professor_id, tipo_ocorrencia, descricao) VALUES ($1, $2, '{aluno_b_id}', '{user_b}', 'disciplinar', 'Ocorrência B')"),
