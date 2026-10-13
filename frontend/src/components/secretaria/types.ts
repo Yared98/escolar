@@ -158,6 +158,8 @@ export interface AlunoTurmaDetalhado {
   telefone_responsavel: string;
   status: string;
   data_matricula: string;
+  responsavel_user_id?: string | null;
+  responsavel_nome?: string | null;
 }
 
 export interface Sala {

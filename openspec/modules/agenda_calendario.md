@@ -14,6 +14,7 @@ O módulo cobre o **Calendário Letivo com RSVP de Eventos**, a **Rotina Diária
 | Push Notifications Web VAPID | Implementado via adapter (requer `VAPID_*` no ambiente; sem chaves roda em modo simulado) |
 | Calendário de avaliações por turma (provas, trabalhos e atividades) | Implementado (professor marca; família consulta no portal) |
 | Ocorrências e observações do aluno (Educação Infantil e Fundamental) | Implementado (registro pela escola; leitura da família no portal) |
+| Recados do professor à família direto da chamada | Implementado (envio com vínculo docente e atalho para a conversa) |
 | Disparo de WhatsApp ativo para lembretes de RSVP / comunicados | **Stub** (simulado via `processWhatsAppWebhook`; sem envio real via Meta Cloud API) |
 
 ### Limitações MVP / Detalhes de Arquitetura
@@ -94,6 +95,14 @@ Registro de ocorrências individuais (tabela `ocorrencias_aluno`), usado pela ro
   - Professor: em cada aluno do Diário do Fundamental (`academico/ChamadaPanel.tsx`), o botão "Observação" abre `academico/OcorrenciaModal.tsx` (tipo, descrição obrigatória até 1000 caracteres e "Avisar a família" marcado por padrão). A chamada de API e a contagem por aluno ficam em `AcademicoSection.tsx`; o aluno com observação no dia aparece com um contador no botão. A prioridade é definida pelo tipo (elogio → baixa, atraso/falta de material → média, comportamento/saúde → alta) — o professor não escolhe prioridade.
   - Família: aba "Observações" do Portal da família (`PortalAlunoSection.tsx` orquestra; `portal_aluno/OcorrenciasTab.tsx` exibe), disponível para **qualquer etapa** (não só Educação Infantil), em ordem do mais recente para o mais antigo, com tipo amigável, data/hora e descrição.
   - A rotina da Educação Infantil mantém o fluxo próprio de "Ocorrência urgente" (`academico/InfantilRotinaPanel.tsx`), agora com os mesmos tipos aceitos pelo backend.
+
+## 4.1. Recados Privados do Professor à Família na Chamada (C16)
+
+- **Envio de Recado Direto do Diário (`POST /api/v1/agenda/mensagens`)**:
+  - Parâmetros aceitos: `aluno_id`, `canal: "responsavel"`, `titulo: "Recado sobre <nome>"`, `conteudo`.
+  - Resolução automática do destinatário: o backend descobre o responsável através de `alunos.responsavel_user_id` ou, alternativamente, pela primeira entrada ativa em `responsaveis_alunos`. Se o aluno não possui responsável cadastrado no portal, retorna HTTP 400 Bad Request ("O aluno selecionado não possui responsável cadastrado no portal.").
+  - Validação estrita de atribuição docente: caso o remetente seja professor e inicie uma conversa, ele **obrigatoriamente** só pode falar com famílias de alunos matriculados em turmas onde ele leciona (`turma_professores` ou regência titular em `turmas.professor_regente_id`). Se tentar enviar para famílias de alunos fora de suas turmas (seja por `aluno_id` ou `destinatario_id`), a API recusa com HTTP 403 Forbidden.
+  - Retorno: devolve a mensagem com `destinatario_id` e `thread_id` para permitir que o frontend exiba aviso de confirmação e link "Abrir conversa" apontando para `/?route=agenda&tab=comunicacao&conversa=<thread_id>`.
 
 ---
 

@@ -74,7 +74,7 @@
   "POST /administrativo/usuarios": 1,
   "POST /administrativo/usuarios/{}/redefinir-senha": 1,
   "POST /agenda/calendario": 1,
-  "POST /agenda/mensagens": 4,
+  "POST /agenda/mensagens": 5,
   "POST /agenda/mensagens/{}/lida": 2,
   "POST /agenda/ocorrencias": 2,
   "POST /agenda/rotina": 1,

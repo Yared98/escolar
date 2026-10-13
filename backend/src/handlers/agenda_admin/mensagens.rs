@@ -118,6 +118,45 @@ pub async fn enviar_mensagem_agenda(
         };
     }
 
+    let is_professor = auth_user.role.eq_ignore_ascii_case("professor");
+
+    if is_professor && resposta_a_id.is_none() {
+        if let Some(aluno_id) = dto.aluno_id {
+            let vinculado = sqlx::query_scalar::<_, bool>(
+                r#"
+                SELECT EXISTS(
+                    SELECT 1
+                    FROM turma_alunos ta
+                    JOIN turmas t ON t.id = ta.turma_id AND t.tenant_id = ta.tenant_id
+                    WHERE ta.tenant_id = $1
+                      AND ta.aluno_id = $2
+                      AND ta.status = 'ativo'
+                      AND (
+                          EXISTS (
+                              SELECT 1 FROM turma_professores tp
+                              WHERE tp.tenant_id = ta.tenant_id
+                                AND tp.turma_id = ta.turma_id
+                                AND tp.professor_id = $3
+                          )
+                          OR t.professor_regente_id = $3
+                      )
+                )
+                "#,
+            )
+            .bind(tenant_id)
+            .bind(aluno_id)
+            .bind(auth_user.id)
+            .fetch_one(&mut *db)
+            .await?;
+
+            if !vinculado {
+                return Err(AppError::Forbidden(
+                    "Professores só podem enviar mensagens para famílias de alunos das suas turmas.".into(),
+                ));
+            }
+        }
+    }
+
     if destinatario_id.is_none() {
         if let Some(aluno_id) = dto.aluno_id {
             if is_responsavel {
@@ -128,10 +167,15 @@ pub async fn enviar_mensagem_agenda(
             destinatario_id = sqlx::query_scalar::<_, Option<Uuid>>(
                 r#"
                 SELECT COALESCE(
-                    a.responsavel_user_id,
+                    (
+                        SELECT u.id
+                        FROM users u
+                        WHERE u.id = a.responsavel_user_id AND u.tenant_id = a.tenant_id
+                    ),
                     (
                         SELECT ra.responsavel_user_id
                         FROM responsaveis_alunos ra
+                        JOIN users u ON u.id = ra.responsavel_user_id AND u.tenant_id = ra.tenant_id
                         WHERE ra.tenant_id = a.tenant_id AND ra.aluno_id = a.id
                         ORDER BY ra.created_at NULLS LAST
                         LIMIT 1
@@ -150,6 +194,73 @@ pub async fn enviar_mensagem_agenda(
                 return Err(AppError::BadRequest(
                     "Este aluno não possui responsável vinculado ao portal.".into(),
                 ));
+            }
+
+            if turma_id.is_none() {
+                turma_id = sqlx::query_scalar::<_, Option<Uuid>>(
+                    r#"
+                    SELECT ta.turma_id
+                    FROM turma_alunos ta
+                    WHERE ta.tenant_id = $1 AND ta.aluno_id = $2 AND ta.status = 'ativo'
+                    ORDER BY ta.created_at DESC
+                    LIMIT 1
+                    "#,
+                )
+                .bind(tenant_id)
+                .bind(aluno_id)
+                .fetch_optional(&mut *db)
+                .await?
+                .flatten();
+            }
+        }
+    }
+
+    if is_professor && resposta_a_id.is_none() && dto.aluno_id.is_none() {
+        if let Some(dest) = destinatario_id {
+            let dest_is_resp = sqlx::query_scalar::<_, bool>(
+                "SELECT lower(role) = 'responsavel' FROM users WHERE id = $1 AND tenant_id = $2",
+            )
+            .bind(dest)
+            .bind(tenant_id)
+            .fetch_optional(&mut *db)
+            .await?
+            .unwrap_or(false);
+
+            if dest_is_resp {
+                let pode = sqlx::query_scalar::<_, bool>(
+                    r#"
+                    SELECT EXISTS(
+                        SELECT 1
+                        FROM turma_alunos ta
+                        JOIN turmas t ON t.id = ta.turma_id AND t.tenant_id = ta.tenant_id
+                        JOIN alunos a ON a.id = ta.aluno_id AND a.tenant_id = ta.tenant_id
+                        LEFT JOIN responsaveis_alunos ra ON ra.aluno_id = a.id AND ra.tenant_id = a.tenant_id
+                        WHERE ta.tenant_id = $1
+                          AND (a.responsavel_user_id = $2 OR ra.responsavel_user_id = $2)
+                          AND ta.status = 'ativo'
+                          AND (
+                              EXISTS (
+                                  SELECT 1 FROM turma_professores tp
+                                  WHERE tp.tenant_id = ta.tenant_id
+                                    AND tp.turma_id = ta.turma_id
+                                    AND tp.professor_id = $3
+                              )
+                              OR t.professor_regente_id = $3
+                          )
+                    )
+                    "#,
+                )
+                .bind(tenant_id)
+                .bind(dest)
+                .bind(auth_user.id)
+                .fetch_one(&mut *db)
+                .await?;
+
+                if !pode {
+                    return Err(AppError::Forbidden(
+                        "Professores só podem enviar mensagens para famílias de alunos das suas turmas.".into(),
+                    ));
+                }
             }
         }
     }

@@ -7,7 +7,28 @@ export interface AlunoChamada {
   nome: string;
   status: StatusPresenca;
   justificativa?: string;
+  responsavel_user_id?: string | null;
+  responsavel_nome?: string;
 }
+
+export const alunoTemResponsavel = (
+  aluno: Pick<AlunoChamada, 'responsavel_user_id'>,
+): boolean => Boolean(aluno.responsavel_user_id);
+
+export const dicaRecadoFamilia = (
+  aluno: Pick<AlunoChamada, 'responsavel_user_id'>,
+): string =>
+  alunoTemResponsavel(aluno)
+    ? 'Enviar recado à família'
+    : 'Aluno sem responsável cadastrado';
+
+export const formatarAvisoRecadoEnviado = (responsavelNome?: string): string => {
+  const nome = (responsavelNome || '').trim();
+  return nome ? `Recado enviado para ${nome}` : 'Recado enviado para os responsáveis';
+};
+
+export const urlConversaAgenda = (conversaId: string): string =>
+  `/?route=agenda&tab=comunicacao&conversa=${encodeURIComponent(conversaId)}`;
 
 export interface TurmaOpcao {
   id: string;

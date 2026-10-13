@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { ClipboardPlus, Users, CheckCheck } from 'lucide-react';
+import { ClipboardPlus, Users, CheckCheck, MessageSquare } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import {
   OBSERVACAO_DIARIO_MAX,
+  dicaRecadoFamilia,
   type AlunoChamada,
   type DiarioDiaResponse,
   type DiarioRecenteItem,
@@ -35,6 +36,8 @@ interface ChamadaPanelProps {
   ocorrenciasPorAluno?: Record<string, number>;
   /** Abre o modal de observação do aluno (a chamada de API fica na Section). */
   onAbrirOcorrencia?: (aluno: AlunoChamada) => void;
+  /** Abre o modal de recado à família do aluno (a chamada de API fica na Section). */
+  onAbrirRecadoFamilia?: (aluno: AlunoChamada) => void;
 }
 
 const CONTEUDO_PADRAO_INFANTIL = 'Rotina infantil';
@@ -58,6 +61,7 @@ export function ChamadaPanel({
   onSaved,
   ocorrenciasPorAluno,
   onAbrirOcorrencia,
+  onAbrirRecadoFamilia,
 }: ChamadaPanelProps) {
   const infantil = modo === 'infantil';
   const alunosKey = alunos.map((a) => a.id).join(',');
@@ -89,7 +93,7 @@ export function ChamadaPanel({
       const data = await apiFetch<DiarioRecenteItem[]>(
         `/academico/diario/recentes?turma_id=${encodeURIComponent(turmaId)}${disciplinaQuery}&limit=10`
       );
-      setHistorico(data || []);
+      setHistorico(Array.isArray(data) ? data : []);
     } catch {
       setHistorico([]);
     }
@@ -396,20 +400,36 @@ export function ChamadaPanel({
                   className="w-full bg-white dark:bg-salvia-900 border border-amber-300 dark:border-amber-700 rounded-lg px-2.5 py-1 text-[11px] text-slate-800 dark:text-salvia-100 font-medium focus:outline-none"
                 />
               )}
-              {!infantil && onAbrirOcorrencia && (
-                <button
-                  type="button"
-                  onClick={() => onAbrirOcorrencia(aluno)}
-                  className="w-full min-h-[44px] px-3 py-2 rounded-xl border border-salvia-300 dark:border-salvia-700 bg-white dark:bg-salvia-800 text-salvia-800 dark:text-salvia-200 hover:bg-salvia-50 dark:hover:bg-salvia-700 text-xs font-bold flex items-center justify-center space-x-1.5 transition-all"
-                >
-                  <ClipboardPlus className="w-4 h-4" />
-                  <span>Observação</span>
-                  {(ocorrenciasPorAluno?.[aluno.id] ?? 0) > 0 && (
-                    <span className="inline-flex items-center justify-center min-w-[22px] px-1.5 py-0.5 rounded-full text-xs font-bold bg-salvia-700 text-white dark:bg-salvia-500">
-                      {ocorrenciasPorAluno?.[aluno.id]}
-                    </span>
+              {((!infantil && onAbrirOcorrencia) || onAbrirRecadoFamilia) && (
+                <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                  {!infantil && onAbrirOcorrencia && (
+                    <button
+                      type="button"
+                      onClick={() => onAbrirOcorrencia(aluno)}
+                      className="flex-1 w-full min-h-[44px] px-3 py-2 rounded-xl border border-salvia-300 dark:border-salvia-700 bg-white dark:bg-salvia-800 text-salvia-800 dark:text-salvia-200 hover:bg-salvia-50 dark:hover:bg-salvia-700 text-xs font-bold flex items-center justify-center space-x-1.5 transition-all"
+                    >
+                      <ClipboardPlus className="w-4 h-4" />
+                      <span>Observação</span>
+                      {(ocorrenciasPorAluno?.[aluno.id] ?? 0) > 0 && (
+                        <span className="inline-flex items-center justify-center min-w-[22px] px-1.5 py-0.5 rounded-full text-xs font-bold bg-salvia-700 text-white dark:bg-salvia-500">
+                          {ocorrenciasPorAluno?.[aluno.id]}
+                        </span>
+                      )}
+                    </button>
                   )}
-                </button>
+                  {onAbrirRecadoFamilia && (
+                    <button
+                      type="button"
+                      onClick={() => onAbrirRecadoFamilia(aluno)}
+                      disabled={!aluno.responsavel_user_id}
+                      title={dicaRecadoFamilia(aluno)}
+                      className="flex-1 w-full min-h-[44px] px-3 py-2 rounded-xl border border-salvia-300 dark:border-salvia-700 bg-white dark:bg-salvia-800 text-salvia-800 dark:text-salvia-200 hover:bg-salvia-50 dark:hover:bg-salvia-700 text-xs font-bold flex items-center justify-center space-x-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      <span>Recado à família</span>
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           ))}

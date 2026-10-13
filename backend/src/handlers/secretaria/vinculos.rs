@@ -65,7 +65,40 @@ pub async fn listar_alunos_turma(
             a.nome_responsavel,
             a.telefone_responsavel,
             ta.status,
-            ta.data_matricula
+            ta.data_matricula,
+            COALESCE(
+                (
+                    SELECT u.id
+                    FROM users u
+                    WHERE u.id = a.responsavel_user_id AND u.tenant_id = a.tenant_id
+                ),
+                (
+                    SELECT ra.responsavel_user_id
+                    FROM responsaveis_alunos ra
+                    JOIN users u ON u.id = ra.responsavel_user_id AND u.tenant_id = ra.tenant_id
+                    WHERE ra.tenant_id = a.tenant_id AND ra.aluno_id = a.id
+                    ORDER BY ra.created_at NULLS LAST
+                    LIMIT 1
+                )
+            ) AS responsavel_user_id,
+            COALESCE(
+                (
+                    SELECT u.name
+                    FROM users u
+                    WHERE u.id = COALESCE(
+                        a.responsavel_user_id,
+                        (
+                            SELECT ra.responsavel_user_id
+                            FROM responsaveis_alunos ra
+                            WHERE ra.tenant_id = a.tenant_id AND ra.aluno_id = a.id
+                            ORDER BY ra.created_at NULLS LAST
+                            LIMIT 1
+                        )
+                    ) AND u.tenant_id = a.tenant_id
+                ),
+                NULLIF(TRIM(a.nome_responsavel), ''),
+                ''
+            ) AS responsavel_nome
         FROM turma_alunos ta
         JOIN alunos a ON ta.aluno_id = a.id AND a.tenant_id = ta.tenant_id
         WHERE ta.turma_id = $1
@@ -95,6 +128,8 @@ pub async fn listar_alunos_turma(
                 telefone_responsavel: row.get("telefone_responsavel"),
                 status: row.get("status"),
                 data_matricula: row.get("data_matricula"),
+                responsavel_user_id: row.try_get("responsavel_user_id").ok().flatten(),
+                responsavel_nome: row.try_get("responsavel_nome").ok(),
             }
         })
         .collect();

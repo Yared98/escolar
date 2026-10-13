@@ -80,7 +80,14 @@ export function useTurmaAlunos(preferredRole?: string) {
       setLoadingAlunos(true);
       try {
         const data = await apiFetch<
-          { aluno_id: string; nome: string; status?: string }[]
+          {
+            aluno_id: string;
+            nome: string;
+            status?: string;
+            responsavel_user_id?: string | null;
+            responsavel_nome?: string | null;
+            nome_responsavel?: string;
+          }[]
         >(`/secretaria/turmas/${turmaId}/alunos`);
         if (!ativo) return;
         // API já devolve só vínculo ativo + aluno ativo; filtro local é defesa em profundidade.
@@ -90,6 +97,8 @@ export function useTurmaAlunos(preferredRole?: string) {
             id: aluno.aluno_id,
             nome: aluno.nome,
             status: 'presente' as const,
+            responsavel_user_id: aluno.responsavel_user_id ?? null,
+            responsavel_nome: aluno.responsavel_nome || aluno.nome_responsavel || '',
           }));
         setAlunos(mapped);
         setListaErro(null);

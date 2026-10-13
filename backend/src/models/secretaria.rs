@@ -427,6 +427,8 @@ pub struct AlunoTurmaDetalhado {
     pub telefone_responsavel: String,
     pub status: String,
     pub data_matricula: NaiveDate,
+    pub responsavel_user_id: Option<Uuid>,
+    pub responsavel_nome: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
