@@ -13,7 +13,7 @@
 
 - Stack fixa: **Rust/Axum + SQLx + Postgres RLS** | **Next.js 14 PWA + Tailwind**.
 - Handlers de negócio: usar `TenantDb` — nunca o pool global de `AppState` em rota tenant.
-  - **Exceções legítimas** (rotas públicas, sem usuário logado): resolver o tenant e abrir a conexão com `crate::db::acquire_tenant(&state.pool, tenant_id)`, nunca query direta. Hoje: `auth.rs` (login/sessão), `webhooks_cora.rs`, `crm_lms.rs` (`capturar_lead_publico`, `whatsapp_webhook`) e `regulatorio_ia.rs::validar_diploma_digital_publico` (única que consulta `state.pool` direto, via função SQL `validar_diploma_publico`). Qualquer outro `state.pool` em rota autenticada é bug.
+  - **Exceções legítimas** (rotas públicas, sem usuário logado): resolver o tenant e abrir a conexão com `crate::db::acquire_tenant(&state.pool, tenant_id)`, nunca query direta. Hoje: `auth.rs` (login/sessão), `webhooks_cora.rs`, `crm_lms.rs` (`capturar_lead_publico`, `whatsapp_webhook`) e `regulatorio_ia/diploma.rs::validar_diploma_digital_publico` (única que consulta `state.pool` direto, via função SQL `validar_diploma_publico`). Qualquer outro `state.pool` em rota autenticada é bug.
 - **Migrations** (`backend/migrations/`): nunca editar nem renomear uma migration já aplicada (o sqlx guarda checksum e `migrate().run` quebra). Mudança de schema = arquivo novo `YYYYMMDDHHMMSS_descricao.sql`. Tabela nova com `tenant_id` exige RLS (`ENABLE` + `FORCE` + política `tenant_id = get_current_tenant()`, como em `20260929000000_security_foundation.sql`).
 - Contratos de API: retrocompatíveis ou versionados em `/api/v1/...`.
 - Erros: `Result<T, AppError>`; sem `unwrap()`/`expect()` em caminho de produção.
@@ -91,8 +91,8 @@ A fonte de verdade é `openspec/`. Estes arquivos são histórico ou referência
 | Nutrição | `openspec/modules/nutricao.md` | `backend/src/handlers/nutricao/**`, `frontend/src/components/nutricao/**` |
 | Agenda & Calendário | `openspec/modules/agenda_calendario.md` | `backend/src/handlers/agenda_admin.rs`, `AgendaDigitalSection.tsx` (orquestra) + `frontend/src/components/agenda/**`, `CalendarioEscolarSection.tsx`, `worker/**` |
 | CRM | `openspec/modules/crm_atendimento.md` | `backend/src/handlers/crm_lms.rs`, `frontend/src/components/CrmSection.tsx` |
-| IA Evasão | `openspec/modules/ia_preditiva.md` | `backend/src/handlers/regulatorio_ia.rs` (score), `PainelEvasao.tsx` |
-| Regulatório & LGPD | `openspec/modules/regulatorio_lgpd.md` | `backend/src/handlers/regulatorio_ia.rs`, `AdministrativoSection.tsx` (conformidade) |
+| IA Evasão | `openspec/modules/ia_preditiva.md` | `backend/src/handlers/regulatorio_ia/` (score), `PainelEvasao.tsx` |
+| Regulatório & LGPD | `openspec/modules/regulatorio_lgpd.md` | `backend/src/handlers/regulatorio_ia/`, `AdministrativoSection.tsx` (conformidade) |
 | LMS / SSO | `openspec/modules/lms_integracao.md` | `backend/src/handlers/crm_lms.rs` + auth OIDC — **sem UI dedicada no MVP** |
 | Core / Banco | `openspec/CORE_SPEC.md` | `backend/migrations/**` |
 
