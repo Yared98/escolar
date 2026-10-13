@@ -99,9 +99,16 @@ Registro de ocorrências individuais (tabela `ocorrencias_aluno`), usado pela ro
 
 ## 5. Mapa de código (frontend)
 
-Organização após o refactor B12 (só moveu código, sem mudança de regra):
+Organização após o refactor B12 (só moveu código, sem mudança de regra) e o redesenho C12 (apenas visual, sem nova regra de negócio):
 
-- `AgendaDigitalSection.tsx` orquestra: estado, carregamento, tempo real (`useMensagensRealtime`) e abas.
-- `frontend/src/components/agenda/` só exibe, via props: `ComunicacaoPanel`, `WhatsappPanel`, `ComposerModal`, além de `types.ts` e `utils.ts`.
+- `AgendaDigitalSection.tsx` orquestra: estado, carregamento, tempo real (`useMensagensRealtime`), abas e a conversa aberta sincronizada com a URL (`&conversa=<id>`). Também detecta viewport para decidir o layout mobile/desktop.
+- `frontend/src/components/agenda/` só exibe, via props:
+  - `ComunicacaoPanel`: monta o layout lista + chat, com lista (`ConversasLista`) e chat (`ConversaChat`) lado a lado no desktop e uma tela por vez no celular.
+  - `ConversasLista`: lista estilo WhatsApp com busca, filtros em chips, avatar, prévia, horário curto e contador de não lidas.
+  - `ConversaChat`: cabeçalho fixo, balões (`BolhaMensagem`), separadores de data, caixa de envio fixa com textarea que cresce e envio por Enter no desktop.
+  - `BolhaMensagem`: mensagens do usuário à direita (verde-sálvia) e dos outros à esquerda (branco), com nome, perfil amigável e horário.
+  - `WhatsappPanel`: fila de atendimento WhatsApp (sem alteração no C12).
+  - `ComposerModal`: criação de novo comunicado/mensagem privada.
+  - `types.ts` e `utils.ts`: funções puras de formatação de horário, agrupamento por dia, detecção de mensagem própria e iniciais do nome (com testes Vitest).
 - O gate de spec associa `agenda/**` a este módulo.
 - As avaliações usam código próprio: `backend/src/handlers/avaliacoes.rs` no backend e `frontend/src/components/professor/AvaliacoesPanel.tsx` (orquestrado por `ProfessorSection.tsx`). A aba da família fica em `portal_aluno/AvaliacoesTab.tsx` (ver `academico.md`).

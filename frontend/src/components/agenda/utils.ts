@@ -5,7 +5,7 @@ export const rotuloCanal = (canal: string) => {
     case 'mural_turma':
       return 'Mural';
     case 'professor':
-      return 'Privado';
+      return 'Privada';
     case 'responsavel':
       return 'Família';
     case 'coordenacao':
@@ -80,3 +80,104 @@ export const agruparThreads = (msgs: MensagemAgenda[]): ThreadAgenda[] => {
     (a, b) => new Date(b.ultima.created_at).getTime() - new Date(a.ultima.created_at).getTime(),
   );
 };
+
+function zerarHora(d: Date): Date {
+  const z = new Date(d);
+  z.setHours(0, 0, 0, 0);
+  return z;
+}
+
+function diasEntre(inicio: Date, fim: Date): number {
+  const ms = zerarHora(fim).getTime() - zerarHora(inicio).getTime();
+  return Math.round(ms / (24 * 60 * 60 * 1000));
+}
+
+/**
+ * Formata o horário exibido na lista de conversas.
+ * Hoje → "14:32"; ontem → "Ontem"; nesta semana → dia da semana (Seg, Ter…);
+ * mais antigo → "12/10".
+ */
+export function formatarHorarioCurto(iso: string, agoraRef?: Date): string {
+  const data = new Date(iso);
+  if (Number.isNaN(data.getTime())) return '';
+
+  const agora = agoraRef || new Date();
+  const diff = diasEntre(data, agora);
+  const horas = String(data.getHours()).padStart(2, '0');
+  const minutos = String(data.getMinutes()).padStart(2, '0');
+
+  if (diff === 0) return `${horas}:${minutos}`;
+  if (diff === 1) return 'Ontem';
+  if (diff > 1 && diff < 7) {
+    const dias = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    return dias[data.getDay()];
+  }
+
+  const dia = String(data.getDate()).padStart(2, '0');
+  const mes = String(data.getMonth() + 1).padStart(2, '0');
+  return `${dia}/${mes}`;
+}
+
+export function iniciaisNome(nome?: string | null): string {
+  if (!nome) return '?';
+  const partes = nome.trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return '?';
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+}
+
+function rotuloSeparadorDia(data: Date, agora: Date): string {
+  const diff = diasEntre(data, agora);
+  if (diff === 0) return 'Hoje';
+  if (diff === 1) return 'Ontem';
+  const meses = [
+    'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+    'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+  ];
+  return `${data.getDate()} de ${meses[data.getMonth()]}`;
+}
+
+export interface DiaMensagens {
+  label: string;
+  data: Date;
+  mensagens: MensagemAgenda[];
+}
+
+/**
+ * Agrupa mensagens cronologicamente por dia para exibir os separadores de data.
+ */
+export function agruparMensagensPorDia(
+  mensagens: MensagemAgenda[],
+  agoraRef?: Date,
+): DiaMensagens[] {
+  const agora = agoraRef || new Date();
+  const mapa = new Map<string, { data: Date; mensagens: MensagemAgenda[] }>();
+
+  const ordenadas = [...mensagens].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
+
+  for (const m of ordenadas) {
+    const data = new Date(m.created_at);
+    const chave = `${data.getFullYear()}-${data.getMonth()}-${data.getDate()}`;
+    const existente = mapa.get(chave);
+    if (existente) {
+      existente.mensagens.push(m);
+    } else {
+      mapa.set(chave, { data, mensagens: [m] });
+    }
+  }
+
+  return Array.from(mapa.values()).map(({ data, mensagens: lista }) => ({
+    label: rotuloSeparadorDia(data, agora),
+    data,
+    mensagens: lista,
+  }));
+}
+
+/**
+ * Retorna se a mensagem foi enviada pelo usuário logado.
+ */
+export function mensagemEhMinha(m: MensagemAgenda, userId?: string | null): boolean {
+  return !!userId && !!m.remetente_id && m.remetente_id === userId;
+}
