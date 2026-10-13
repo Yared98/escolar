@@ -3,6 +3,7 @@
 import React from 'react';
 import { Printer, X } from 'lucide-react';
 import { formatDateExtenso } from '@/lib/formatters';
+import { etapaEnsinoLabel } from '@/lib/etapas';
 
 export interface DocumentoEscola {
   nome: string;
@@ -77,15 +78,38 @@ function cpfOuBranco(valor: string | null): string {
   return valor ? valor : '____________________';
 }
 
+// Documento oficial: nome da turma e etapa por extenso, sem códigos internos (ex.: FUND-1A).
 function turmaTexto(doc: DocumentoSecretaria): string {
   if (!doc.turma) return 'turma não informada';
-  const codigo = doc.turma.codigo ? `${doc.turma.codigo} - ` : '';
-  const serie = doc.turma.serie ? ` (${doc.turma.serie})` : '';
-  return `${codigo}${doc.turma.nome}${serie}`;
+  const etapa = doc.turma.etapa_ensino ? ` do ${etapaEnsinoLabel(doc.turma.etapa_ensino)}` : '';
+  return `${doc.turma.nome}${etapa}`;
 }
 
+const SITUACAO_MATRICULA: Record<string, string> = {
+  ativo: 'ativa',
+  pre_matricula: 'em pré-matrícula',
+  trancado: 'trancada',
+  transferido: 'transferida',
+  inativo: 'inativa',
+};
+
+function situacaoTexto(situacao: string): string {
+  return SITUACAO_MATRICULA[situacao] ?? situacao.replace(/_/g, ' ');
+}
+
+const PERIODOS: Record<string, string> = {
+  '1_bimestre': '1º bimestre',
+  '2_bimestre': '2º bimestre',
+  '3_bimestre': '3º bimestre',
+  '4_bimestre': '4º bimestre',
+  '1_trimestre': '1º trimestre',
+  '2_trimestre': '2º trimestre',
+  '3_trimestre': '3º trimestre',
+  recuperacao: 'Recuperação',
+};
+
 function periodoAmigavel(periodo: string): string {
-  return periodo.replace(/_/g, ' ');
+  return PERIODOS[periodo] ?? periodo.replace(/_/g, ' ');
 }
 
 export function DocumentoImpressao({ documento, onClose }: DocumentoImpressaoProps) {
@@ -101,7 +125,7 @@ export function DocumentoImpressao({ documento, onClose }: DocumentoImpressaoPro
         Declaramos, para os devidos fins, que <strong>{documento.aluno.nome}</strong>, nascido(a) em {nasc},
         portador(a) do CPF {cpfOuBranco(documento.aluno.cpf)}, está regularmente matriculado(a) no{' '}
         <strong>{turmaTexto(documento)}</strong> desta instituição de ensino, no ano letivo de {anoLetivo},
-        encontrando-se com situação de matrícula: <strong>{documento.situacao_matricula}</strong>.
+        com matrícula <strong>{situacaoTexto(documento.situacao_matricula)}</strong>.
       </p>
     );
   } else if (documento.tipo === 'declaracao_frequencia') {
