@@ -25,12 +25,14 @@ O processo avaliativo opera pelo lançamento de notas por período letivo e falt
 
 ## 1. Diário de Classe Digital PWA (Offline-First)
 - **Modo Offline**: Permitir lançamento de faltas e conteúdo ministrado no PWA sem conexão via Dexie.js e IndexedDB local (`sync_events` com status `pending_sync`). A fila sincroniza automaticamente ao reconectar.
-- **Sincronização Assíncrona**: Envio do lote com remoção por UUID após confirmação do servidor. Escrita canônica: `POST /api/v1/academico/diario/sync` (upsert por `tenant_id + turma_id + data_aula`).
+- **Sincronização Assíncrona**: Envio do lote com remoção por UUID após confirmação do servidor. Escrita canônica: `POST /api/v1/academico/diario/sync` (upsert por `tenant_id + turma_id + data_aula + disciplina_id`).
   - Request Body:
   ```json
   {
     "turma_id": "UUID",
     "data_aula": "YYYY-MM-DD",
+    "disciplina_id": "UUID (opcional — diário da aula; sem ele, diário do dia inteiro)",
+    "horario_id": "UUID (opcional — referência do horário da grade)",
     "conteudo_ministrado": "String",
     "observacao": "String (até 4000 caracteres)",
     "presencas": [
@@ -38,8 +40,10 @@ O processo avaliativo opera pelo lançamento de notas por período letivo e falt
     ]
   }
   ```
-- **Consulta do dia**: `GET /api/v1/academico/diario?turma_id=&data_aula=` devolve `{ encontrado: bool, conteudo_ministrado, observacao, presencas }`.
-- **Histórico da turma**: `GET /api/v1/academico/diario/recentes?turma_id=&limit=` lista os últimos diários salvos da turma.
+  - **Chave do upsert**: com `disciplina_id`, a chave é `turma + data + disciplina` — cada professor grava a chamada da própria disciplina sem sobrescrever a dos colegas. Sem `disciplina_id`, a chave é `turma + data` com `disciplina_id IS NULL` (diário do dia inteiro, usado pela Educação Infantil e Fundamental I).
+  - **Regra de atribuição**: professor só grava diário com `disciplina_id` se tiver atribuição em `turma_professores` para aquela turma+disciplina; gestor e admin estão livres.
+- **Consulta do dia**: `GET /api/v1/academico/diario?turma_id=&data_aula=&disciplina_id=` devolve `{ encontrado: bool, conteudo_ministrado, observacao, presencas, disciplina_id, disciplina_nome, hora_inicio, hora_fim }`. `disciplina_id` é opcional; sem ela, busca o diário do dia inteiro.
+- **Histórico da turma**: `GET /api/v1/academico/diario/recentes?turma_id=&disciplina_id=&limit=` lista os últimos diários da turma, com `disciplina_id`/`disciplina_nome` em cada item. Com `disciplina_id`, filtra apenas os diários daquela disciplina.
 - **Diferenciação por Etapa**: Turmas da Educação Infantil abrem a visão integrada com rotina infantil; turmas do Fundamental/Médio abrem a pauta de frequência e conteúdo.
 - **Roster canônico**: a lista de alunos do Diário vem de `GET /secretaria/turmas/:turma_id/alunos` (vínculo ativo + aluno `ativo`) — **não** há entidade paralela. O Pedagógico usa o mesmo endpoint para exibir alunos enturmados; cadastro, ciclo de vida e prontuário ficam na Secretaria.
 - **Celular / professor**: o Diário pode ser aberto diretamente a partir da tela "Meu dia" (`route=academico&turma=<id>&data=<YYYY-MM-DD>`). A lista de turmas do professor no Diário vem de `GET /api/v1/professor/minhas-turmas`; gestores/administradores continuam usando `GET /api/v1/secretaria/turmas`.
@@ -52,6 +56,7 @@ O processo avaliativo opera pelo lançamento de notas por período letivo e falt
 - **Boletim Consolidado Multi-Período (`GET /api/v1/academico/boletim/:aluno_id`)**:
   - Consolida notas dos bimestres/trimestres por disciplina, calcula média aritmética/ponderada e apura a frequência presencial consolidada (LDB 75%).
   - **Situação (`status_aprovacao`)**: o resultado final (`Aprovado` com média ≥ 7 e frequência ≥ 75%, `Em Recuperação` com média ≥ 5, senão `Reprovado`) só é calculado quando todas as disciplinas têm os quatro bimestres lançados. Antes disso a API devolve `Em andamento` ou `Em andamento (precisa de atenção)` (abaixo da média ou da frequência), e `Sem notas lançadas` quando não há nota. O portal da família mostra os quatro bimestres e, por disciplina, "Na média" / "Abaixo da média".
+  - **Frequência por disciplina**: `frequencia_pct` de cada disciplina usa as presenças dos diários lançados com `disciplina_id` daquela disciplina; disciplinas sem diário próprio (ex: Fundamental I, que usa o diário do dia inteiro) mantêm a frequência geral.
   - Retorna status de aproveitamento ("Aprovado", "Em Recuperação", "Reprovado").
   - Guarda de propriedade estrita: aluno ou responsável só acessam seus próprios registros (`check_aluno_ownership`).
   - Response 200 OK:
@@ -106,13 +111,18 @@ O processo avaliativo opera pelo lançamento de notas por período letivo e falt
     - Data opcional; padrão = hoje no fuso `America/Sao_Paulo`.
     - Aulas da grade (`horarios_turma`) no dia da semana correspondente (1=segunda … 6=sábado; domingo retorna lista vazia).
     - Professor logado vê apenas suas aulas; gestor/admin podem filtrar por `professor_id` opcional; sem o parâmetro, veem todas as aulas do dia.
+    - `chamada_registrada` considera a disciplina da aula: existe chamada se houver diário com aquele `disciplina_id` na turma e data, ou diário do dia (sem disciplina) — assim a aula de Matemática não é marcada como feita pela chamada de Português.
     - Response 200 OK: `[{ horario_id, turma_id, turma_nome, disciplina_id, disciplina_nome, sala_nome, hora_inicio, hora_fim, chamada_registrada }]`, ordenado por `hora_inicio`.
 
 - **UI do Professor (`ProfessorSection.tsx`)**:
   - Orquestra as abas "Aulas de hoje" e "Lançar notas".
-  - "Aulas de hoje" consome `GET /api/v1/professor/aulas?data=` e mostra cartões por aula com horário, turma, disciplina, sala e selo de chamada feita/pendente.
-  - "Minhas turmas" consome `GET /api/v1/professor/minhas-turmas` e oferece atalhos para chamada e notas.
+  - "Aulas de hoje" consome `GET /api/v1/professor/aulas?data=` e mostra cartões por aula com horário, turma, disciplina, sala e selo de chamada feita/pendente. O botão "Fazer chamada" abre o Diário com `route=academico&turma=&data=&disciplina=&horario=`, levando a aula (disciplina e horário da grade).
+  - "Minhas turmas" consome `GET /api/v1/professor/minhas-turmas` e oferece atalhos para chamada (diário do dia inteiro) e notas.
   - "Lançar notas" consome `GET /api/v1/academico/notas` e envia alterações via `POST /api/v1/academico/notas/lote`; valida notas entre 0 e 10, aceita vírgula como separador decimal e pede confirmação ao trocar turma/disciplina/período com alterações não salvas.
+- **Diário por aula/disciplina (`ChamadaPanel.tsx`)**:
+  - Com `disciplina_id` na URL, o cabeçalho mostra "Turma · Disciplina · horário" e o painel grava/carrega o diário daquela disciplina (inclusive na fila offline, que já salva o payload inteiro).
+  - Sem disciplina na URL, o comportamento é o de sempre: diário do dia inteiro da turma. A troca manual de turma no Diário sai do contexto da aula.
+  - Turmas de Educação Infantil não mudam: seguem no diário do dia integrado com rotina infantil.
 
 - **Simulados TRI (parcial)**:
   - `POST/GET /api/v1/academico/simulados`: cria/lista simulados com itens e parâmetros a/b/c manuais.
@@ -166,5 +176,5 @@ Organização após o refactor B12 (só moveu código, sem mudança de regra):
 - O cálculo de "hoje" para `/api/v1/professor/aulas` usa UTC-3 fixo (`America/Sao_Paulo` sem biblioteca de timezone), o que pode divergir em 1h durante o horário de verão brasileiro.
 - A tabela `notas` é indexada pelo **nome** da disciplina (campo `disciplina_nome`), não pelo `disciplina_id`; renomear uma disciplina após lançamentos pode desvincular histórico. Ajustar a chave para `disciplina_id` é melhoria futura.
 - O lançamento em lote não valida se a disciplina faz parte da matriz da turma; apenas exige atribuição docente (para professores) ou permissão de gestão.
-- O Diário é armazenado por **turma e dia** (`tenant_id + turma_id + data_aula`), não por aula/disciplina. Em turmas com vários professores lecionando no mesmo dia, a última chamada salva prevalece sobre as anteriores.
+- O diário sem `disciplina_id` continua sendo por **turma e dia** (`disciplina_id IS NULL`): é o registro do dia inteiro usado pela Educação Infantil e Fundamental I, e nele a última chamada salva prevalece sobre as anteriores.
 - **Avaliações no calendário**: a disciplina da prova/trabalho mora em `eventos_calendario.disciplina_id`. Eventos criados antes dessa coluna (ou pela gestão, que não a preenche) ficam com disciplina nula e a família vê a avaliação sem o nome da disciplina. Marcar uma avaliação não avisa ninguém automaticamente: não há push, e-mail ou WhatsApp disparados, apenas a listagem no portal. Regras e contrato completos em `openspec/modules/agenda_calendario.md`.

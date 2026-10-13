@@ -29,7 +29,7 @@ interface AulasHojePanelProps {
   loadingTurmas: boolean;
   erroTurmas: string | null;
   onTentarTurmas: () => void;
-  onIrParaChamada: (turmaId: string, data: string) => void;
+  onIrParaChamada: (turmaId: string, data: string, disciplinaId?: string, horarioId?: string) => void;
 }
 
 export function AulasHojePanel({
@@ -170,7 +170,9 @@ export function AulasHojePanel({
               </div>
               <button
                 type="button"
-                onClick={() => onIrParaChamada(aula.turma_id, dataAula)}
+                onClick={() =>
+                  onIrParaChamada(aula.turma_id, dataAula, aula.disciplina_id, aula.horario_id)
+                }
                 className="w-full sm:w-auto bg-salvia-700 hover:bg-salvia-800 text-white dark:bg-salvia-600 dark:hover:bg-salvia-500 px-4 py-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-2 transition-all"
               >
                 <CalendarCheck className="w-4 h-4" />

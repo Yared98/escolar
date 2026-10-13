@@ -18,6 +18,8 @@ interface ChamadaPanelProps {
   turmaId: string;
   turmaNome: string;
   dataAula: string;
+  disciplinaId?: string;
+  horarioId?: string;
   onDataAulaChange: (value: string) => void;
   alunos: AlunoChamada[];
   setAlunos: React.Dispatch<React.SetStateAction<AlunoChamada[]>>;
@@ -36,6 +38,8 @@ export function ChamadaPanel({
   turmaId,
   turmaNome,
   dataAula,
+  disciplinaId,
+  horarioId,
   onDataAulaChange,
   alunos,
   setAlunos,
@@ -54,6 +58,7 @@ export function ChamadaPanel({
   const [carregandoDia, setCarregandoDia] = useState(false);
   const [saving, setSaving] = useState(false);
   const [erroConteudo, setErroConteudo] = useState<string | null>(null);
+  const [diaCarregado, setDiaCarregado] = useState<DiarioDiaResponse | null>(null);
 
   const setStatusPresenca = (alunoId: string, status: StatusPresenca) => {
     setAlunos((prev) => prev.map((a) => (a.id === alunoId ? { ...a, status } : a)));
@@ -69,14 +74,17 @@ export function ChamadaPanel({
       return;
     }
     try {
+      const disciplinaQuery = disciplinaId
+        ? `&disciplina_id=${encodeURIComponent(disciplinaId)}`
+        : '';
       const data = await apiFetch<DiarioRecenteItem[]>(
-        `/academico/diario/recentes?turma_id=${encodeURIComponent(turmaId)}&limit=10`
+        `/academico/diario/recentes?turma_id=${encodeURIComponent(turmaId)}${disciplinaQuery}&limit=10`
       );
       setHistorico(data || []);
     } catch {
       setHistorico([]);
     }
-  }, [turmaId, isOnline]);
+  }, [turmaId, disciplinaId, isOnline]);
 
   useEffect(() => {
     carregarHistorico();
@@ -90,14 +98,19 @@ export function ChamadaPanel({
       if (!isOnline) {
         setConteudo('');
         setObservacao('');
+        setDiaCarregado(null);
         return;
       }
       setCarregandoDia(true);
       try {
+        const disciplinaQuery = disciplinaId
+          ? `&disciplina_id=${encodeURIComponent(disciplinaId)}`
+          : '';
         const dia = await apiFetch<DiarioDiaResponse>(
-          `/academico/diario?turma_id=${encodeURIComponent(turmaId)}&data_aula=${encodeURIComponent(dataAula)}`
+          `/academico/diario?turma_id=${encodeURIComponent(turmaId)}&data_aula=${encodeURIComponent(dataAula)}${disciplinaQuery}`
         );
         if (!ativo) return;
+        setDiaCarregado(dia);
         if (dia.encontrado) {
           const texto = dia.conteudo_ministrado || '';
           setConteudo(infantil && texto === CONTEUDO_PADRAO_INFANTIL ? '' : texto);
@@ -125,6 +138,7 @@ export function ChamadaPanel({
         if (!ativo) return;
         setConteudo('');
         setObservacao('');
+        setDiaCarregado(null);
       } finally {
         if (ativo) setCarregandoDia(false);
       }
@@ -134,7 +148,7 @@ export function ChamadaPanel({
       ativo = false;
     };
     // alunosKey tracks the roster only, so status edits do not trigger a reload
-  }, [turmaId, dataAula, isOnline, alunosKey, setAlunos, infantil]);
+  }, [turmaId, disciplinaId, dataAula, isOnline, alunosKey, setAlunos, infantil]);
 
   const handleSalvar = async () => {
     if (!tenantId) {
@@ -159,6 +173,10 @@ export function ChamadaPanel({
         justificativa: a.status === 'justificada' ? a.justificativa || 'Falta justificada' : null,
       })),
     };
+    // Aula específica (Fundamental II/Médio): grava o diário da disciplina.
+    // O payload vai inteiro para a fila offline; sem disciplina, é o diário do dia inteiro.
+    if (disciplinaId) syncPayload.disciplina_id = disciplinaId;
+    if (horarioId) syncPayload.horario_id = horarioId;
 
     let eventUuid = '';
     try {
@@ -203,8 +221,30 @@ export function ChamadaPanel({
     setSaving(false);
   };
 
+  const horarioLabel =
+    disciplinaId && diaCarregado?.hora_inicio && diaCarregado?.hora_fim
+      ? `${diaCarregado.hora_inicio}–${diaCarregado.hora_fim}`
+      : null;
+
   return (
     <div className="space-y-6">
+      {disciplinaId && (
+        <div className="flex items-center space-x-2 text-xs flex-wrap gap-y-1">
+          <span className="font-bold text-slate-900 dark:text-salvia-50">{turmaNome || 'Turma'}</span>
+          <span className="text-salvia-400">·</span>
+          <span className="font-bold text-salvia-700 dark:text-salvia-300">
+            {diaCarregado?.disciplina_nome || 'Disciplina'}
+          </span>
+          {horarioLabel && (
+            <>
+              <span className="text-salvia-400">·</span>
+              <span className="font-mono font-bold text-salvia-700 dark:text-salvia-300">
+                {horarioLabel}
+              </span>
+            </>
+          )}
+        </div>
+      )}
       <div className="p-4 bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 rounded-2xl grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
           <div>
           <label className="block text-salvia-700 dark:text-salvia-300 font-bold mb-1">Resumo:</label>
@@ -399,7 +439,10 @@ export function ChamadaPanel({
                 className="w-full text-left p-3 bg-salvia-50/40 dark:bg-salvia-950/30 flex justify-between items-center hover:bg-salvia-100/60 dark:hover:bg-salvia-900/40 transition-colors"
               >
                 <div className="space-y-0.5">
-                  <span className="font-bold text-slate-900 dark:text-salvia-50">{turmaNome}</span>
+                  <span className="font-bold text-slate-900 dark:text-salvia-50">
+                    {turmaNome}
+                    {h.disciplina_nome ? ` · ${h.disciplina_nome}` : ''}
+                  </span>
                   <div className="text-[11px] text-salvia-600 dark:text-salvia-400 flex flex-wrap items-center gap-x-2 font-mono">
                     <span>Data: {h.data_aula}</span>
                     <span>•</span>

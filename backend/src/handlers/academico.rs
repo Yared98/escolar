@@ -2,6 +2,7 @@ use axum::{
     extract::{Path, Query, State},
     Extension, Json,
 };
+use chrono::{DateTime, NaiveDate, Utc};
 use serde_json::{json, Value};
 use sqlx::Acquire;
 use uuid::Uuid;
@@ -10,6 +11,7 @@ use crate::{
     config::AppState,
     db::TenantDb,
     error::AppError,
+    handlers::professor::{carregar_atribuicoes_professor, professor_pode_lancar},
     middleware::{
         auth::AuthUser,
         rbac::{check_aluno_ownership, check_roles, log_audit},
@@ -142,24 +144,60 @@ pub async fn sincronizar_diario_pwa(
         ));
     }
 
+    // Professor só grava por disciplina se tiver atribuição; gestor/admin estão livres.
+    if let Some(disciplina_id) = dto.disciplina_id {
+        let role_norm = auth_user.role.to_lowercase().replace('_', "");
+        if role_norm == "professor" {
+            let atribuicoes = carregar_atribuicoes_professor(&mut db, professor_id).await?;
+            if !professor_pode_lancar(
+                &auth_user.role,
+                professor_id,
+                dto.turma_id,
+                disciplina_id,
+                &atribuicoes,
+            ) {
+                return Err(AppError::Forbidden(
+                    "Você não está atribuído a esta turma e disciplina.".to_string(),
+                ));
+            }
+        }
+    }
+
     let mut tx = (&mut *db).begin().await?;
 
-    let diario_existente: Option<DiarioClasse> = sqlx::query_as(
-        "SELECT * FROM diarios_classe WHERE tenant_id = $1 AND turma_id = $2 AND data_aula = $3",
-    )
-    .bind(tenant_id)
-    .bind(dto.turma_id)
-    .bind(dto.data_aula)
-    .fetch_optional(&mut *tx)
-    .await?;
+    let diario_existente: Option<DiarioClasse> = match dto.disciplina_id {
+        Some(disciplina_id) => {
+            sqlx::query_as(
+                "SELECT * FROM diarios_classe WHERE tenant_id = $1 AND turma_id = $2 AND data_aula = $3 AND disciplina_id = $4",
+            )
+            .bind(tenant_id)
+            .bind(dto.turma_id)
+            .bind(dto.data_aula)
+            .bind(disciplina_id)
+            .fetch_optional(&mut *tx)
+            .await?
+        }
+        None => {
+            sqlx::query_as(
+                "SELECT * FROM diarios_classe WHERE tenant_id = $1 AND turma_id = $2 AND data_aula = $3 AND disciplina_id IS NULL",
+            )
+            .bind(tenant_id)
+            .bind(dto.turma_id)
+            .bind(dto.data_aula)
+            .fetch_optional(&mut *tx)
+            .await?
+        }
+    };
 
     let diario = match diario_existente {
         Some(d) => {
             sqlx::query(
-                "UPDATE diarios_classe SET conteudo_ministrado = $1, observacao = $2 WHERE id = $3 AND tenant_id = $4",
+                "UPDATE diarios_classe SET conteudo_ministrado = $1, observacao = $2, disciplina_id = $3, horario_id = $4 WHERE id = $5 AND tenant_id = $6",
             )
             .bind(&dto.conteudo_ministrado)
             .bind(&observacao)
+            .bind(dto.disciplina_id)
+            .bind(dto.horario_id)
             .bind(d.id)
             .bind(tenant_id)
             .execute(&mut *tx)
@@ -169,14 +207,16 @@ pub async fn sincronizar_diario_pwa(
         None => {
             sqlx::query_as::<_, DiarioClasse>(
                 r#"
-                INSERT INTO diarios_classe (tenant_id, turma_id, professor_id, data_aula, conteudo_ministrado, observacao)
-                VALUES ($1, $2, $3, $4, $5, $6)
+                INSERT INTO diarios_classe (tenant_id, turma_id, professor_id, disciplina_id, horario_id, data_aula, conteudo_ministrado, observacao)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 RETURNING *
                 "#,
             )
             .bind(tenant_id)
             .bind(dto.turma_id)
             .bind(professor_id)
+            .bind(dto.disciplina_id)
+            .bind(dto.horario_id)
             .bind(dto.data_aula)
             .bind(&dto.conteudo_ministrado)
             .bind(&observacao)
@@ -236,6 +276,8 @@ pub async fn sincronizar_diario_pwa(
         Some(json!({
             "turma_id": dto.turma_id,
             "data_aula": dto.data_aula,
+            "disciplina_id": dto.disciplina_id,
+            "horario_id": dto.horario_id,
             "total_presencas": total_presencas_salvas
         })),
     )
@@ -257,14 +299,58 @@ pub async fn consultar_diario_dia(
     check_roles(&auth_user, &["admin", "gestor", "professor"])?;
     let tenant_id = active_tenant.0;
 
-    let diario = sqlx::query_as::<_, DiarioClasse>(
-        "SELECT * FROM diarios_classe WHERE tenant_id = $1 AND turma_id = $2 AND data_aula = $3",
-    )
-    .bind(tenant_id)
-    .bind(query.turma_id)
-    .bind(query.data_aula)
-    .fetch_optional(&mut *db)
-    .await?;
+    type DiarioComHorario = (
+        Uuid,           // d.id
+        Uuid,           // d.tenant_id
+        Uuid,           // d.turma_id
+        Uuid,           // d.professor_id
+        Option<Uuid>,   // d.disciplina_id
+        Option<Uuid>,   // d.horario_id
+        NaiveDate,      // d.data_aula
+        String,         // d.conteudo_ministrado
+        String,         // d.observacao
+        DateTime<Utc>,  // d.created_at
+        Option<String>, // h.hora_inicio
+        Option<String>, // h.hora_fim
+    );
+
+    let diario = match query.disciplina_id {
+        Some(disciplina_id) => {
+            sqlx::query_as::<_, DiarioComHorario>(
+                r#"
+                SELECT d.id, d.tenant_id, d.turma_id, d.professor_id, d.disciplina_id, d.horario_id,
+                       d.data_aula, d.conteudo_ministrado, d.observacao, d.created_at,
+                       h.hora_inicio, h.hora_fim
+                FROM diarios_classe d
+                LEFT JOIN horarios_turma h ON h.id = d.horario_id AND h.tenant_id = d.tenant_id
+                WHERE d.tenant_id = $1 AND d.turma_id = $2 AND d.data_aula = $3 AND d.disciplina_id = $4
+                "#,
+            )
+            .bind(tenant_id)
+            .bind(query.turma_id)
+            .bind(query.data_aula)
+            .bind(disciplina_id)
+            .fetch_optional(&mut *db)
+            .await?
+        }
+        None => {
+            sqlx::query_as::<_, DiarioComHorario>(
+                r#"
+                SELECT d.id, d.tenant_id, d.turma_id, d.professor_id, d.disciplina_id, d.horario_id,
+                       d.data_aula, d.conteudo_ministrado, d.observacao, d.created_at,
+                       h.hora_inicio, h.hora_fim
+                FROM diarios_classe d
+                LEFT JOIN horarios_turma h ON h.id = d.horario_id AND h.tenant_id = d.tenant_id
+                WHERE d.tenant_id = $1 AND d.turma_id = $2 AND d.data_aula = $3 AND d.disciplina_id IS NULL
+                "#,
+            )
+            .bind(tenant_id)
+            .bind(query.turma_id)
+            .bind(query.data_aula)
+            .fetch_optional(&mut *db)
+            .await?
+        }
+    };
 
     match diario {
         Some(d) => {
@@ -277,17 +363,35 @@ pub async fn consultar_diario_dia(
                 "#,
             )
             .bind(tenant_id)
-            .bind(d.id)
+            .bind(d.0)
             .fetch_all(&mut *db)
             .await?;
 
+            let disciplina_nome = match d.4 {
+                Some(did) => {
+                    sqlx::query_scalar::<_, String>(
+                        "SELECT nome FROM disciplinas WHERE id = $1 AND tenant_id = $2",
+                    )
+                    .bind(did)
+                    .bind(tenant_id)
+                    .fetch_optional(&mut *db)
+                    .await?
+                }
+                None => None,
+            };
+
             Ok(Json(DiarioDiaResponse {
                 encontrado: true,
-                diario_id: Some(d.id),
-                turma_id: d.turma_id,
-                data_aula: d.data_aula,
-                conteudo_ministrado: d.conteudo_ministrado,
-                observacao: d.observacao,
+                diario_id: Some(d.0),
+                turma_id: d.2,
+                disciplina_id: d.4,
+                disciplina_nome,
+                horario_id: d.5,
+                hora_inicio: d.10,
+                hora_fim: d.11,
+                data_aula: d.6,
+                conteudo_ministrado: d.7,
+                observacao: d.8,
                 presencas,
             }))
         }
@@ -295,6 +399,11 @@ pub async fn consultar_diario_dia(
             encontrado: false,
             diario_id: None,
             turma_id: query.turma_id,
+            disciplina_id: query.disciplina_id,
+            disciplina_nome: None,
+            horario_id: None,
+            hora_inicio: None,
+            hora_fim: None,
             data_aula: query.data_aula,
             conteudo_ministrado: String::new(),
             observacao: String::new(),
@@ -313,28 +422,63 @@ pub async fn listar_diarios_recentes(
     let tenant_id = active_tenant.0;
     let limit = query.limit.unwrap_or(10).clamp(1, 50);
 
-    let itens = sqlx::query_as::<_, DiarioRecenteItem>(
-        r#"
-        SELECT
-            d.id AS diario_id,
-            d.data_aula,
-            d.conteudo_ministrado,
-            d.observacao,
-            COUNT(p.id)::BIGINT AS total_presencas,
-            COUNT(p.id) FILTER (WHERE p.presente = true)::BIGINT AS total_presentes
-        FROM diarios_classe d
-        LEFT JOIN presencas p ON p.diario_id = d.id AND p.tenant_id = d.tenant_id
-        WHERE d.tenant_id = $1 AND d.turma_id = $2
-        GROUP BY d.id, d.data_aula, d.conteudo_ministrado, d.observacao
-        ORDER BY d.data_aula DESC
-        LIMIT $3
-        "#,
-    )
-    .bind(tenant_id)
-    .bind(query.turma_id)
-    .bind(limit)
-    .fetch_all(&mut *db)
-    .await?;
+    let itens = match query.disciplina_id {
+        Some(disciplina_id) => {
+            sqlx::query_as::<_, DiarioRecenteItem>(
+                r#"
+                SELECT
+                    d.id AS diario_id,
+                    d.data_aula,
+                    d.disciplina_id,
+                    disc.nome AS disciplina_nome,
+                    d.conteudo_ministrado,
+                    d.observacao,
+                    COUNT(p.id)::BIGINT AS total_presencas,
+                    COUNT(p.id) FILTER (WHERE p.presente = true)::BIGINT AS total_presentes
+                FROM diarios_classe d
+                LEFT JOIN presencas p ON p.diario_id = d.id AND p.tenant_id = d.tenant_id
+                LEFT JOIN disciplinas disc ON disc.id = d.disciplina_id AND disc.tenant_id = d.tenant_id
+                WHERE d.tenant_id = $1 AND d.turma_id = $2 AND d.disciplina_id = $3
+                GROUP BY d.id, d.data_aula, d.disciplina_id, disc.nome, d.conteudo_ministrado, d.observacao
+                ORDER BY d.data_aula DESC
+                LIMIT $4
+                "#,
+            )
+            .bind(tenant_id)
+            .bind(query.turma_id)
+            .bind(disciplina_id)
+            .bind(limit)
+            .fetch_all(&mut *db)
+            .await?
+        }
+        None => {
+            sqlx::query_as::<_, DiarioRecenteItem>(
+                r#"
+                SELECT
+                    d.id AS diario_id,
+                    d.data_aula,
+                    d.disciplina_id,
+                    disc.nome AS disciplina_nome,
+                    d.conteudo_ministrado,
+                    d.observacao,
+                    COUNT(p.id)::BIGINT AS total_presencas,
+                    COUNT(p.id) FILTER (WHERE p.presente = true)::BIGINT AS total_presentes
+                FROM diarios_classe d
+                LEFT JOIN presencas p ON p.diario_id = d.id AND p.tenant_id = d.tenant_id
+                LEFT JOIN disciplinas disc ON disc.id = d.disciplina_id AND disc.tenant_id = d.tenant_id
+                WHERE d.tenant_id = $1 AND d.turma_id = $2
+                GROUP BY d.id, d.data_aula, d.disciplina_id, disc.nome, d.conteudo_ministrado, d.observacao
+                ORDER BY d.data_aula DESC
+                LIMIT $3
+                "#,
+            )
+            .bind(tenant_id)
+            .bind(query.turma_id)
+            .bind(limit)
+            .fetch_all(&mut *db)
+            .await?
+        }
+    };
 
     Ok(Json(itens))
 }
@@ -363,6 +507,30 @@ pub fn status_boletim(
         "Em Recuperação".to_string()
     } else {
         "Reprovado".to_string()
+    }
+}
+
+/// Calcula a frequência de uma disciplina a partir do mapa de presenças por disciplina.
+/// Se a disciplina não possuir diários próprios, retorna a frequência geral.
+pub fn calcular_frequencia_por_disciplina(
+    freq_geral: f64,
+    disciplina_nome: &str,
+    frequencias_por_disciplina: &std::collections::HashMap<String, (i64, i64)>,
+) -> f64 {
+    match frequencias_por_disciplina.get(disciplina_nome) {
+        Some((presentes, total)) if *total > 0 => {
+            ((*presentes as f64 / *total as f64) * 1000.0).round() / 10.0
+        }
+        _ => freq_geral,
+    }
+}
+
+/// Retorna a cláusula WHERE usada para localizar o diário no upsert.
+/// Com disciplina, a chave é turma + data + disciplina; sem disciplina, é turma + data.
+pub fn chave_upsert_diario_por_disciplina(disciplina_id: Option<Uuid>) -> &'static str {
+    match disciplina_id {
+        Some(_) => "tenant_id = $1 AND turma_id = $2 AND data_aula = $3 AND disciplina_id = $4",
+        None => "tenant_id = $1 AND turma_id = $2 AND data_aula = $3 AND disciplina_id IS NULL",
     }
 }
 
@@ -417,6 +585,26 @@ pub async fn consultar_boletim(
         _ => 100.0,
     };
 
+    // Frequência por disciplina: considera apenas diários vinculados a uma disciplina.
+    let frequencias_por_disciplina: std::collections::HashMap<String, (i64, i64)> =
+        sqlx::query_as::<_, (Option<String>, i64, i64)>(
+            r#"
+        SELECT disc.nome AS disciplina_nome, COUNT(*) FILTER (WHERE p.presente = true), COUNT(*)
+        FROM presencas p
+        JOIN diarios_classe d ON d.id = p.diario_id AND d.tenant_id = p.tenant_id
+        LEFT JOIN disciplinas disc ON disc.id = d.disciplina_id AND disc.tenant_id = d.tenant_id
+        WHERE p.tenant_id = $1 AND p.aluno_id = $2 AND d.disciplina_id IS NOT NULL
+        GROUP BY disc.nome
+        "#,
+        )
+        .bind(tenant_id)
+        .bind(aluno_id)
+        .fetch_all(&mut *db)
+        .await?
+        .into_iter()
+        .filter_map(|(nome, presentes, total)| nome.map(|n| (n, (presentes, total))))
+        .collect();
+
     type BimestresNotas = (Option<f64>, Option<f64>, Option<f64>, Option<f64>);
     let mut disciplinas_map: std::collections::BTreeMap<String, BimestresNotas> =
         std::collections::BTreeMap::new();
@@ -470,6 +658,8 @@ pub async fn consultar_boletim(
             0.0
         };
         soma_medias += media;
+        let frequencia_pct =
+            calcular_frequencia_por_disciplina(freq_geral, &nome, &frequencias_por_disciplina);
         disciplinas.push(BoletimDisciplinaDto {
             nome,
             nota_1_bim: n1,
@@ -477,7 +667,7 @@ pub async fn consultar_boletim(
             nota_3_bim: n3,
             nota_4_bim: n4,
             media,
-            frequencia_pct: (freq_geral * 10.0).round() / 10.0,
+            frequencia_pct,
         });
     }
 
@@ -1971,6 +2161,45 @@ mod tests {
 
         // Sem choque: 09:10 - 10:00 vs 07:30 - 08:20
         assert!(!(h1_ini.max("09:10") < h1_fim.min("10:00")));
+    }
+
+    #[test]
+    fn test_calcular_frequencia_por_disciplina() {
+        let mut map = std::collections::HashMap::new();
+        map.insert("Matemática".to_string(), (18, 20));
+        map.insert("História".to_string(), (5, 10));
+
+        // Disciplina com diários próprios usa sua frequência.
+        assert_eq!(
+            calcular_frequencia_por_disciplina(95.0, "Matemática", &map),
+            90.0
+        );
+        assert_eq!(
+            calcular_frequencia_por_disciplina(95.0, "História", &map),
+            50.0
+        );
+
+        // Disciplina sem diários próprios herda a frequência geral.
+        assert_eq!(
+            calcular_frequencia_por_disciplina(95.0, "Geografia", &map),
+            95.0
+        );
+    }
+
+    #[test]
+    fn test_chave_upsert_diario_por_disciplina() {
+        use uuid::Uuid;
+
+        let com_disciplina = Some(Uuid::nil());
+        let sem_disciplina: Option<Uuid> = None;
+
+        // Com disciplina, a chave do upsert inclui disciplina_id.
+        assert!(chave_upsert_diario_por_disciplina(com_disciplina).contains("disciplina_id = $4"));
+
+        // Sem disciplina, a chave exige disciplina_id IS NULL (diário do dia inteiro).
+        assert!(
+            chave_upsert_diario_por_disciplina(sem_disciplina).contains("disciplina_id IS NULL")
+        );
     }
 }
 

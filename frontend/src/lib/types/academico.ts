@@ -28,6 +28,8 @@ export interface SyncPresencaItem {
 export interface SyncDiarioPayload {
   turma_id: string;
   data_aula: string;
+  disciplina_id?: string;
+  horario_id?: string;
   conteudo_ministrado: string;
   observacao?: string;
   presencas: SyncPresencaItem[];
@@ -37,6 +39,11 @@ export interface DiarioDiaResponse {
   encontrado: boolean;
   diario_id: string | null;
   turma_id: string;
+  disciplina_id?: string | null;
+  disciplina_nome?: string | null;
+  horario_id?: string | null;
+  hora_inicio?: string | null;
+  hora_fim?: string | null;
   data_aula: string;
   conteudo_ministrado: string;
   observacao: string;
@@ -46,6 +53,8 @@ export interface DiarioDiaResponse {
 export interface DiarioRecenteItem {
   diario_id: string;
   data_aula: string;
+  disciplina_id?: string | null;
+  disciplina_nome?: string | null;
   conteudo_ministrado: string;
   observacao: string;
   total_presencas: number;
