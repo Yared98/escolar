@@ -1008,7 +1008,7 @@ export function ContratosPanel({ alunos, onNavigateToFinanceiro }: ContratosPane
                     }}
                     className="text-xs font-bold text-salvia-700 dark:text-salvia-400 hover:underline flex items-center gap-1"
                   >
-                    <span>Abrir faturas no Dashboard Financeiro</span>
+                    <span>Abrir faturas no Financeiro</span>
                     <ExternalLink className="w-3.5 h-3.5" />
                   </button>
                 </div>

@@ -27,8 +27,8 @@ describe('PainelEvasao - conformidade AGENTS.md (sem dados dummy em erro)', () =
     expect(screen.queryByText(/ID:/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Frequência/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Média Geral/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Faturas Atr\./i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Nenhum alerta crítico!/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('Mensalidades atrasadas')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Nenhum aluno em risco no momento/i)).not.toBeInTheDocument();
   });
 
   it('renderiza os dados reais retornados pela API quando há sucesso', async () => {
@@ -58,5 +58,8 @@ describe('PainelEvasao - conformidade AGENTS.md (sem dados dummy em erro)', () =
     expect(screen.getByText('62%')).toBeInTheDocument();
     expect(screen.getByText('5.2')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.getByText('Mensalidades atrasadas')).toBeInTheDocument();
+    // Nível no masculino, concordando com "risco"
+    expect(screen.getByText('Risco alto')).toBeInTheDocument();
   });
 });

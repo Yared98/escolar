@@ -253,7 +253,7 @@ export function AdministrativoSection() {
       {subTab === 'entidades' && (
         <div className="space-y-3">
           <div className="flex justify-between items-center">
-            <h3 className="text-xs font-bold text-salvia-800 dark:text-salvia-200 uppercase tracking-wider">Gestão Unificada de Funcionários e Professores</h3>
+            <h3 className="text-xs font-bold text-salvia-800 dark:text-salvia-200 uppercase tracking-wider">Funcionários e professores</h3>
             <button className="bg-salvia-700 dark:bg-salvia-500 hover:bg-salvia-800 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1">
               <Plus className="w-3.5 h-3.5" />
               <span>Admitir Funcionário / Docente</span>
@@ -269,7 +269,7 @@ export function AdministrativoSection() {
                   <th className="p-3">Cargo / Função</th>
                   <th className="p-3">Departamento</th>
                   <th className="p-3">Admissão</th>
-                  <th className="p-3">Status RH</th>
+                  <th className="p-3">Situação</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-salvia-100 dark:divide-salvia-800/60 text-slate-800 dark:text-salvia-200 font-medium">

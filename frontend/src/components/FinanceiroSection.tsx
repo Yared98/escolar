@@ -545,10 +545,10 @@ export function FinanceiroSection() {
         <div>
           <h2 className="text-lg font-bold text-slate-900 dark:text-salvia-50 flex items-center space-x-2">
             <DollarSign className="w-5 h-5 text-salvia-600 dark:text-salvia-400" />
-            <span>Dashboard Financeiro & Tesouraria Escolar</span>
+            <span>Financeiro</span>
           </h2>
           <p className="text-xs text-salvia-600 dark:text-salvia-400 mt-0.5">
-            Faturamento, Gestão de Inadimplência, Régua de Cobrança Omnicanal e DRE/DFC.
+            Mensalidades, inadimplência, cobrança e relatórios da escola.
           </p>
         </div>
 
@@ -615,7 +615,7 @@ export function FinanceiroSection() {
 
         <div className="bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 p-4 rounded-xl">
           <div className="flex items-center justify-between text-salvia-600 dark:text-salvia-400 text-xs mb-1 font-medium">
-            <span>Despesas Totais (AP)</span>
+            <span>Despesas do período</span>
             <ArrowUpRight className="w-4 h-4 text-rose-600 dark:text-rose-400" />
           </div>
           <p className="text-xl font-bold text-rose-700 dark:text-rose-400 font-mono">

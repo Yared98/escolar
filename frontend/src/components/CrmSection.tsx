@@ -171,7 +171,7 @@ export function CrmSection() {
       {relatorio && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           <div className="bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 p-4 rounded-xl">
-            <p className="text-salvia-600 dark:text-salvia-400 text-xs font-medium">Leads ativos</p>
+            <p className="text-salvia-600 dark:text-salvia-400 text-xs font-medium">Interessados ativos</p>
             <p className="text-xl font-bold text-slate-900 dark:text-salvia-50 mt-1 font-mono">{relatorio.total_leads}</p>
           </div>
           <div className="bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 p-4 rounded-xl">

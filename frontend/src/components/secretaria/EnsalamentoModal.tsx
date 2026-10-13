@@ -60,7 +60,7 @@ export function EnsalamentoModal({
       <div className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-xl">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
           <div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Ensalamento de Aluno</h3>
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Colocar aluno em uma turma</h3>
             <p className="text-xs text-salvia-700 dark:text-salvia-400 font-semibold">{turma.nome}</p>
           </div>
           <button

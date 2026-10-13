@@ -933,7 +933,7 @@ export function SecretariaSection() {
           }`}
         >
           <BookOpen className="w-4 h-4" />
-          <span>Turmas & Ensalamento</span>
+          <span>Turmas</span>
         </button>
         <button
           type="button"

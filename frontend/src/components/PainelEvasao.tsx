@@ -64,6 +64,13 @@ export function PainelEvasao() {
     return <BookX className="w-5 h-5 text-gray-500" />;
   };
 
+  // O backend devolve o nível em maiúsculas e no feminino (ex.: ALTA); na tela: "Risco alto".
+  const nivelRiscoTexto = (nivel: string) => {
+    const mapa: Record<string, string> = { alta: "alto", moderada: "moderado", baixa: "baixo", critica: "crítico", "crítica": "crítico" };
+    const chave = (nivel || "").toLowerCase();
+    return mapa[chave] ?? chave;
+  };
+
   const formatFator = (fator: string) => {
     const formatado = fator.replace('_', ' ');
     return formatado.charAt(0).toUpperCase() + formatado.slice(1);
@@ -77,8 +84,8 @@ export function PainelEvasao() {
             <Brain className="w-6 h-6 text-indigo-700" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">IA Preditiva Anti-Evasão</h2>
-            <p className="text-gray-500 text-sm">Monitoramento proativo (Early Warning System) para evitar a perda de alunos</p>
+            <h2 className="text-2xl font-bold text-gray-900">Risco de evasão</h2>
+            <p className="text-gray-500 text-sm">Alunos com sinais de risco (faltas, notas baixas, mensalidades atrasadas) para a escola agir cedo.</p>
           </div>
         </div>
       </div>
@@ -98,8 +105,8 @@ export function PainelEvasao() {
           {erro ? null : alertas.length === 0 ? (
             <div className="col-span-full bg-emerald-50 border border-emerald-100 p-8 rounded-2xl text-center flex flex-col items-center">
               <CheckCircle2 className="w-12 h-12 text-emerald-500 mb-3" />
-              <h3 className="text-lg font-bold text-emerald-900">Nenhum alerta crítico!</h3>
-              <p className="text-emerald-700 text-sm mt-1">A IA não detectou alunos com alto risco de evasão no momento.</p>
+              <h3 className="text-lg font-bold text-emerald-900">Nenhum aluno em risco no momento</h3>
+              <p className="text-emerald-700 text-sm mt-1">Nenhum aluno apresenta faltas, notas ou atrasos que indiquem risco de evasão.</p>
             </div>
           ) : (
             alertas.map((alerta) => (
@@ -117,7 +124,7 @@ export function PainelEvasao() {
                         <p className="text-[10px] text-gray-500 mb-0.5">{alerta.turma_nome}</p>
                       )}
                       <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${getUrgencyColor(alerta.nivel_urgencia)}`}>
-                        Risco {alerta.nivel_urgencia}
+                        Risco {nivelRiscoTexto(alerta.nivel_urgencia)}
                       </span>
                     </div>
                   </div>
@@ -140,7 +147,7 @@ export function PainelEvasao() {
                   <div className="flex items-start gap-2">
                     <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
                     <div>
-                      <h5 className="text-xs font-bold text-gray-900 mb-1">Ação Recomendada (IA)</h5>
+                      <h5 className="text-xs font-bold text-gray-900 mb-1">Sugestão de ação</h5>
                       <p className="text-xs text-gray-600 leading-relaxed">{alerta.recomendacao}</p>
                     </div>
                   </div>
@@ -164,7 +171,7 @@ export function PainelEvasao() {
                     </span>
                   </div>
                   <div className="bg-white border border-gray-100 rounded-lg p-2 text-center">
-                    <span className="block text-[10px] text-gray-500 font-medium mb-0.5">Faturas Atr.</span>
+                    <span className="block text-[10px] text-gray-500 font-medium mb-0.5">Mensalidades atrasadas</span>
                     <span className={`font-bold text-sm ${alerta.detalhes.faturas_atrasadas > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                       {alerta.detalhes.faturas_atrasadas}
                     </span>
