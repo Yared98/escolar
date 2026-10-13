@@ -31,6 +31,7 @@ import {
   MessageSquare,
   Info,
   BellRing,
+  Landmark,
 } from 'lucide-react';
 import { BankingIntegrations } from './BankingIntegrations';
 
@@ -100,6 +101,8 @@ export function FinanceiroSection() {
   const [reguaStatus, setReguaStatus] = useState<string | null>(null);
   const [nfseStatus, setNfseStatus] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [bankingMode, setBankingMode] = useState<'mock' | 'sandbox' | 'production' | null>(null);
+  const [bankingLoaded, setBankingLoaded] = useState(false);
 
   // Estados específicos da Aba Cobrança (régua e logs)
   const [logCanalFilter, setLogCanalFilter] = useState<'todos' | 'whatsapp' | 'email'>('todos');
@@ -181,6 +184,21 @@ export function FinanceiroSection() {
   useEffect(() => {
     loadFinanceiroData();
   }, [loadFinanceiroData]);
+
+  useEffect(() => {
+    apiFetch<Array<{ gateway_name: string; modo_gateway?: string }>>('/tenant/integrations/banking')
+      .then((data) => {
+        const cora = (data || []).find((i) => i.gateway_name === 'cora');
+        const modo = cora?.modo_gateway;
+        if (modo === 'mock' || modo === 'sandbox' || modo === 'production') {
+          setBankingMode(modo);
+        } else {
+          setBankingMode('mock');
+        }
+      })
+      .catch(() => setBankingMode('mock'))
+      .finally(() => setBankingLoaded(true));
+  }, []);
 
   // Métricas agregadas do Aging Operacional de Contas a Receber (AR)
   const agingStats = useMemo(() => {
@@ -543,6 +561,39 @@ export function FinanceiroSection() {
     setTimeout(() => setCopiedPix(false), 2000);
   };
 
+  const podeUsarCora =
+    user && ['admin', 'superadmin', 'gestor', 'financeiro', 'tesouraria'].includes(user.role);
+
+  const handleEmitirCora = async (fatura: Fatura) => {
+    setToastMessage('Solicitando cobrança oficial à Cora...');
+    try {
+      const atualizada = await apiFetch<Fatura>(`/financeiro/faturas/${fatura.id}/cora`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      setFaturas((prev) => prev.map((f) => (f.id === atualizada.id ? atualizada : f)));
+      setToastMessage('Cobrança emitida pela Cora com sucesso.');
+    } catch (err: unknown) {
+      setToastMessage(err instanceof Error ? err.message : 'Não foi possível emitir pela Cora.');
+    }
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  const handleSimularPagamentoCora = async (fatura: Fatura) => {
+    setToastMessage('Simulando pagamento na Cora (teste)...');
+    try {
+      await apiFetch<{ status: string }>(
+        `/financeiro/faturas/${fatura.id}/cora/simular-pagamento`,
+        { method: 'POST', body: JSON.stringify({}) }
+      );
+      await loadFinanceiroData();
+      setToastMessage('Pagamento simulado. A baixa será confirmada pelo aviso do banco.');
+    } catch (err: unknown) {
+      setToastMessage(err instanceof Error ? err.message : 'Não foi possível simular o pagamento.');
+    }
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
   return (
     <section id="financeiro" className="bg-white dark:bg-salvia-900 border border-salvia-200 dark:border-salvia-800 rounded-2xl p-6 shadow-sm">
       {/* Header */}
@@ -658,6 +709,11 @@ export function FinanceiroSection() {
           handleBaixaManual={handleBaixaManual}
           setPixModalFatura={setPixModalFatura}
           handleEmitirNfse={handleEmitirNfse}
+          bankingMode={bankingMode}
+          bankingLoaded={bankingLoaded}
+          podeUsarCora={!!podeUsarCora}
+          handleEmitirCora={handleEmitirCora}
+          handleSimularPagamentoCora={handleSimularPagamentoCora}
         />
       )}
 

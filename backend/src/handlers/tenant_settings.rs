@@ -1,7 +1,16 @@
+use crate::config::CoraMode;
 use crate::db::TenantDb;
 use crate::error::AppError;
 use crate::middleware::{auth::AuthUser, tenant::ActiveTenant};
 use crate::AppState;
+
+fn modo_gateway_label(mode: &CoraMode) -> String {
+    match mode {
+        CoraMode::Mock => "Simulado".to_string(),
+        CoraMode::Sandbox => "Teste (Stage)".to_string(),
+        CoraMode::Production => "Produção".to_string(),
+    }
+}
 use axum::{
     extract::{Extension, State},
     Json,
@@ -26,6 +35,8 @@ pub struct BankIntegrationView {
     pub has_webhook_secret: bool,
     pub is_active: bool,
     pub modo_gateway: String,
+    pub modo_label: String,
+    pub has_server_credentials: bool,
 }
 
 pub async fn get_bank_integrations(
@@ -51,6 +62,8 @@ pub async fn get_bank_integrations(
     .await?;
 
     let modo_gateway = state.config.cora_mode.to_string();
+    let modo_label = modo_gateway_label(&state.config.cora_mode);
+    let has_server_credentials = state.config.cora_configured_for(state.config.cora_mode);
 
     let integrations = rows
         .into_iter()
@@ -62,6 +75,8 @@ pub async fn get_bank_integrations(
                 has_webhook_secret: has_webhook,
                 is_active: act,
                 modo_gateway: modo_gateway.clone(),
+                modo_label: modo_label.clone(),
+                has_server_credentials,
             },
         )
         .collect();

@@ -1,5 +1,5 @@
-import React from 'react';
-import { CalendarClock, X, Check, Search, Plus, QrCode, FileText } from 'lucide-react';
+import React, { useState } from 'react';
+import { CalendarClock, X, Check, Search, Plus, QrCode, FileText, Landmark, FlaskConical, ExternalLink, Copy, CheckCircle } from 'lucide-react';
 import { Fatura, AgingRange } from './types';
 
 export interface ReceberAgingItemProps {
@@ -30,6 +30,11 @@ export interface ReceberPanelProps {
   handleBaixaManual: (fatura: Fatura) => void;
   setPixModalFatura: (fatura: Fatura) => void;
   handleEmitirNfse: (faturaId: string) => void;
+  bankingMode: 'mock' | 'sandbox' | 'production' | null;
+  bankingLoaded: boolean;
+  podeUsarCora: boolean;
+  handleEmitirCora: (fatura: Fatura) => void;
+  handleSimularPagamentoCora: (fatura: Fatura) => void;
 }
 
 export function ReceberPanel({
@@ -47,7 +52,21 @@ export function ReceberPanel({
   handleBaixaManual,
   setPixModalFatura,
   handleEmitirNfse,
+  bankingMode,
+  bankingLoaded,
+  podeUsarCora,
+  handleEmitirCora,
+  handleSimularPagamentoCora,
 }: ReceberPanelProps) {
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopyPixCode = (fatura: Fatura) => {
+    const code = fatura.gateway_pix_code || fatura.qr_code_pix;
+    if (!code) return;
+    navigator.clipboard.writeText(code);
+    setCopiedId(fatura.id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
   return (
     <div className="space-y-4">
       {/* Seção Aging Operacional de Contas a Receber (AR) */}
@@ -288,33 +307,92 @@ export function ReceberPanel({
                       {fatura.status}
                     </span>
                   </td>
-                  <td className="p-3 text-right space-x-1.5 whitespace-nowrap">
-                    {fatura.status !== 'pago' && (
+                  <td className="p-3 text-right">
+                    <div className="flex flex-wrap justify-end gap-1.5">
+                      {fatura.status !== 'pago' && (
+                        <button
+                          onClick={() => handleBaixaManual(fatura)}
+                          title="Dar baixa manual nesta fatura"
+                          className="px-2.5 py-2 min-h-[44px] bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-semibold transition-all inline-flex items-center space-x-1 shadow-xs"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Baixar</span>
+                        </button>
+                      )}
+
                       <button
-                        onClick={() => handleBaixaManual(fatura)}
-                        title="Dar baixa manual nesta fatura"
-                        className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-semibold transition-all inline-flex items-center space-x-1 shadow-xs"
+                        onClick={() => setPixModalFatura(fatura)}
+                        className="px-2.5 py-2 min-h-[44px] bg-salvia-50 dark:bg-salvia-800 border border-salvia-200 dark:border-salvia-700 hover:border-salvia-500 text-salvia-900 dark:text-salvia-100 rounded-lg text-[11px] font-semibold transition-all inline-flex items-center space-x-1"
                       >
-                        <Check className="w-3.5 h-3.5" />
-                        <span>Baixar</span>
+                        <QrCode className="w-3.5 h-3.5 text-salvia-600 dark:text-salvia-400" />
+                        <span>QR Pix</span>
                       </button>
-                    )}
 
-                    <button
-                      onClick={() => setPixModalFatura(fatura)}
-                      className="px-2.5 py-1 bg-salvia-50 dark:bg-salvia-800 border border-salvia-200 dark:border-salvia-700 hover:border-salvia-500 text-salvia-900 dark:text-salvia-100 rounded-lg text-[11px] font-semibold transition-all inline-flex items-center space-x-1"
-                    >
-                      <QrCode className="w-3.5 h-3.5 text-salvia-600 dark:text-salvia-400" />
-                      <span>QR Pix</span>
-                    </button>
+                      {bankingLoaded && bankingMode !== 'mock' && podeUsarCora && (
+                        <>
+                          {fatura.gateway_name === 'cora' ? (
+                            <>
+                              {fatura.gateway_invoice_url && (
+                                <a
+                                  href={fatura.gateway_invoice_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="px-2.5 py-2 min-h-[44px] bg-salvia-700 dark:bg-salvia-500 hover:bg-salvia-800 text-white rounded-lg text-[11px] font-semibold transition-all inline-flex items-center space-x-1"
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                  <span>Abrir boleto</span>
+                                </a>
+                              )}
+                              {(fatura.gateway_pix_code || fatura.qr_code_pix) && (
+                                <button
+                                  onClick={() => handleCopyPixCode(fatura)}
+                                  className="px-2.5 py-2 min-h-[44px] bg-salvia-50 dark:bg-salvia-800 border border-salvia-200 dark:border-salvia-700 hover:border-salvia-500 text-salvia-900 dark:text-salvia-100 rounded-lg text-[11px] font-semibold transition-all inline-flex items-center space-x-1"
+                                >
+                                  {copiedId === fatura.id ? (
+                                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                                  ) : (
+                                    <Copy className="w-3.5 h-3.5 text-salvia-600 dark:text-salvia-400" />
+                                  )}
+                                  <span>{copiedId === fatura.id ? 'Copiado' : 'Copiar Pix'}</span>
+                                </button>
+                              )}
+                              {bankingMode === 'sandbox' && fatura.status !== 'pago' && (
+                                <button
+                                  onClick={() => handleSimularPagamentoCora(fatura)}
+                                  className="px-2.5 py-2 min-h-[44px] bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-semibold transition-all inline-flex items-center space-x-1"
+                                >
+                                  <FlaskConical className="w-3.5 h-3.5" />
+                                  <span>Simular pagamento (teste)</span>
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            fatura.status !== 'pago' && (
+                              <button
+                                onClick={() => handleEmitirCora(fatura)}
+                                className="px-2.5 py-2 min-h-[44px] bg-salvia-700 dark:bg-salvia-500 hover:bg-salvia-800 text-white rounded-lg text-[11px] font-semibold transition-all inline-flex items-center space-x-1"
+                              >
+                                <Landmark className="w-3.5 h-3.5" />
+                                <span>Emitir boleto pela Cora</span>
+                              </button>
+                            )
+                          )}
+                          {bankingMode === 'sandbox' && (
+                            <span className="self-center text-[10px] font-semibold px-2 py-1 rounded-md bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200">
+                              Ambiente de teste da Cora
+                            </span>
+                          )}
+                        </>
+                      )}
 
-                    <button
-                      onClick={() => handleEmitirNfse(fatura.id)}
-                      className="px-2.5 py-1 bg-salvia-700 dark:bg-salvia-500 hover:bg-salvia-800 text-white rounded-lg text-[11px] font-semibold transition-all inline-flex items-center space-x-1"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      <span>NFS-e</span>
-                    </button>
+                      <button
+                        onClick={() => handleEmitirNfse(fatura.id)}
+                        className="px-2.5 py-2 min-h-[44px] bg-salvia-700 dark:bg-salvia-500 hover:bg-salvia-800 text-white rounded-lg text-[11px] font-semibold transition-all inline-flex items-center space-x-1"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>NFS-e</span>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))

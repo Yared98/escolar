@@ -179,6 +179,7 @@ Todas as respostas HTTP do gateway injetam compulsoriamente os 6 cabeçalhos de 
   - **Modo Produção (`APP_ENV=production`):** Aplicação estrita do princípio *fail-closed*:
     - Ausência de `DATABASE_URL` ou `JWT_ED25519_PRIVATE_PEM` retorna erro e impede o boot.
     - Falha ao executar migrations SQLx aborta a inicialização do processo.
+    - Migrations de schema multi-tenant (incluindo colunas de integração bancária em `faturas`) são aplicadas versionadas em `backend/migrations/` e documentadas no módulo de negócio correspondente.
     - Falha na criação do pool com `SET ROLE escolar_runtime` aborta o boot sem fallback silencioso para o pool admin.
     - Verificação de segurança pós-pool (`SELECT current_user, (SELECT rolbypassrls OR rolsuper FROM pg_roles WHERE rolname = current_user)`): se o papel da conexão tiver `SUPERUSER` ou `BYPASSRLS`, o boot em produção aborta imediatamente.
   - **Modo Desenvolvimento (`APP_ENV=development`):** Mantém tolerância local com emissão de alertas em log (`tracing::warn!` e `tracing::error!`) e fallback para o pool admin ou `connect_lazy` quando o banco não estiver acessível.

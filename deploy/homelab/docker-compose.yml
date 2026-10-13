@@ -40,6 +40,10 @@ services:
       ACCOUNT_LOCK_MAX_ATTEMPTS: ${ACCOUNT_LOCK_MAX_ATTEMPTS:-5}
       ACCOUNT_LOCK_WINDOW_MINUTES: ${ACCOUNT_LOCK_WINDOW_MINUTES:-15}
       CORA_MODE: ${CORA_MODE:-mock}
+      CORA_CLIENT_ID: ${CORA_CLIENT_ID:-}
+      CORA_CERT_FILE: ${CORA_CERT_FILE:-}
+      CORA_KEY_FILE: ${CORA_KEY_FILE:-}
+      CORA_BASE_URL: ${CORA_BASE_URL:-}
       # Endereço público usado nos links enviados por e-mail (ex.: recuperação de senha)
       APP_PUBLIC_URL: ${APP_PUBLIC_URL:-https://${DOMINIO}}
       # simulado: e-mails ficam na caixa de saída visível para a gestão (envio real ainda não existe)

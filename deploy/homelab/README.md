@@ -16,7 +16,27 @@ Este diretório contém a stack de **produção** para rodar o Escolar ERP num s
 
 ---
 
-## 2. DNS e porta
+## 2. Configurar a integração com a Cora (opcional)
+
+A emissão de boletos e QR Code Pix oficiais é feita pela integração direta com a Cora. Se a escola não usar essa funcionalidade, deixe `CORA_MODE=mock`.
+
+1. No app da Cora, acesse **Conta > Integrações via APIs** e solicite as credenciais de **Integração Direta** para o ambiente desejado (Stage para testes, Produção para uso real).
+2. Baixe o certificado (`certificate.pem`) e a chave privada (`private-key.key`).
+3. Copie os arquivos para `deploy/homelab/segredos/`.
+4. No `.env`, ajuste:
+   ```env
+   CORA_MODE=sandbox
+   CORA_CLIENT_ID=seu-client-id
+   CORA_CERT_FILE=/run/segredos/cora_certificate.pem
+   CORA_KEY_FILE=/run/segredos/cora_private_key.pem
+   ```
+5. Recrie o backend: `docker compose up -d --build backend`.
+
+> O backend nunca registra o conteúdo de certificados, chaves ou tokens nos logs.
+
+---
+
+## 3. DNS e porta
 
 1. Crie um registro tipo A no seu provedor de DNS apontando o domínio para o IP público do servidor.
 2. Aguarde a propagação (pode levar alguns minutos).
@@ -24,7 +44,7 @@ Este diretório contém a stack de **produção** para rodar o Escolar ERP num s
 
 ---
 
-## 3. Gerar a chave JWT
+## 4. Gerar a chave JWT
 
 O backend exige uma chave Ed25519 PKCS#8 para assinar os tokens JWT.
 
@@ -47,7 +67,7 @@ O arquivo `segredos/jwt_private.pem` é um segredo: a pasta `segredos/` está no
 
 ---
 
-## 4. Preencher o `.env`
+## 5. Preencher o `.env`
 
 ```bash
 cp .env.example .env
@@ -65,7 +85,7 @@ Nunca versione o arquivo `.env`.
 
 ---
 
-## 5. Subir a stack
+## 6. Subir a stack
 
 ```bash
 cd deploy/homelab
@@ -76,7 +96,7 @@ A primeira inicialização pode levar alguns minutos porque o backend aplica as 
 
 ---
 
-## 6. Verificar a instalação
+## 7. Verificar a instalação
 
 - Healthcheck da API: `https://<DOMINIO>/api/v1/health`
 - Aplicação: `https://<DOMINIO>`
@@ -100,7 +120,7 @@ Para mostrar o sistema a um cliente com dados de exemplo, use `APP_ENV=demo` e `
 
 ---
 
-## 7. Atualizar para uma nova versão
+## 8. Atualizar para uma nova versão
 
 ```bash
 cd deploy/homelab
@@ -113,7 +133,7 @@ O backend aplicará automaticamente novas migrations no boot.
 
 ---
 
-## 8. Backup e restauração
+## 9. Backup e restauração
 
 ### Backup automático
 
@@ -133,7 +153,7 @@ O script lê usuário e banco do `.env`, para o backend e o worker, restaura den
 
 ---
 
-## 9. A armadilha das migrations no Windows
+## 10. A armadilha das migrations no Windows
 
 O SQLx calcula o checksum das migrations como **bytes**. Se os arquivos `.sql` forem checkoutados com quebras de linha CRLF, o checksum não bate e o backend pode falhar ao subir.
 
@@ -151,7 +171,7 @@ git archive --format=tar HEAD | tar -x -C /pasta/de/deploy
 
 ---
 
-## 10. HTTPS local sem domínio público
+## 11. HTTPS local sem domínio público
 
 Se for testar apenas na rede local, edite o `Caddyfile`:
 
