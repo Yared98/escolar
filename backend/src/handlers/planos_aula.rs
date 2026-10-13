@@ -148,6 +148,19 @@ pub async fn consultar_planos_aula(
     check_roles(&auth_user, &["professor", "gestor", "admin", "secretaria"])?;
     let tenant_id = active_tenant.0;
 
+    // Professor só consulta os planos das turmas em que dá aula.
+    if auth_user.role.to_lowercase().replace('_', "") == "professor" {
+        let atribuicoes = carregar_atribuicoes_professor(&mut db, auth_user.id).await?;
+        if !atribuicoes
+            .iter()
+            .any(|(turma, _)| *turma == query.turma_id)
+        {
+            return Err(AppError::Forbidden(
+                "Você não dá aula nesta turma.".to_string(),
+            ));
+        }
+    }
+
     let data_base = query.semana.unwrap_or_else(|| Utc::now().date_naive());
     let semana_segunda = normalizar_para_segunda_feira(data_base);
 

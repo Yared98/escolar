@@ -414,6 +414,20 @@ async fn test_fluxo_planos_aula() {
     let res_alheio = app.clone().oneshot(req_alheio).await.unwrap();
     assert_eq!(res_alheio.status(), StatusCode::FORBIDDEN);
 
+    // 3b. Professor 2 também não lê os planos de uma turma em que não dá aula
+    let req_ler_alheio = Request::builder()
+        .method("GET")
+        .uri(format!(
+            "/api/v1/planos-aula?turma_id={}&semana=2026-10-14",
+            ctx.turma1_id
+        ))
+        .header("Authorization", auth_header(&token_prof2))
+        .header("X-Tenant-ID", ctx.tenant_id.to_string())
+        .body(Body::empty())
+        .unwrap();
+    let res_ler_alheio = app.clone().oneshot(req_ler_alheio).await.unwrap();
+    assert_eq!(res_ler_alheio.status(), StatusCode::FORBIDDEN);
+
     // 4. Coordenação comenta o plano
     let body_comentario = serde_json::json!({
         "comentario": "Excelente planejamento. Sugiro integrar material concreto na atividade em duplas."

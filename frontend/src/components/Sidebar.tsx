@@ -135,7 +135,7 @@ export const MENU_ITEMS: NavItem[] = [
     icon: Utensils,
     defaultTab: 'nutricao',
     subItems: [
-      { id: 'nutri-planner', label: 'Planner de cardápio', tabKey: 'nutricao', icon: Utensils },
+      { id: 'nutri-planner', label: 'Cardápio', tabKey: 'nutricao', icon: Utensils },
     ],
   },
   {
@@ -174,7 +174,7 @@ export const MENU_ITEMS: NavItem[] = [
     icon: UserCheck,
     defaultTab: 'entidades',
     subItems: [
-      { id: 'pessoas-rh', label: 'Corpo docente & RH', tabKey: 'entidades', icon: UserCheck },
+      { id: 'pessoas-rh', label: 'Funcionários', tabKey: 'entidades', icon: UserCheck },
       { id: 'pessoas-usuarios', label: 'Usuários e acessos', tabKey: 'usuarios', icon: ShieldCheck },
     ],
   },
@@ -327,7 +327,17 @@ export function Sidebar({ activeRoute, onRouteChange }: SidebarProps) {
   // Route permissions matrix
   const isAllowed = (route: NavRoute): boolean => isRouteAllowed(route, role);
 
-  const filteredItems = MENU_ITEMS.filter((item) => isAllowed(item.id));
+  // Financeiro entra na Secretaria só para consultar contratos (o backend recusa alunos e turmas).
+  const somenteContratos = canonicalRole(role) === 'financeiro';
+  const filteredItems = MENU_ITEMS.filter((item) => isAllowed(item.id)).map((item) =>
+    item.id === 'secretaria' && somenteContratos
+      ? {
+          ...item,
+          defaultTab: 'contratos',
+          subItems: item.subItems?.filter((sub) => sub.tabKey === 'contratos'),
+        }
+      : item,
+  );
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
