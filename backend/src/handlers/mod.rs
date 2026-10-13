@@ -6,6 +6,7 @@ pub mod crm_lms;
 pub mod documentos;
 pub mod fechamento;
 pub mod financeiro;
+pub mod frequencia;
 pub mod notificacoes;
 pub mod nutricao;
 pub mod opensec;

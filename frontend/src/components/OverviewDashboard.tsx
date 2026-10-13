@@ -9,6 +9,8 @@ import {
   AlertTriangle,
   Sparkles,
   HeartHandshake,
+  CalendarCheck,
+  AlertCircle,
 } from 'lucide-react';
 import { NavRoute, isRouteAllowed } from './Sidebar';
 import { apiFetch } from '@/lib/api';
@@ -17,11 +19,20 @@ interface OverviewDashboardProps {
   onRouteChange: (route: NavRoute) => void;
 }
 
+interface FrequenciaHojeKpi {
+  totalTurmasComChamada: number;
+  totalPresentes: number;
+  totalAlunos: number;
+  percentualGeral: number;
+}
+
 interface KpiData {
   totalAlunos: number;
   receitaMensal: number;
   adimplencia: number;
   totalAlertasEvasao: number;
+  frequenciaHoje: FrequenciaHojeKpi | null;
+  totalAlertasFrequencia: number;
 }
 
 export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
@@ -32,6 +43,8 @@ export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
     receitaMensal: 0,
     adimplencia: 0,
     totalAlertasEvasao: 0,
+    frequenciaHoje: null,
+    totalAlertasFrequencia: 0,
   });
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -48,6 +61,8 @@ export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
           dre: -1,
           alunos: -1,
           alertas: -1,
+          frequenciaHoje: -1,
+          alertasFrequencia: -1,
         };
 
         if (podeVerFinanceiro) {
@@ -61,6 +76,21 @@ export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
         if (podeVerSecretaria) {
           indices.alunos = promises.length;
           promises.push(apiFetch<{ total: number }>('/secretaria/alunos?status=ativo&limit=1'));
+
+          indices.frequenciaHoje = promises.length;
+          promises.push(
+            apiFetch<{
+              total_turmas_com_chamada: number;
+              total_presentes: number;
+              total_alunos: number;
+              percentual_geral: number;
+            }>('/academico/frequencia/hoje')
+          );
+
+          indices.alertasFrequencia = promises.length;
+          promises.push(
+            apiFetch<{ total_alertas: number }>('/academico/frequencia/alertas')
+          );
         }
         if (podeVerIaEvasao) {
           indices.alertas = promises.length;
@@ -69,9 +99,37 @@ export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
 
         const results = promises.length > 0 ? await Promise.allSettled(promises) : [];
 
-        const dre = indices.dre >= 0 && results[indices.dre].status === 'fulfilled' ? (results[indices.dre] as PromiseFulfilledResult<{ receita_bruta: number; total_faturas_pagas: number; total_faturas_pendentes: number }>).value : null;
-        const alunosPage = indices.alunos >= 0 && results[indices.alunos].status === 'fulfilled' ? (results[indices.alunos] as PromiseFulfilledResult<{ total: number }>).value : null;
-        const alertas = indices.alertas >= 0 && results[indices.alertas].status === 'fulfilled' ? (results[indices.alertas] as PromiseFulfilledResult<{ aluno_id: string }[]>).value : [];
+        const dre =
+          indices.dre >= 0 && results[indices.dre].status === 'fulfilled'
+            ? (results[indices.dre] as PromiseFulfilledResult<{
+                receita_bruta: number;
+                total_faturas_pagas: number;
+                total_faturas_pendentes: number;
+              }>).value
+            : null;
+        const alunosPage =
+          indices.alunos >= 0 && results[indices.alunos].status === 'fulfilled'
+            ? (results[indices.alunos] as PromiseFulfilledResult<{ total: number }>).value
+            : null;
+        const freqHojeRes =
+          indices.frequenciaHoje >= 0 && results[indices.frequenciaHoje].status === 'fulfilled'
+            ? (results[indices.frequenciaHoje] as PromiseFulfilledResult<{
+                total_turmas_com_chamada: number;
+                total_presentes: number;
+                total_alunos: number;
+                percentual_geral: number;
+              }>).value
+            : null;
+        const alertasFreqRes =
+          indices.alertasFrequencia >= 0 && results[indices.alertasFrequencia].status === 'fulfilled'
+            ? (results[indices.alertasFrequencia] as PromiseFulfilledResult<{
+                total_alertas: number;
+              }>).value
+            : null;
+        const alertas =
+          indices.alertas >= 0 && results[indices.alertas].status === 'fulfilled'
+            ? (results[indices.alertas] as PromiseFulfilledResult<{ aluno_id: string }[]>).value
+            : [];
 
         const failed = results.some((result) => result.status === 'rejected');
         setKpi({
@@ -83,6 +141,15 @@ export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
               )
             : 0,
           totalAlertasEvasao: alertas.length,
+          frequenciaHoje: freqHojeRes
+            ? {
+                totalTurmasComChamada: freqHojeRes.total_turmas_com_chamada,
+                totalPresentes: freqHojeRes.total_presentes,
+                totalAlunos: freqHojeRes.total_alunos,
+                percentualGeral: freqHojeRes.percentual_geral,
+              }
+            : null,
+          totalAlertasFrequencia: alertasFreqRes?.total_alertas ?? 0,
         });
         setLoadError(failed ? 'Alguns indicadores não puderam ser carregados.' : null);
       } catch {
@@ -91,6 +158,8 @@ export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
           receitaMensal: 0,
           adimplencia: 0,
           totalAlertasEvasao: 0,
+          frequenciaHoje: null,
+          totalAlertasFrequencia: 0,
         });
         setLoadError('Não foi possível carregar os indicadores.');
       }
@@ -123,7 +192,7 @@ export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
         )}
 
         {/* High-density KPI Metrics */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mt-6">
           {podeVerSecretaria && (
           <div className="bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 p-4 rounded-xl">
             <div className="flex items-center justify-between text-salvia-600 dark:text-salvia-400 text-xs mb-1 font-medium">
@@ -148,8 +217,46 @@ export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
           </div>
           )}
 
-          {/* Frequência do dia: sem consulta agregada por escola ainda (ver openspec/ROADMAP.md, P2);
-              o cartão volta quando houver o número real, em vez de afirmar que não houve chamada. */}
+          {podeVerSecretaria && (
+          <div className="bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 p-4 rounded-xl">
+            <div className="flex items-center justify-between text-salvia-600 dark:text-salvia-400 text-xs mb-1 font-medium">
+              <span>Frequência hoje</span>
+              <CalendarCheck className="w-4 h-4 text-salvia-600 dark:text-salvia-400" />
+            </div>
+            {kpi.frequenciaHoje && kpi.frequenciaHoje.totalTurmasComChamada > 0 ? (
+              <>
+                <p className="text-2xl font-bold text-slate-900 dark:text-salvia-50 font-mono">
+                  {kpi.frequenciaHoje.percentualGeral.toFixed(1)}%
+                </p>
+                <span className="text-[10px] text-salvia-500 font-medium mt-1 block">
+                  {kpi.frequenciaHoje.totalPresentes} presentes de {kpi.frequenciaHoje.totalAlunos} ({kpi.frequenciaHoje.totalTurmasComChamada} turma{kpi.frequenciaHoje.totalTurmasComChamada > 1 ? 's' : ''})
+                </span>
+              </>
+            ) : (
+              <>
+                <p className="text-xs font-bold text-salvia-600 dark:text-salvia-400 mt-2">
+                  Nenhuma chamada registrada hoje
+                </p>
+                <span className="text-[10px] text-salvia-500 font-medium mt-1 block">Aguardando chamada</span>
+              </>
+            )}
+          </div>
+          )}
+
+          {podeVerSecretaria && (
+          <div className="bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 p-4 rounded-xl">
+            <div className="flex items-center justify-between text-salvia-600 dark:text-salvia-400 text-xs mb-1 font-medium">
+              <span>Alunos abaixo de 75%</span>
+              <AlertCircle className={`w-4 h-4 ${kpi.totalAlertasFrequencia > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-salvia-500'}`} />
+            </div>
+            <p className={`text-2xl font-bold font-mono ${kpi.totalAlertasFrequencia > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-salvia-50'}`}>
+              {kpi.totalAlertasFrequencia}
+            </p>
+            <span className={`text-[10px] font-medium mt-1 block ${kpi.totalAlertasFrequencia > 0 ? 'text-rose-700 dark:text-rose-400 font-bold' : 'text-salvia-500'}`}>
+              {kpi.totalAlertasFrequencia > 0 ? `${kpi.totalAlertasFrequencia} alerta(s) pela LDB` : 'Nenhum aluno em alerta'}
+            </span>
+          </div>
+          )}
 
           {podeVerIaEvasao && (
           <div className="bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 p-4 rounded-xl">

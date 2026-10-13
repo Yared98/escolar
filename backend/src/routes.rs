@@ -56,6 +56,7 @@ use crate::{
             gerar_parcelas_de_contrato, listar_conciliacao, listar_despesas, listar_faturas,
             listar_logs_regua, listar_nfse, processar_conciliacao_bancaria, relatorio_dre,
         },
+        frequencia::{alertas_frequencia, frequencia_hoje, relatorio_frequencia},
         notificacoes::{
             criar_notificacao, listar_logs_disparos, listar_notificacoes, marcar_notificacao_lida,
             registrar_push_subscription, vapid_public_key,
@@ -226,6 +227,9 @@ pub fn create_router(state: AppState) -> Router {
         .route("/academico/diario/sync", post(sincronizar_diario_pwa))
         .route("/academico/diario", get(consultar_diario_dia))
         .route("/academico/diario/recentes", get(listar_diarios_recentes))
+        .route("/academico/frequencia", get(relatorio_frequencia))
+        .route("/academico/frequencia/alertas", get(alertas_frequencia))
+        .route("/academico/frequencia/hoje", get(frequencia_hoje))
         .route("/academico/boletim/:aluno_id", get(consultar_boletim))
         .route("/academico/notas", get(listar_notas))
         .route("/academico/notas/lote", post(lancar_notas_lote))
