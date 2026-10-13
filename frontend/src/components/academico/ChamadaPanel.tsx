@@ -19,6 +19,8 @@ interface ChamadaPanelProps {
   turmaNome: string;
   dataAula: string;
   disciplinaId?: string;
+  /** Nome da disciplina da aula, quando conhecido antes de existir diário. */
+  disciplinaNome?: string;
   horarioId?: string;
   onDataAulaChange: (value: string) => void;
   alunos: AlunoChamada[];
@@ -43,6 +45,7 @@ export function ChamadaPanel({
   turmaNome,
   dataAula,
   disciplinaId,
+  disciplinaNome,
   horarioId,
   onDataAulaChange,
   alunos,
@@ -239,7 +242,7 @@ export function ChamadaPanel({
           <span className="font-bold text-slate-900 dark:text-salvia-50">{turmaNome || 'Turma'}</span>
           <span className="text-salvia-400">·</span>
           <span className="font-bold text-salvia-700 dark:text-salvia-300">
-            {diaCarregado?.disciplina_nome || 'Disciplina'}
+            {diaCarregado?.disciplina_nome || disciplinaNome || 'Disciplina'}
           </span>
           {horarioLabel && (
             <>

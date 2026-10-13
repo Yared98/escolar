@@ -14,6 +14,8 @@ export interface TurmaOpcao {
   nome: string;
   etapa_ensino?: string;
   turno?: string;
+  /** Disciplinas do professor nesta turma (só vem de /professor/minhas-turmas). */
+  disciplinas?: { disciplina_id: string; disciplina_nome: string }[];
 }
 
 export const isTurmaInfantil = (turma?: Pick<TurmaOpcao, 'etapa_ensino'> | null): boolean =>

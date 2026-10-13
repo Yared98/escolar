@@ -31,6 +31,7 @@ export function useTurmaAlunos(preferredRole?: string) {
             id: t.turma_id,
             nome: t.turma_nome,
             etapa_ensino: t.etapa_ensino,
+            disciplinas: t.disciplinas,
           }));
         } else {
           const data = await apiFetch<TurmaOpcao[]>('/secretaria/turmas');

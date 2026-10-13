@@ -220,7 +220,7 @@ export function AcademicoSection() {
             onChange={(e) => selecionarTurmaLocal(e.target.value)}
             className="w-full bg-white dark:bg-salvia-900 border border-salvia-300 dark:border-salvia-700 rounded-xl px-3 py-2 font-bold text-slate-900 dark:text-salvia-50 focus:outline-none focus:border-salvia-600"
           >
-            <option value="">Nenhuma turma cadastrada</option>
+            <option value="">{turmasOpcoes.length === 0 ? 'Nenhuma turma disponível' : 'Selecione a turma'}</option>
             {turmasOpcoes.map((turma) => (
               <option key={turma.id} value={turma.id}>
                 {turma.nome}
@@ -276,6 +276,9 @@ export function AcademicoSection() {
         turmaNome={turmaNome}
         dataAula={dataAula}
         disciplinaId={diarioDisciplinaId}
+        disciplinaNome={
+          turmaSelecionada?.disciplinas?.find((d) => d.disciplina_id === diarioDisciplinaId)?.disciplina_nome
+        }
         horarioId={diarioHorarioId}
         onDataAulaChange={setDataAula}
         alunos={alunos}

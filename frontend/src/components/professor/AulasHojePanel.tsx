@@ -14,6 +14,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import type { AulaDia, MinhaTurma } from '@/lib/types/academico';
+import { etapaEnsinoLabel } from '@/lib/etapas';
 
 interface AulasHojePanelProps {
   dataAula: string;
@@ -227,7 +228,7 @@ export function AulasHojePanel({
                     {turma.turma_nome}
                   </h4>
                   <p className="text-[11px] text-salvia-600 dark:text-salvia-400">
-                    {turma.total_alunos} aluno{turma.total_alunos === 1 ? '' : 's'} · {turma.etapa_ensino}
+                    {turma.total_alunos} aluno{turma.total_alunos === 1 ? '' : 's'} · {etapaEnsinoLabel(turma.etapa_ensino)}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

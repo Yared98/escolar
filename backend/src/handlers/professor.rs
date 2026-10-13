@@ -136,6 +136,21 @@ pub fn periodo_fechado_bloqueia(fechado: bool, _role: &str) -> bool {
     fechado
 }
 
+/// Nome do período como a escola fala (para mensagens), a partir do código gravado.
+pub fn periodo_label(periodo: &str) -> &str {
+    match periodo {
+        "1_bimestre" => "1º bimestre",
+        "2_bimestre" => "2º bimestre",
+        "3_bimestre" => "3º bimestre",
+        "4_bimestre" => "4º bimestre",
+        "1_trimestre" => "1º trimestre",
+        "2_trimestre" => "2º trimestre",
+        "3_trimestre" => "3º trimestre",
+        "recuperacao" => "período de recuperação",
+        outro => outro,
+    }
+}
+
 /// Converte uma data no fuso de Brasília para o dia da semana usado no banco:
 /// 1 = segunda … 6 = sábado. Domingo retorna `None`.
 pub fn data_para_dia_semana(data: NaiveDate) -> Option<i32> {
@@ -517,7 +532,7 @@ pub async fn lancar_notas_lote(
     if periodo_fechado_bloqueia(fechado, &auth_user.role) {
         return Err(AppError::Conflict(format!(
             "O {} desta turma está fechado. Peça à coordenação para reabrir.",
-            dto.periodo
+            periodo_label(&dto.periodo)
         )));
     }
 
@@ -767,6 +782,15 @@ mod tests {
         ));
         assert!(crate::middleware::rbac::eh_gestao("GestorEscolar"));
         assert!(!crate::middleware::rbac::eh_gestao("professor"));
+    }
+
+    #[test]
+    fn test_periodo_label_sem_codigo_cru() {
+        assert_eq!(periodo_label("1_bimestre"), "1º bimestre");
+        assert_eq!(periodo_label("recuperacao"), "período de recuperação");
+        for p in PERIODOS_VALIDOS {
+            assert!(!periodo_label(p).contains('_'), "{p}");
+        }
     }
 
     #[test]
