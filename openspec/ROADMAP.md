@@ -1,6 +1,6 @@
 # Roadmap — do demo ao uso real na escola
 
-Planejamento das funções ausentes ou incompletas, levantado na revisão ponta a ponta de 2026-10-13 e atualizado ao fim da Onda C (main `8615c34`).
+Planejamento das funções ausentes ou incompletas, levantado na revisão ponta a ponta de 2026-10-13 e atualizado ao fim da Onda C e dos cards P2 (C13–C17).
 Fonte de verdade do que JÁ existe continua sendo cada `openspec/modules/*.md` (seção "Estado real"). Este arquivo ordena o que faltava e o que ainda falta.
 A evidência da revisão (telas por perfil, varredura de termos, medições no celular, verificações) está em `openspec/REVISAO_ONDA_C.md`.
 
@@ -33,15 +33,21 @@ Critério de prioridade: **P0** impede uma escola de usar o sistema no dia a dia
 - **B13** (dividir handlers grandes em módulos): concluído (B13.1–B13.8), cada área aprovada pelo `check-refactor-move-rust`.
 - Gate de spec reconhece os handlers em diretório e os handlers novos.
 
-## Próximas funções (P2 — com cards no Backlog do Kanbn)
+### P2 (entregue em seguida, workers do Antigravity CLI)
+| Card | O que entrega |
+|---|---|
+| C13 (`rk9zvjjo3ijk`) | Relatório de frequência por turma/mês/disciplina com CSV, alerta abaixo de 75% (LDB) e os cartões "Frequência hoje" e "Alunos abaixo de 75%" no painel |
+| C14 (`0nf4uvw9j7nj`) | Planejamento semanal do professor com habilidades BNCC, "Plano da semana: feito/pendente" nas aulas de hoje e comentário da coordenação no Pedagógico |
+| C15 (`vpxi1u9dsmwp`) | Rematrícula e virada de ano letivo: prévia pelo boletim, decisão por aluno, turmas do novo ano, contratos pendentes de assinatura, execução única (409 se repetir) e nada do ano anterior é apagado |
+| C16 (`wtdcvuku3k5s`) | "Recado à família" direto da chamada, com link para a conversa; o professor só fala com famílias das próprias turmas |
+| C17 | Mensagem privada escolhida por turma → aluno, mostrando quem recebe; Financeiro só consulta contratos; termos de TI achados na varredura do texto renderizado |
+
+## Próximas funções
 
 | Card Kanbn | Função | Observação |
 |---|---|---|
-| `rk9zvjjo3ijk` | Relatórios de frequência por turma/mês, exportação e alerta abaixo de 75% (LDB) | Devolve ao painel o cartão "Frequência hoje" com número real |
-| `0nf4uvw9j7nj` | Planejamento de aulas do professor (plano semanal com BNCC) | Aparece em "Meu dia" junto da aula |
-| `vpxi1u9dsmwp` | Rematrícula e virada de ano letivo | Usa o resultado final do boletim (C9) |
-| `wtdcvuku3k5s` | Recado do professor para a família de um aluno direto da chamada | Abre conversa privada nos Recados (C12) |
 | `zb4kwwrz2mkx` | Integrações reais por adapter: SMTP, push VAPID, Cora, NFS-e, WhatsApp | Exigem credencial e custo da escola; confirmar com o dono do projeto |
+| — | Mensagem privada para todos os responsáveis do aluno (pai e mãe) | Hoje vai para o responsável principal; exige mudar o destinatário único de `mensagens_agenda` |
 
 ## Dívida técnica que não bloqueia o uso
 - Três arquivos de handler acima de ~700 linhas (boa parte é teste): `auth/mod.rs`, `professor.rs`, `regulatorio_ia/evasao/mod.rs`.

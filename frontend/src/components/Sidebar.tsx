@@ -330,15 +330,20 @@ export function Sidebar({ activeRoute, onRouteChange }: SidebarProps) {
 
   // Financeiro entra na Secretaria só para consultar contratos (o backend recusa alunos e turmas).
   const somenteContratos = canonicalRole(role) === 'financeiro';
-  const filteredItems = MENU_ITEMS.filter((item) => isAllowed(item.id)).map((item) =>
-    item.id === 'secretaria' && somenteContratos
-      ? {
-          ...item,
-          defaultTab: 'contratos',
-          subItems: item.subItems?.filter((sub) => sub.tabKey === 'contratos'),
-        }
-      : item,
-  );
+  // A conexão com o banco (Integrações) é configurada só pela gestão.
+  const filteredItems = MENU_ITEMS.filter((item) => isAllowed(item.id)).map((item) => {
+    if (item.id === 'secretaria' && somenteContratos) {
+      return {
+        ...item,
+        defaultTab: 'contratos',
+        subItems: item.subItems?.filter((sub) => sub.tabKey === 'contratos'),
+      };
+    }
+    if (item.id === 'financeiro' && somenteContratos) {
+      return { ...item, subItems: item.subItems?.filter((sub) => sub.tabKey !== 'banking') };
+    }
+    return item;
+  });
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 

@@ -198,8 +198,13 @@ export function PedagocioNutricaoSection() {
   }, [selectedTurmaId]);
 
   useEffect(() => {
+    // O cardápio não usa turmas nem disciplinas, e a nutricionista não tem acesso a esses dados.
+    if (activeTab === 'nutricao') {
+      setLoading(false);
+      return;
+    }
     loadInitialData();
-  }, [loadInitialData]);
+  }, [loadInitialData, activeTab]);
 
   // Matriz, grade e roster — mesma entidade `alunos`/`turma_alunos` do Diário e da Secretaria
   const loadTurmaDetails = useCallback(async (turmaId: string) => {
@@ -670,7 +675,7 @@ export function PedagocioNutricaoSection() {
                   ? 'Fechamento de Período e Conselho de Classe'
                   : activeTab === 'planos_aula'
                     ? 'Planos de Aula & Acompanhamento Pedagógico'
-                    : 'Gestão Pedagógica, Matriz Curricular & Lotação'}
+                    : 'Pedagógico'}
             </span>
           </h2>
           <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
@@ -680,7 +685,7 @@ export function PedagocioNutricaoSection() {
                 ? 'Bloqueie ou reabra bimestres/trimestres e registre o parecer do conselho para cada aluno.'
                 : activeTab === 'planos_aula'
                   ? 'Consulte os planejamentos semanais por turma, acompanhe as habilidades BNCC e registre orientações pedagógicas.'
-                  : 'Cadastro de Componentes Curriculares (BNCC), Matrizes por Turma, Atribuição Docente e Grade Semanal sem Choques.'}
+                  : 'Disciplinas, matriz de cada turma, professores e horários da semana.'}
           </p>
         </div>
       </div>

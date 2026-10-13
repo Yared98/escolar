@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
+import { perfilAmigavel } from '@/lib/perfis';
 import {
   DollarSign,
   QrCode,
@@ -72,6 +74,9 @@ export const classificarFaixaAging = (fat: Fatura): '0-30' | '31-60' | '60+' | n
 
 export function FinanceiroSection() {
   const searchParams = useSearchParams();
+  const { user } = useAuth();
+  // Conexão com o banco envolve credenciais: o servidor só permite à gestão.
+  const podeConfigurarBanco = perfilAmigavel(user?.role) === 'Gestão';
   const tabParam = searchParams ? searchParams.get('tab') : null;
   const activeSubTab: 'ar' | 'ap' | 'cobranca' | 'fornecedores' | 'nfse' | 'bi' | 'banking' =
     tabParam === 'ap' ||
@@ -701,7 +706,14 @@ export function FinanceiroSection() {
         />
       )}
 
-      {activeSubTab === 'banking' && <BankingIntegrations />}
+      {activeSubTab === 'banking' &&
+        (podeConfigurarBanco ? (
+          <BankingIntegrations />
+        ) : (
+          <p className="text-sm text-slate-600 dark:text-slate-300 bg-salvia-50 dark:bg-salvia-950/40 border border-salvia-200 dark:border-salvia-800 rounded-xl p-4">
+            A conexão com o banco é configurada pela gestão da escola.
+          </p>
+        ))}
 
       {/* TAB CONTENT: BI DRE / DFC */}
       {activeSubTab === 'bi' && (
