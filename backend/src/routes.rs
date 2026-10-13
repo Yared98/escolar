@@ -86,6 +86,7 @@ use crate::{
             salvar_prontuario, transferir_aluno_turma, vincular_responsavel_aluno,
         },
         usuarios::{atualizar_usuario, criar_usuario, listar_usuarios, redefinir_senha},
+        virada_ano::{executar_virada_ano, obter_previa_virada_ano},
     },
     middleware::{
         auth::auth_middleware, security::opensec_security_headers_middleware,
@@ -188,6 +189,12 @@ pub fn create_router(state: AppState) -> Router {
             "/secretaria/contratos/:contrato_id/assinar",
             post(assinar_contrato),
         )
+        // Virada de ano letivo e rematrícula (C15)
+        .route(
+            "/secretaria/virada-ano/previa",
+            get(obter_previa_virada_ano),
+        )
+        .route("/secretaria/virada-ano/executar", post(executar_virada_ano))
         // 1. Financeiro (Faturamento, Tesouraria, AP/AR, NFS-e, BI DRE/DFC) - Full CRUD Faturas & Despesas
         .route(
             "/financeiro/faturas",

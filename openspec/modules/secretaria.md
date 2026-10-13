@@ -15,6 +15,7 @@ O módulo cobre o **ciclo de vida completo do estudante** (matrícula com duplo 
 | Gestão de Turmas, Salas e Controle de Lotação | Implementado |
 | Renumeração Alfabética do Livro de Chamada (1..N) | Implementado |
 | Transferência Atômica entre turmas com vaga | Implementado |
+| Rematrícula e Virada de Ano Letivo (prévia, promoção/retenção e contratos) | Implementado |
 | Transferência inter-escolas / inter-tenants automática | **Fora de escopo MVP** (requer nova matrícula manual) |
 | Assinatura com certificado digital ICP-Brasil A1/A3 nos contratos | **Fora de escopo MVP** (utiliza assinatura eletrônica MP 2.200-2/2001 via SHA-256) |
 
@@ -144,10 +145,27 @@ O módulo cobre o **ciclo de vida completo do estudante** (matrícula com duplo 
 - Se faltarem dados da escola (CNPJ/endereço), os campos ficam em branco para preenchimento manual.
 - Não há matrícula/RA persistido no MVP (campo `null` na resposta) nem endereço cadastrado em `tenants` (campo `null`).
 
+## 6.2. Rematrícula e virada de ano letivo
+
+- Assistente e endpoints para transição de ano letivo e rematrícula em lote da secretaria escolar:
+  - `GET /api/v1/secretaria/virada-ano/previa?ano_origem=<ano>&ano_destino=<ano>`: Calcula a prévia da virada sem modificar o banco. Agrupa turmas ativas do ano de origem, sugere turma de destino (série seguinte ou repetência), analisa o boletim de cada aluno com notas e faltas (média anual >= 6.0 e presença >= 75% -> aprovado e promovido; reprovado se abaixo), sugerindo se o aluno avança de série ou repete de ano, com indicador de pendência financeira do ano anterior.
+  - `POST /api/v1/secretaria/virada-ano/executar`: Executa a virada de ano atômica sob transação (`sqlx::Transaction`). Cria as turmas de destino no novo ano letivo (se já não existirem), matricula os alunos promovidos na turma de destino da turma de origem e os **retidos numa turma da mesma série no novo ano** (usa uma turma ativa de mesma etapa, série e turno que já exista no ano de destino; se não houver, cria uma com o mesmo nome e a mesma matriz). Turma de destino informada precisa ser do ano de destino (400 se for do ano anterior, para não reativar a matrícula antiga). Encerra as enturmações do ano de origem com status `concluido` e preserva integralmente as matrículas, turmas e notas do ano anterior (nunca apaga dados históricos).
+  - Tabela `viradas_ano_letivo` com RLS obrigatório (`tenant_id = get_current_tenant()`) registra a execução (`ano_origem`, `ano_destino`, `executado_por`, `executado_em` e os totais em `detalhes` JSONB: turmas criadas, promovidos, retidos, não rematriculados e contratos gerados).
+  - Idempotência: se já houver registro de virada concluída para o par `(ano_origem, ano_destino)` no tenant, nova execução retorna HTTP 409 Conflict impedindo duplicação acidental.
+  - Papéis permitidos: `admin`, `gestor`, `secretaria` (usuários `professor` recebem 403 Forbidden).
+  - Auditoria: registra evento em `audit_logs` com ação `VIRADA_ANO_LETIVO_EXECUTADA`.
+  - Frontend: assistente em 3 etapas em `frontend/src/components/secretaria/RematriculaPanel.tsx` (Etapa 1: Definição de anos e opções; Etapa 2: Revisão de turmas e alunos com sugestão do boletim e ajuste manual; Etapa 3: Resumo com contadores, garantia visual explícita de preservação de histórico e confirmação final). Orquestrado por `SecretariaSection.tsx` via `apiFetch`, acessível pelo menu "Rematrícula" na barra lateral e aba na Secretaria.
+
+### Limitações MVP
+- Não gera automaticamente os carnês ou cobranças do novo ano letivo (geração de parcelas e mensalidades é de responsabilidade do módulo Financeiro).
+- Com "gerar contratos", cria o contrato do novo ano com o mesmo valor do último contrato do aluno, em `pendente_assinatura`: nada é cobrado até a assinatura. Aluno sem contrato anterior fica sem contrato novo (a Secretaria cria pelo fluxo normal).
+- Aluno "não rematriculado" tem a enturmação encerrada, mas o cadastro continua com o status atual (a Secretaria muda o status, se for o caso).
+- Matrículas de novos alunos ingressantes não fazem parte deste assistente (realizadas pelo fluxo padrão de Matrícula).
+
 ## 7. Mapa de código (frontend)
 
 Organização após o refactor B12 (só moveu código, sem mudança de regra):
 
-- `frontend/src/components/SecretariaSection.tsx` orquestra: estado, carregamento (`loadTurmas`, `loadAlunos`, `loadCatalogo`), handlers (matrícula, turma, chamada, transferência, prontuário, status) e abas. Concentra todas as chamadas `apiFetch` da Secretaria.
-- `frontend/src/components/secretaria/` só exibe, via props: `AlunosPanel`, `TurmasPanel`, `NovaTurmaModal`, `TurmaAlunosModal`, `MatriculaModal` (moldura). `ContratosPanel`, `EnsalamentoModal` e `ProntuarioModal` já existiam e têm lógica própria.
+- `frontend/src/components/SecretariaSection.tsx` orquestra: estado, carregamento (`loadTurmas`, `loadAlunos`, `loadCatalogo`), handlers (matrícula, turma, chamada, transferência, prontuário, status, rematrícula) e abas. Concentra todas as chamadas `apiFetch` da Secretaria.
+- `frontend/src/components/secretaria/` só exibe, via props: `AlunosPanel`, `TurmasPanel`, `NovaTurmaModal`, `TurmaAlunosModal`, `MatriculaModal` (moldura), `RematriculaPanel`. `ContratosPanel`, `EnsalamentoModal` e `ProntuarioModal` já existiam e têm lógica própria.
 - `frontend/src/components/secretaria/matricula/`: as 4 abas do formulário de matrícula (`DadosAlunoTab`, `ResponsaveisTab`, `EnderecoContatosTab`, `ProntuarioInicialTab`).
