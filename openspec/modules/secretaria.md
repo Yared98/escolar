@@ -83,6 +83,7 @@ O módulo cobre o **ciclo de vida completo do estudante** (matrícula com duplo 
   - Modal de criação de minuta com seleção de aluno e simulação do valor mensal das 12 parcelas.
   - Modal de assinatura eletrônica com termos contratuais e **copy honesta** esclarecendo a conformidade com a MP 2.200-2/2001 e SHA-256 (com declaração explícita de ausência de certificado ICP-Brasil no MVP).
   - Modal de detalhes com conferência das 12 parcelas geradas, data de vencimento, valores líquidos e botão de cópia de chave Pix EMVCo local.
+  - **Perfil financeiro (C17):** entra na Secretaria só pela aba de contratos, em modo consulta (sem "Novo contrato" e sem "Assinar"), porque o backend recusa a ele a lista de alunos, turmas e salas e a criação/assinatura de contrato. O menu lateral mostra só "Contratos e parcelas" e o atalho do celular troca "Alunos" por "Contratos". Antes ele caía em "Alunos" com a mensagem de erro de carregamento.
 
 ## 5. Gestão de Turmas e Motor de Ensalamento
 - **Listagem e Filtros Server-Side (`GET /secretaria/turmas`)**:

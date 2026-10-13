@@ -65,7 +65,7 @@ export const getMobileShortcuts = (role?: string): MobileShortcut[] => {
         { id: 'fin-overview', label: 'Painel', icon: LayoutDashboard, route: 'overview' },
         { id: 'fin-ar', label: 'Faturas', icon: ArrowDownLeft, route: 'financeiro', tab: 'ar' },
         { id: 'fin-cobranca', label: 'Cobrança', icon: Send, route: 'financeiro', tab: 'cobranca' },
-        { id: 'fin-alunos', label: 'Alunos', icon: Users, route: 'secretaria', tab: 'alunos' },
+        { id: 'fin-contratos', label: 'Contratos', icon: FileText, route: 'secretaria', tab: 'contratos' },
       ];
     case 'responsavel':
     case 'pai':

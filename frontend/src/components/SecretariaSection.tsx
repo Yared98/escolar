@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 import { formatCpf, formatPhone, formatCep } from '@/lib/formatters';
 import {
   Aluno,
@@ -76,7 +77,10 @@ export function SecretariaSection() {
     }
   }, [tabParam]);
 
-  const activeTab: 'alunos' | 'turmas' | 'contratos' = activeTabLocal;
+  // Financeiro só tem acesso aos contratos (o backend recusa alunos, turmas e salas para esse perfil).
+  const { user } = useAuth();
+  const somenteContratos = ['financeiro', 'tesouraria'].includes((user?.role || '').toLowerCase());
+  const activeTab: 'alunos' | 'turmas' | 'contratos' = somenteContratos ? 'contratos' : activeTabLocal;
 
   const handleTabChange = (tab: 'alunos' | 'turmas' | 'contratos') => {
     setActiveTabLocal(tab);
@@ -342,8 +346,9 @@ export function SecretariaSection() {
   }, [filtroTurmaTexto]);
 
   useEffect(() => {
+    if (somenteContratos) return;
     void loadTurmas();
-  }, [loadTurmas]);
+  }, [loadTurmas, somenteContratos]);
 
   // Busca/filtros: volta à página 1 no mesmo ciclo de evento dos chips/handlers
   // (efeito só para debounce de busca, que não passa por handler síncrono).
@@ -352,8 +357,9 @@ export function SecretariaSection() {
   }, [searchDebounced]);
 
   useEffect(() => {
+    if (somenteContratos) return;
     void loadCatalogo();
-  }, [loadCatalogo]);
+  }, [loadCatalogo, somenteContratos]);
 
   // Carrega alunos com cancelamento: evita resposta antiga zerar a lista ao trocar rota/filtro.
   useEffect(() => {
@@ -914,7 +920,7 @@ export function SecretariaSection() {
             <span>Secretaria</span>
           </h2>
           <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-            Alunos, matrículas, turmas e contratos.
+            {somenteContratos ? 'Contratos e parcelas dos alunos.' : 'Alunos, matrículas, turmas e contratos.'}
           </p>
         </div>
 
@@ -947,6 +953,7 @@ export function SecretariaSection() {
       </div>
 
       {/* Abas Superiores de Navegação */}
+      {!somenteContratos && (
       <div className="flex border-b border-slate-200 dark:border-slate-800 mb-6 gap-2 max-sm:flex-wrap">
         <button
           type="button"
@@ -985,6 +992,7 @@ export function SecretariaSection() {
           <span>Contratos e parcelas</span>
         </button>
       </div>
+      )}
 
       {/* Renderização Condicional: Alunos vs Turmas vs Contratos */}
       {activeTab === 'alunos' && (
@@ -1045,6 +1053,7 @@ export function SecretariaSection() {
       {activeTab === 'contratos' && (
         <ContratosPanel
           alunos={alunos}
+          somenteConsulta={somenteContratos}
           onNavigateToFinanceiro={() => {
             if (typeof window !== 'undefined') {
               const url = new URL(window.location.href);

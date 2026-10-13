@@ -27,9 +27,11 @@ import {
 interface ContratosPanelProps {
   alunos: Aluno[];
   onNavigateToFinanceiro?: () => void;
+  // Financeiro só consulta: criar e assinar contrato é da secretaria/gestão (e da família na assinatura).
+  somenteConsulta?: boolean;
 }
 
-export function ContratosPanel({ alunos, onNavigateToFinanceiro }: ContratosPanelProps) {
+export function ContratosPanel({ alunos, onNavigateToFinanceiro, somenteConsulta = false }: ContratosPanelProps) {
   const [contratos, setContratos] = useState<ContratoItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -286,6 +288,7 @@ export function ContratosPanel({ alunos, onNavigateToFinanceiro }: ContratosPane
           </select>
 
           {/* Botão Novo Contrato */}
+          {!somenteConsulta && (
           <button
             type="button"
             onClick={() => {
@@ -297,6 +300,7 @@ export function ContratosPanel({ alunos, onNavigateToFinanceiro }: ContratosPane
             <PlusCircle className="w-4 h-4" />
             <span>+ Novo Contrato</span>
           </button>
+          )}
 
           {/* Recarregar */}
           <button
@@ -341,7 +345,9 @@ export function ContratosPanel({ alunos, onNavigateToFinanceiro }: ContratosPane
             <p className="text-[11px] max-w-sm text-slate-500">
               {search || statusFilter !== 'todos' || anoFilter
                 ? 'Tente ajustar os filtros de busca para encontrar contratos cadastrados.'
-                : 'Crie o contrato de um aluno para gerar as mensalidades no Financeiro.'}
+                : somenteConsulta
+                  ? 'Os contratos criados pela secretaria aparecem aqui.'
+                  : 'Crie o contrato de um aluno para gerar as mensalidades no Financeiro.'}
             </p>
           </div>
         ) : (
@@ -463,7 +469,7 @@ export function ContratosPanel({ alunos, onNavigateToFinanceiro }: ContratosPane
                       {/* Ações */}
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          {isPendente && (
+                          {isPendente && !somenteConsulta && (
                             <button
                               type="button"
                               onClick={() => handleAbrirAssinatura(contrato)}

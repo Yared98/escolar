@@ -20,9 +20,9 @@ describe('getMobileShortcuts', () => {
     expect(items.map((i) => i.label)).toEqual(['Painel', 'Alunos', 'Turmas', 'Captação']);
   });
 
-  it('financeiro vê Painel, Faturas, Cobrança e Alunos', () => {
+  it('financeiro vê Painel, Faturas, Cobrança e Contratos (financeiro não acessa a lista de alunos)', () => {
     const items = getMobileShortcuts('financeiro');
-    expect(items.map((i) => i.label)).toEqual(['Painel', 'Faturas', 'Cobrança', 'Alunos']);
+    expect(items.map((i) => i.label)).toEqual(['Painel', 'Faturas', 'Cobrança', 'Contratos']);
   });
 
   it('responsável vê Boletim, Mensalidades, Recados e Rotina', () => {

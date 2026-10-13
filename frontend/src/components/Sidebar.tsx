@@ -325,7 +325,17 @@ export function Sidebar({ activeRoute, onRouteChange }: SidebarProps) {
   // Route permissions matrix
   const isAllowed = (route: NavRoute): boolean => isRouteAllowed(route, role);
 
-  const filteredItems = MENU_ITEMS.filter((item) => isAllowed(item.id));
+  // Financeiro entra na Secretaria só para consultar contratos (o backend recusa alunos e turmas).
+  const somenteContratos = canonicalRole(role) === 'financeiro';
+  const filteredItems = MENU_ITEMS.filter((item) => isAllowed(item.id)).map((item) =>
+    item.id === 'secretaria' && somenteContratos
+      ? {
+          ...item,
+          defaultTab: 'contratos',
+          subItems: item.subItems?.filter((sub) => sub.tabKey === 'contratos'),
+        }
+      : item,
+  );
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
