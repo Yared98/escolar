@@ -6,6 +6,7 @@ pub mod financeiro;
 pub mod notificacoes;
 pub mod nutricao;
 pub mod opensec;
+pub mod professor;
 pub mod regulatorio_ia;
 pub mod secretaria;
 pub mod tenant_settings;
