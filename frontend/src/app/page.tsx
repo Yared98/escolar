@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
 import dynamic from 'next/dynamic';
 import { Sidebar, NavRoute, MENU_ITEMS, findRouteByTab, isRouteAllowed, isRouteAuthorized } from '@/components/Sidebar';
+import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { perfilAmigavel } from '@/lib/perfis';
 import { KeyRound, Building2, UserPlus, LogIn, Lock } from 'lucide-react';
 
@@ -23,6 +24,7 @@ const VALID_ROUTES: NavRoute[] = [
   'calendario',
   'crm',
   'ia_evasao',
+  'professor',
 ];
 
 const SectionSkeleton = () => (
@@ -90,6 +92,10 @@ const PainelEvasao = dynamic(() => import('@/components/PainelEvasao').then(m =>
   loading: () => <SectionSkeleton />,
   ssr: false,
 });
+const ProfessorSection = dynamic(() => import('@/components/ProfessorSection').then(m => m.ProfessorSection), {
+  loading: () => <SectionSkeleton />,
+  ssr: false,
+});
 
 function DashboardContent() {
   const { user, login } = useAuth();
@@ -109,7 +115,9 @@ function DashboardContent() {
       const matched = findRouteByTab(initialTab, role);
       if (matched) return matched;
     }
-    return role === 'responsavel' ? 'portal_aluno' : 'overview';
+    if (role === 'responsavel') return 'portal_aluno';
+    if (role === 'professor') return 'professor';
+    return 'overview';
   });
 
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
@@ -153,7 +161,8 @@ function DashboardContent() {
     }
 
     // Fallback for empty query parameters on browser Back to root /
-    const defaultRoute: NavRoute = role === 'responsavel' ? 'portal_aluno' : 'overview';
+    const defaultRoute: NavRoute =
+      role === 'responsavel' ? 'portal_aluno' : role === 'professor' ? 'professor' : 'overview';
     setActiveRoute((prev) => (prev === defaultRoute ? prev : defaultRoute));
   }, [searchParams, role]);
 
@@ -164,7 +173,11 @@ function DashboardContent() {
     if (!user) return;
     if (isRouteAllowed(activeRoute, role)) return;
 
-    const fallback: NavRoute = isRouteAllowed('overview', role) ? 'overview' : 'portal_aluno';
+    const fallback: NavRoute = isRouteAllowed('overview', role)
+      ? 'overview'
+      : role === 'professor'
+        ? 'professor'
+        : 'portal_aluno';
     if (activeRoute === fallback) return;
 
     const params = new URLSearchParams(searchParams ? searchParams.toString() : '');
@@ -290,7 +303,7 @@ function DashboardContent() {
           <Sidebar activeRoute={activeRoute} onRouteChange={handleRouteChange} />
 
           {/* Main Content Area */}
-          <div className="flex-1 w-full space-y-6">
+          <div className="flex-1 w-full space-y-6 pb-28 lg:pb-0">
             {!isAuthorized(activeRoute) ? (
               <div className="bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-500/40 p-8 rounded-2xl text-center space-y-4 shadow-sm">
                 <div className="inline-block p-4 bg-rose-100 dark:bg-rose-900/60 rounded-full text-rose-700 dark:text-rose-300">
@@ -325,9 +338,11 @@ function DashboardContent() {
                 {activeRoute === 'calendario' && <CalendarioEscolarSection />}
                 {activeRoute === 'crm' && <CrmSection />}
                 {activeRoute === 'ia_evasao' && <PainelEvasao />}
+                {activeRoute === 'professor' && <ProfessorSection onRouteChange={handleRouteChange} />}
               </>
             )}
           </div>
+          <MobileBottomNav activeRoute={activeRoute} onRouteChange={handleRouteChange} />
         </div>
       ) : (
         <div className="w-full max-w-md mx-auto bg-white dark:bg-salvia-900 border border-salvia-200 dark:border-salvia-800 rounded-2xl p-6 sm:p-8 shadow-md">

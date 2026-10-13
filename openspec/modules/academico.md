@@ -14,6 +14,9 @@ O processo avaliativo opera pelo lançamento de notas por período letivo e falt
 | Catálogo BNCC com auto-seed dinâmico | Implementado |
 | Matriz Curricular da Turma & Atribuição Docente | Implementado |
 | Grade Horária Semanal Anti-Choque Triplo (Turma, Docente, Sala) | Implementado |
+| Tela "Meu dia" do professor (aulas de hoje + atalhos) | Implementado |
+| Lançamento de notas por turma/disciplina/período no celular | Implementado |
+| Navegação inferior mobile para todos os perfis | Implementado |
 | Simulados TRI (cadastro de itens a/b/c + apuração de gabarito via API/UI) | **Parcial** — endpoints e aba em `PedagocioNutricaoSection`; sem leitora física |
 | Leitora Ótica de Gabaritos Físicos (hardware/scan) | **Fora de escopo MVP** |
 | Banco TRI “produção ENEM” / calibração estatística avançada | **Fora de escopo MVP** (parâmetros a/b/c manuais no cadastro do simulado) |
@@ -39,6 +42,8 @@ O processo avaliativo opera pelo lançamento de notas por período letivo e falt
 - **Histórico da turma**: `GET /api/v1/academico/diario/recentes?turma_id=&limit=` lista os últimos diários salvos da turma.
 - **Diferenciação por Etapa**: Turmas da Educação Infantil abrem a visão integrada com rotina infantil; turmas do Fundamental/Médio abrem a pauta de frequência e conteúdo.
 - **Roster canônico**: a lista de alunos do Diário vem de `GET /secretaria/turmas/:turma_id/alunos` (vínculo ativo + aluno `ativo`) — **não** há entidade paralela. O Pedagógico usa o mesmo endpoint para exibir alunos enturmados; cadastro, ciclo de vida e prontuário ficam na Secretaria.
+- **Celular / professor**: o Diário pode ser aberto diretamente a partir da tela "Meu dia" (`route=academico&turma=<id>&data=<YYYY-MM-DD>`). A lista de turmas do professor no Diário vem de `GET /api/v1/professor/minhas-turmas`; gestores/administradores continuam usando `GET /api/v1/secretaria/turmas`.
+- **Conteúdo da aula**: o campo "Conteúdo Ministrado" aceita string vazia. O seletor falso de "Horário (referência local)" foi removido; o histórico mostra "Conteúdo não informado" quando nenhum conteúdo foi preenchido.
 
 ---
 
@@ -102,6 +107,12 @@ O processo avaliativo opera pelo lançamento de notas por período letivo e falt
     - Professor logado vê apenas suas aulas; gestor/admin podem filtrar por `professor_id` opcional; sem o parâmetro, veem todas as aulas do dia.
     - Response 200 OK: `[{ horario_id, turma_id, turma_nome, disciplina_id, disciplina_nome, sala_nome, hora_inicio, hora_fim, chamada_registrada }]`, ordenado por `hora_inicio`.
 
+- **UI do Professor (`ProfessorSection.tsx`)**:
+  - Orquestra as abas "Aulas de hoje" e "Lançar notas".
+  - "Aulas de hoje" consome `GET /api/v1/professor/aulas?data=` e mostra cartões por aula com horário, turma, disciplina, sala e selo de chamada feita/pendente.
+  - "Minhas turmas" consome `GET /api/v1/professor/minhas-turmas` e oferece atalhos para chamada e notas.
+  - "Lançar notas" consome `GET /api/v1/academico/notas` e envia alterações via `POST /api/v1/academico/notas/lote`; valida notas entre 0 e 10, aceita vírgula como separador decimal e pede confirmação ao trocar turma/disciplina/período com alterações não salvas.
+
 - **Simulados TRI (parcial)**:
   - `POST/GET /api/v1/academico/simulados`: cria/lista simulados com itens e parâmetros a/b/c manuais.
   - `POST /api/v1/academico/apuracao-gabarito`: apura respostas e estima theta/escala ENEM in-process.
@@ -144,11 +155,13 @@ Organização após o refactor B12 (só moveu código, sem mudança de regra):
 
 - `PedagocioNutricaoSection.tsx` orquestra o Pedagógico (estado, carregamento, handlers, abas); `frontend/src/components/pedagogico/` só exibe, via props: `MatrizPanel`, `HorariosPanel`, `TriPanel`, `ProjetosPanel` e os modais `NovaDisciplinaModal`, `AdicionarMatrizModal`, `AtribuirProfessorModal`, `NovoHorarioModal`, `NovoSimuladoModal`.
 - `PortalAlunoSection.tsx` orquestra o Portal do Aluno; `frontend/src/components/portal_aluno/` só exibe: `BoletimTab`, `DiplomaTab`, `FinanceiroTab`, `RotinaTab` e `PixModal` (separado do Pix do Financeiro).
-- O gate de spec (`scripts/check-agent-gates.mjs`) associa `pedagogico/**` e `portal_aluno/**` a este módulo.
+- `ProfessorSection.tsx` orquestra a área do professor ("Meu dia"); `frontend/src/components/professor/` só exibe: `AulasHojePanel` e `LancarNotasPanel`.
+- `MobileBottomNav.tsx` exibe a barra de navegação inferior no celular para todos os perfis.
+- O gate de spec (`scripts/check-agent-gates.mjs`) associa `pedagogico/**`, `portal_aluno/**`, `ProfessorSection.tsx`, `MobileBottomNav.tsx`, `academico/ChamadaPanel.tsx` e `academico/useTurmaAlunos.ts` a este módulo.
 
 ## 6. Limitações MVP
 
-- As rotas `/api/v1/professor/aulas` e `/api/v1/professor/minhas-turmas` são backend-only neste card; a tela mobile do professor é implementada no card C2.
 - O cálculo de "hoje" para `/api/v1/professor/aulas` usa UTC-3 fixo (`America/Sao_Paulo` sem biblioteca de timezone), o que pode divergir em 1h durante o horário de verão brasileiro.
 - A tabela `notas` é indexada pelo **nome** da disciplina (campo `disciplina_nome`), não pelo `disciplina_id`; renomear uma disciplina após lançamentos pode desvincular histórico. Ajustar a chave para `disciplina_id` é melhoria futura.
 - O lançamento em lote não valida se a disciplina faz parte da matriz da turma; apenas exige atribuição docente (para professores) ou permissão de gestão.
+- O Diário é armazenado por **turma e dia** (`tenant_id + turma_id + data_aula`), não por aula/disciplina. Em turmas com vários professores lecionando no mesmo dia, a última chamada salva prevalece sobre as anteriores.

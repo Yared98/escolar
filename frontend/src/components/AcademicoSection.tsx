@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import {
   BookOpen,
@@ -22,7 +23,9 @@ const hojeLocal = () => {
 };
 
 export function AcademicoSection() {
-  const { isOnline, tenant } = useAuth();
+  const { isOnline, tenant, user } = useAuth();
+  const role = user?.role || 'admin';
+  const searchParams = useSearchParams();
 
   const [dataAula, setDataAula] = useState(hojeLocal);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -38,7 +41,7 @@ export function AcademicoSection() {
     selectedAlunoId,
     setSelectedAlunoId,
     listaErro,
-  } = useTurmaAlunos();
+  } = useTurmaAlunos(role);
 
   const {
     pendingSyncCount,
@@ -51,6 +54,22 @@ export function AcademicoSection() {
   } = useOfflineSyncQueue(tenant?.id, isOnline);
 
   const infantil = isTurmaInfantil(turmaSelecionada);
+
+  useEffect(() => {
+    const turmaParam = searchParams?.get('turma');
+    const dataParam = searchParams?.get('data');
+
+    if (dataParam && /^\d{4}-\d{2}-\d{2}$/.test(dataParam)) {
+      setDataAula(dataParam);
+    }
+
+    if (turmaParam) {
+      const encontrada = turmasOpcoes.find((t) => t.id === turmaParam);
+      if (encontrada) {
+        selecionarTurma(turmaParam);
+      }
+    }
+  }, [searchParams, turmasOpcoes, selecionarTurma]);
 
   return (
     <section
