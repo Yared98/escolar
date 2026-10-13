@@ -47,7 +47,7 @@ export function useOfflineSyncQueue(tenantId: string | undefined, isOnline: bool
     async (entity: string, payload: Record<string, unknown>) => {
       const currentTenant = tenantIdRef.current;
       if (!currentTenant) {
-        throw new Error('Sessão sem tenant. Faça login novamente.');
+        throw new Error('Sua sessão expirou. Entre novamente.');
       }
       const eventUuid = crypto.randomUUID();
       await db.sync_events.add({
@@ -133,7 +133,7 @@ export function useOfflineSyncQueue(tenantId: string | undefined, isOnline: bool
       }
     } catch {
       showToastRef.current({
-        text: 'Falha temporária ao sincronizar. Os dados continuam no IndexedDB.',
+        text: 'Sem conexão com o servidor agora. O registro continua salvo neste aparelho e será enviado depois.',
         type: 'warn',
       }, 4500);
     } finally {

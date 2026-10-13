@@ -5,7 +5,7 @@ import { ThemeProvider } from '@/context/ThemeContext';
 import { Header } from '@/components/Header';
 
 export const metadata = {
-  title: 'Escolar ERP - Gestão Educacional & Cuidado Pedagógico',
+  title: 'Escolar - Gestão escolar',
   description: 'Sistema de gestão escolar humanizado com acesso pelo celular e computador',
   manifest: '/manifest.json',
 };

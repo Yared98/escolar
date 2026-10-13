@@ -1,6 +1,6 @@
 {
-  "name": "Escolar ERP - Gestão Integrada",
-  "short_name": "Escolar ERP",
+  "name": "Escolar - Gestão escolar",
+  "short_name": "Escolar",
   "description": "Sistema de Gestão Escolar com suporte Offline-First PWA para Diário de Classe e Secretaria",
   "start_url": "/",
   "display": "standalone",

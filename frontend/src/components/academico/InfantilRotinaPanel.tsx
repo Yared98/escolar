@@ -120,7 +120,7 @@ export function InfantilRotinaPanel({
 
   const handleSalvarRotina = async () => {
     if (!tenantId) {
-      showToast({ text: 'Sessão sem tenant. Faça login novamente.', type: 'warn' });
+      showToast({ text: 'Sua sessão expirou. Entre novamente.', type: 'warn' });
       return;
     }
     if (!selectedAlunoId) {
@@ -252,7 +252,7 @@ export function InfantilRotinaPanel({
 
   const handleSalvarPortfolio = async (form: PortfolioFormData) => {
     if (!tenantId) {
-      showToast({ text: 'Sessão sem tenant. Faça login novamente.', type: 'warn' });
+      showToast({ text: 'Sua sessão expirou. Entre novamente.', type: 'warn' });
       return;
     }
     if (!selectedAlunoId || !turmaId) {

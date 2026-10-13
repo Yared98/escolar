@@ -81,7 +81,7 @@ export function Header() {
           </div>
           <div className="flex flex-col">
             <span className="leading-tight font-bold text-lg text-slate-900 dark:text-salvia-50 tracking-tight">
-              Escolar ERP
+              Escolar
             </span>
             <span className="text-[11px] text-salvia-600 dark:text-salvia-400 font-normal leading-none">
               Gestão escolar humanizada
