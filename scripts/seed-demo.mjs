@@ -40,6 +40,7 @@ const SEED_FILES = [
   '20260929234000_seed_responsavel_demo.sql',
   '20260930120000_fix_responsavel_vinculo_comunicacao.sql',
   '20260930160000_seed_financeiro_e_contatos_familia.sql',
+  '20261009000000_seed_demo_enriquecimento_D4.sql',
 ];
 
 async function main() {
