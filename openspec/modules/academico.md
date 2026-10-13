@@ -20,6 +20,7 @@ O processo avaliativo opera pelo lançamento de notas por período letivo e falt
 | Lançamento de notas por turma/disciplina/período no celular | Implementado |
 | Fechamento de bimestre/trimestre e bloqueio 409 no lançamento de notas | Implementado |
 | Conselho de classe (parecer e encaminhamento por aluno/período) | Implementado |
+| Planejamento semanal de aulas com BNCC e comentário da coordenação | Implementado |
 | Navegação inferior mobile para todos os perfis | Implementado |
 | Simulados TRI (cadastro de itens a/b/c + apuração de gabarito via API/UI) | **Parcial** — endpoints e aba em `PedagocioNutricaoSection`; sem leitora física |
 | Leitora Ótica de Gabaritos Físicos (hardware/scan) | **Fora de escopo MVP** |
@@ -177,26 +178,57 @@ O processo avaliativo opera pelo lançamento de notas por período letivo e falt
 - **Provas e Trabalhos**: aba "Provas e trabalhos" (`tabKey: portal_avaliacoes`) lista, em ordem de data, as avaliações das turmas dos filhos, com título, tipo (prova, trabalho ou atividade), turma, disciplina, data e orientações do professor. Somente leitura — criação e remoção são do professor, da gestão ou da administração (contrato em `openspec/modules/agenda_calendario.md`).
 - **Observações da escola**: aba "Observações" (`tabKey: portal_ocorrencias`) lista as ocorrências do estudante selecionado, da mais recente para a mais antiga, com tipo amigável (Comportamento, Atraso, Falta de material, Saúde, Elogio, Outros), data/hora e descrição. Disponível para **qualquer etapa** de ensino, não só Educação Infantil. Somente leitura: a família não cria nem edita observações e não há ação de "marcar como lida".
 
-## 5. Mapa de código (frontend)
+## 5. Planejamento Semanal de Aulas (BNCC & Acompanhamento da Coordenação)
+
+- **Consulta e Normalização Semanal**: `GET /api/v1/planos-aula?turma_id=&disciplina_id=&semana=YYYY-MM-DD`.
+  - Normaliza qualquer data enviada no parâmetro `semana` para a **segunda-feira** da respectiva semana (`normalizar_para_segunda_feira`).
+  - Se `disciplina_id` for informado, retorna o plano da disciplina específica naquela semana (0 ou 1 item).
+  - Se omitido (usado pela Coordenação no Pedagógico), retorna todos os planos lançados para aquela turma na semana.
+  - Papéis autorizados: `professor`, `gestor`, `admin`, `secretaria`.
+- **Lançamento e Upsert**: `PUT /api/v1/planos-aula`
+  - Upsert atômico indexado por `(tenant_id, turma_id, disciplina_id, semana_inicio)`.
+  - Regra de atribuição: usuários com perfil `professor` só podem lançar planos para turmas e disciplinas onde possuem atribuição ativa em `turma_professores` (validado via `professor_pode_lancar`), retornando `403 Forbidden` caso contrário. Gestores e administradores podem salvar planos livremente.
+  - Campos do formulário:
+    - `objetivos`: texto obrigatório (máx 5000 caracteres);
+    - `conteudos`: texto obrigatório (máx 5000 caracteres);
+    - `habilidades_bncc`: lista de códigos BNCC (máx 50 itens de até 50 caracteres cada);
+    - `atividades`: metodologia e atividades da semana (máx 5000 caracteres);
+    - `avaliacao`: critérios de avaliação (opcional, máx 2000 caracteres).
+  - Preservação de comentários: o upsert do professor preserva o `comentario_coordenacao` previamente registrado.
+- **Comentário Pedagógico da Coordenação**: `PUT /api/v1/planos-aula/:id/comentario`
+  - Permissão restrita: apenas `gestor`, `admin` e `secretaria` (`check_roles`). Tentativa de professor resulta em `403 Forbidden`.
+  - Validação: campo `comentario` obrigatório com até 2000 caracteres.
+  - Gera registro de auditoria (`log_audit` com ação `COMENTARIO_PLANO_AULA`).
+- **Indicador no Meu Dia do Professor**:
+  - Os cartões de "Aulas de hoje" (`/api/v1/professor/aulas`) incluem o campo `plano_semana_feito: bool`.
+  - A interface exibe selos informativos lado a lado: status da chamada e "Plano da semana: feito/pendente".
+- **Painel de Gestão Pedagógica**:
+  - Aba "Planos de aula" em `PedagocioNutricaoSection.tsx` (`pedagogico/PlanosAulaPanel.tsx`), permitindo que a coordenação filtre por turma e navegue pelas semanas (‹ anterior / próxima ›) para ler os planos e registrar seus comentários de acompanhamento.
+
+---
+
+## 6. Mapa de código (frontend)
 
 Organização após o refactor B12 (só moveu código, sem mudança de regra):
 
-- `PedagocioNutricaoSection.tsx` orquestra o Pedagógico (estado, carregamento, handlers, abas); `frontend/src/components/pedagogico/` só exibe, via props: `MatrizPanel`, `HorariosPanel`, `TriPanel`, `ProjetosPanel`, `FechamentoPanel` e os modais `NovaDisciplinaModal`, `AdicionarMatrizModal`, `AtribuirProfessorModal`, `NovoHorarioModal`, `NovoSimuladoModal`.
+- `PedagocioNutricaoSection.tsx` orquestra o Pedagógico (estado, carregamento, handlers, abas); `frontend/src/components/pedagogico/` só exibe, via props: `MatrizPanel`, `HorariosPanel`, `TriPanel`, `ProjetosPanel`, `FechamentoPanel`, `PlanosAulaPanel` e os modais `NovaDisciplinaModal`, `AdicionarMatrizModal`, `AtribuirProfessorModal`, `NovoHorarioModal`, `NovoSimuladoModal`.
 - `PortalAlunoSection.tsx` orquestra o Portal do Aluno; `frontend/src/components/portal_aluno/` só exibe: `BoletimTab`, `DiplomaTab`, `FinanceiroTab`, `RotinaTab`, `AvaliacoesTab`, `OcorrenciasTab` e `PixModal` (separado do Pix do Financeiro).
-- `ProfessorSection.tsx` orquestra a área do professor ("Meu dia"); `frontend/src/components/professor/` só exibe: `AulasHojePanel`, `LancarNotasPanel` e `AvaliacoesPanel`.
+- `ProfessorSection.tsx` orquestra a área do professor ("Meu dia"); `frontend/src/components/professor/` só exibe: `AulasHojePanel`, `PlanejamentoPanel`, `LancarNotasPanel` e `AvaliacoesPanel`.
 - `MobileBottomNav.tsx` exibe a barra de navegação inferior no celular para todos os perfis.
 - O gate de spec (`scripts/check-agent-gates.mjs`) associa `pedagogico/**`, `portal_aluno/**`, `ProfessorSection.tsx`, `MobileBottomNav.tsx`, `academico/ChamadaPanel.tsx` e `academico/useTurmaAlunos.ts` a este módulo.
 - Observações do aluno: `AcademicoSection.tsx` orquestra a chamada de API e a contagem por aluno; `academico/OcorrenciaModal.tsx` e `academico/ChamadaPanel.tsx` só exibem (props e callbacks). Tipos amigáveis e o mapeamento de prioridade ficam em `frontend/src/lib/types/academico.ts`.
 
-## 6. Limitações MVP
+## 7. Limitações MVP
 
 - O cálculo de "hoje" para `/api/v1/professor/aulas` usa UTC-3 fixo (`America/Sao_Paulo` sem biblioteca de timezone), o que pode divergir em 1h durante o horário de verão brasileiro.
 - A tabela `notas` é indexada pelo **nome** da disciplina (campo `disciplina_nome`), não pelo `disciplina_id`; renomear uma disciplina após lançamentos pode desvincular histórico. Ajustar a chave para `disciplina_id` é melhoria futura.
 - O lançamento em lote não valida se a disciplina faz parte da matriz da turma; apenas exige atribuição docente (para professores) ou permissão de gestão.
 - O diário sem `disciplina_id` continua sendo por **turma e dia** (`disciplina_id IS NULL`): é o registro do dia inteiro usado pela Educação Infantil e Fundamental I, e nele a última chamada salva prevalece sobre as anteriores.
+- **Planejamento de aulas e catálogo BNCC**: caso a escola não possua componentes cadastrados na BNCC centralizada, os códigos de habilidades são informados manualmente separados por vírgula (ex: EF06MA07, EF06MA08). O comentário da coordenação não dispara notificações em tempo real (push/e-mail) para o professor; o feedback é visualizado ao abrir a semana correspondente no painel de planejamento.
 - **Avaliações no calendário**: a disciplina da prova/trabalho mora em `eventos_calendario.disciplina_id`. Eventos criados antes dessa coluna (ou pela gestão, que não a preenche) ficam com disciplina nula e a família vê a avaliação sem o nome da disciplina. Marcar uma avaliação não avisa ninguém automaticamente: não há push, e-mail ou WhatsApp disparados, apenas a listagem no portal. Regras e contrato completos em `openspec/modules/agenda_calendario.md`.
 - **Observações do aluno (ocorrências)**: o professor só registra observação para aluno de turma em que tem atribuição (`turma_professores`) ou da qual é regente (`turmas.professor_regente_id`); sem vínculo a API devolve 403. Um professor regente sem linha em `turma_professores` enxerga e registra as ocorrências da turma, mas continua sem acesso ao restante do diário de outros professores.
 - **Prioridade não é escolhida por quem registra**: no Diário do Fundamental a prioridade é derivada do tipo (elogio → baixa; atraso e falta de material → média; comportamento e saúde → alta). A rotina da Educação Infantil continua gravando `urgente`, como antes.
 - **Sem aviso automático à família**: a observação não dispara push, e-mail ou WhatsApp; `notificado_responsavel` apenas registra a intenção do aviso. A coluna `lido_pelo_responsavel` existe no banco, mas não há rota para a família marcar a leitura — o portal não mostra selo de "lido".
 - **Ocorrências no celular sem internet**: o registro de observação exige conexão (não entra na fila offline do diário); se falhar, o modal mostra o erro e nada é gravado.
 - **Fechamento e conselho**: a reabertura exige o `id` do registro de `fechamentos_periodo`; a UI lista os fechamentos e descobre o id automaticamente. A média do conselho é a média aritmética simples das notas do período (não ponderada por carga horária). Não há notificação automática para a família quando um parecer é registrado.
+

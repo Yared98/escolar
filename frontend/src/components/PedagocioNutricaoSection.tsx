@@ -12,7 +12,39 @@ import {
   X,
 } from 'lucide-react';
 import { CardapioPlanner } from './nutricao/CardapioPlanner';
-import { Disciplina, Turma, TurmaDisciplinaDetalhada, HorarioTurmaDetalhado, ProfessorItem, SalaItem, SimuladoTri, ProjetoEducacional, AlunoTurmaRoster, FechamentoPeriodo, AlunoConselho, PeriodoFechamento, TriPanel, NovoSimuladoModal, MatrizPanel, NovaDisciplinaModal, AdicionarMatrizModal, HorariosPanel, ProjetosPanel, AtribuirProfessorModal, NovoHorarioModal, FechamentoPanel } from './pedagogico';
+import { Disciplina, Turma, TurmaDisciplinaDetalhada, HorarioTurmaDetalhado, ProfessorItem, SalaItem, SimuladoTri, ProjetoEducacional, AlunoTurmaRoster, FechamentoPeriodo, AlunoConselho, PeriodoFechamento, TriPanel, NovoSimuladoModal, MatrizPanel, NovaDisciplinaModal, AdicionarMatrizModal, HorariosPanel, ProjetosPanel, AtribuirProfessorModal, NovoHorarioModal, FechamentoPanel, PlanosAulaPanel } from './pedagogico';
+import type { PlanoAula } from '@/lib/types/academico';
+
+const hojeLocal = () => {
+  const agora = new Date();
+  const offset = agora.getTimezoneOffset() * 60000;
+  return new Date(agora.getTime() - offset).toISOString().split('T')[0];
+};
+
+const obterSegundaFeira = (dataStr: string) => {
+  const d = new Date(dataStr + 'T00:00:00');
+  const diaSemana = d.getDay();
+  const diff = diaSemana === 0 ? -6 : 1 - diaSemana;
+  d.setDate(d.getDate() + diff);
+  const offset = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - offset).toISOString().split('T')[0];
+};
+
+const formatarRotuloSemana = (segundaStr: string) => {
+  const seg = new Date(segundaStr + 'T00:00:00');
+  const sex = new Date(segundaStr + 'T00:00:00');
+  sex.setDate(sex.getDate() + 4);
+  const dSeg = seg.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  const dSex = sex.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return `Semana de ${dSeg} a ${dSex}`;
+};
+
+const adicionarDias = (data: string, dias: number) => {
+  const d = new Date(data + 'T00:00:00');
+  d.setDate(d.getDate() + dias);
+  const offset = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - offset).toISOString().split('T')[0];
+};
 
 const PERIODOS_FECHAMENTO: { value: PeriodoFechamento; label: string }[] = [
   { value: '1_bimestre', label: '1º Bimestre' },
@@ -29,13 +61,21 @@ export function PedagocioNutricaoSection() {
   const searchParams = useSearchParams();
   const tabParam = searchParams ? searchParams.get('tab') : null;
   const routeParam = searchParams ? searchParams.get('route') : null;
-  const activeTab: 'disciplinas_matriz' | 'atribuicao_horarios' | 'projetos' | 'nutricao' | 'tri' | 'fechamento' =
+  const activeTab:
+    | 'disciplinas_matriz'
+    | 'atribuicao_horarios'
+    | 'projetos'
+    | 'nutricao'
+    | 'tri'
+    | 'fechamento'
+    | 'planos_aula' =
     routeParam === 'nutricao' || tabParam === 'nutricao'
       ? 'nutricao'
       : tabParam === 'atribuicao_horarios' ||
           tabParam === 'projetos' ||
           tabParam === 'tri' ||
-          tabParam === 'fechamento'
+          tabParam === 'fechamento' ||
+          tabParam === 'planos_aula'
         ? tabParam
         : 'disciplinas_matriz';
 
@@ -81,6 +121,13 @@ export function PedagocioNutricaoSection() {
     Record<string, 'recuperacao' | 'acompanhamento' | 'sem_pendencias' | ''>
   >({});
   const [salvandoParecer, setSalvandoParecer] = useState<Record<string, boolean>>({});
+
+  // Planos de aula (Gestão Pedagógica)
+  const [semanaGestao, setSemanaGestao] = useState(() => obterSegundaFeira(hojeLocal()));
+  const [planosGestao, setPlanosGestao] = useState<PlanoAula[]>([]);
+  const [loadingPlanosGestao, setLoadingPlanosGestao] = useState(false);
+  const [erroPlanosGestao, setErroPlanosGestao] = useState<string | null>(null);
+  const [salvandoComentarioId, setSalvandoComentarioId] = useState<string | null>(null);
 
   // Modais de Criação
   const [showModalDisciplina, setShowModalDisciplina] = useState(false);
@@ -253,6 +300,58 @@ export function PedagocioNutricaoSection() {
       void loadConselho(selectedTurmaId, periodoConselho);
     }
   }, [selectedTurmaId, activeTab, periodoConselho, loadFechamentos, loadConselho]);
+
+  const loadPlanosGestao = useCallback(async () => {
+    if (!selectedTurmaId) {
+      setPlanosGestao([]);
+      return;
+    }
+    setLoadingPlanosGestao(true);
+    setErroPlanosGestao(null);
+    try {
+      const data = await apiFetch<PlanoAula[]>(
+        `/planos-aula?turma_id=${encodeURIComponent(selectedTurmaId)}&semana=${encodeURIComponent(
+          semanaGestao
+        )}`
+      );
+      setPlanosGestao(data || []);
+    } catch (err: unknown) {
+      setErroPlanosGestao(
+        err instanceof Error ? err.message : 'Não foi possível carregar os planos de aula.'
+      );
+      setPlanosGestao([]);
+    } finally {
+      setLoadingPlanosGestao(false);
+    }
+  }, [selectedTurmaId, semanaGestao]);
+
+  useEffect(() => {
+    if (activeTab === 'planos_aula' && selectedTurmaId) {
+      void loadPlanosGestao();
+    }
+  }, [activeTab, selectedTurmaId, semanaGestao, loadPlanosGestao]);
+
+  const handleSalvarComentario = async (planoId: string, comentario: string) => {
+    setSalvandoComentarioId(planoId);
+    try {
+      const atualizado = await apiFetch<PlanoAula>(`/planos-aula/${planoId}/comentario`, {
+        method: 'PUT',
+        body: JSON.stringify({ comentario }),
+      });
+      setPlanosGestao((prev) => prev.map((p) => (p.id === planoId ? atualizado : p)));
+      setSuccessMsg('Comentário pedagógico salvo com sucesso.');
+      setTimeout(() => setSuccessMsg(null), 4000);
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Erro ao salvar comentário pedagógico.');
+      setTimeout(() => setErrorMsg(null), 4000);
+    } finally {
+      setSalvandoComentarioId(null);
+    }
+  };
+
+  const voltarSemanaGestao = () => setSemanaGestao((s) => adicionarDias(s, -7));
+  const avancarSemanaGestao = () => setSemanaGestao((s) => adicionarDias(s, 7));
+  const hojeSemanaGestao = () => setSemanaGestao(obterSegundaFeira(hojeLocal()));
 
   // Handlers: Fechar/Reabrir período.
   const handleFechar = async (periodo: PeriodoFechamento) => {
@@ -569,7 +668,9 @@ export function PedagocioNutricaoSection() {
                 ? 'Nutrição & Cardápios'
                 : activeTab === 'fechamento'
                   ? 'Fechamento de Período e Conselho de Classe'
-                  : 'Gestão Pedagógica, Matriz Curricular & Lotação'}
+                  : activeTab === 'planos_aula'
+                    ? 'Planos de Aula & Acompanhamento Pedagógico'
+                    : 'Gestão Pedagógica, Matriz Curricular & Lotação'}
             </span>
           </h2>
           <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
@@ -577,7 +678,9 @@ export function PedagocioNutricaoSection() {
               ? 'Planejamento de cardápios, vigências de recorrências e atenção a restrições alimentares.'
               : activeTab === 'fechamento'
                 ? 'Bloqueie ou reabra bimestres/trimestres e registre o parecer do conselho para cada aluno.'
-                : 'Cadastro de Componentes Curriculares (BNCC), Matrizes por Turma, Atribuição Docente e Grade Semanal sem Choques.'}
+                : activeTab === 'planos_aula'
+                  ? 'Consulte os planejamentos semanais por turma, acompanhe as habilidades BNCC e registre orientações pedagógicas.'
+                  : 'Cadastro de Componentes Curriculares (BNCC), Matrizes por Turma, Atribuição Docente e Grade Semanal sem Choques.'}
           </p>
         </div>
       </div>
@@ -664,6 +767,28 @@ export function PedagocioNutricaoSection() {
       {activeTab === 'projetos' && (
         <ProjetosPanel
           projetos={projetos}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* ABA: PLANOS DE AULA (GESTÃO PEDAGÓGICA) */}
+      {/* ========================================================================= */}
+      {activeTab === 'planos_aula' && (
+        <PlanosAulaPanel
+          turmas={turmas}
+          selectedTurmaId={selectedTurmaId}
+          onChangeTurma={setSelectedTurmaId}
+          semana={semanaGestao}
+          rotuloSemana={formatarRotuloSemana(semanaGestao)}
+          onVoltarSemana={voltarSemanaGestao}
+          onAvancarSemana={avancarSemanaGestao}
+          onHoje={hojeSemanaGestao}
+          planos={planosGestao}
+          loading={loadingPlanosGestao}
+          erro={erroPlanosGestao}
+          onTentarNovamente={loadPlanosGestao}
+          onSalvarComentario={handleSalvarComentario}
+          salvandoComentarioId={salvandoComentarioId}
         />
       )}
 

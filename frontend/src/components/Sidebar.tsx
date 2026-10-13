@@ -85,6 +85,7 @@ export const MENU_ITEMS: NavItem[] = [
     defaultTab: 'hoje',
     subItems: [
       { id: 'prof-hoje', label: 'Aulas de hoje', tabKey: 'hoje', icon: CalendarCheck },
+      { id: 'prof-planejamento', label: 'Planejamento', tabKey: 'planejamento', icon: CalendarDays },
       { id: 'prof-notas', label: 'Lançar notas', tabKey: 'notas', icon: BookOpen },
       { id: 'prof-avaliacoes', label: 'Avaliações', tabKey: 'avaliacoes', icon: ClipboardList },
     ],
@@ -118,6 +119,7 @@ export const MENU_ITEMS: NavItem[] = [
     subItems: [
       { id: 'ped-matriz', label: 'Disciplinas e matriz', tabKey: 'disciplinas_matriz', icon: Layers },
       { id: 'ped-horarios', label: 'Professores e horários', tabKey: 'atribuicao_horarios', icon: Clock },
+      { id: 'ped-planos-aula', label: 'Planos de aula', tabKey: 'planos_aula', icon: CalendarDays },
       { id: 'ped-projetos', label: 'Projetos BNCC', tabKey: 'projetos', icon: Sparkles },
       { id: 'ped-fechamento', label: 'Fechamento e conselho', tabKey: 'fechamento', icon: Lock },
     ],
@@ -133,7 +135,7 @@ export const MENU_ITEMS: NavItem[] = [
     icon: Utensils,
     defaultTab: 'nutricao',
     subItems: [
-      { id: 'nutri-planner', label: 'Cardápio', tabKey: 'nutricao', icon: Utensils },
+      { id: 'nutri-planner', label: 'Planner de cardápio', tabKey: 'nutricao', icon: Utensils },
     ],
   },
   {
@@ -172,7 +174,7 @@ export const MENU_ITEMS: NavItem[] = [
     icon: UserCheck,
     defaultTab: 'entidades',
     subItems: [
-      { id: 'pessoas-rh', label: 'Funcionários', tabKey: 'entidades', icon: UserCheck },
+      { id: 'pessoas-rh', label: 'Corpo docente & RH', tabKey: 'entidades', icon: UserCheck },
       { id: 'pessoas-usuarios', label: 'Usuários e acessos', tabKey: 'usuarios', icon: ShieldCheck },
     ],
   },
@@ -325,17 +327,7 @@ export function Sidebar({ activeRoute, onRouteChange }: SidebarProps) {
   // Route permissions matrix
   const isAllowed = (route: NavRoute): boolean => isRouteAllowed(route, role);
 
-  // Financeiro entra na Secretaria só para consultar contratos (o backend recusa alunos e turmas).
-  const somenteContratos = canonicalRole(role) === 'financeiro';
-  const filteredItems = MENU_ITEMS.filter((item) => isAllowed(item.id)).map((item) =>
-    item.id === 'secretaria' && somenteContratos
-      ? {
-          ...item,
-          defaultTab: 'contratos',
-          subItems: item.subItems?.filter((sub) => sub.tabKey === 'contratos'),
-        }
-      : item,
-  );
+  const filteredItems = MENU_ITEMS.filter((item) => isAllowed(item.id));
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 

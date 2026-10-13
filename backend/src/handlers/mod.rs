@@ -9,6 +9,7 @@ pub mod financeiro;
 pub mod notificacoes;
 pub mod nutricao;
 pub mod opensec;
+pub mod planos_aula;
 pub mod professor;
 pub mod recuperacao_senha;
 pub mod regulatorio_ia;

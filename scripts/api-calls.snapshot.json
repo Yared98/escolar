@@ -50,6 +50,7 @@
   "GET /pedagogico/projetos": 1,
   "GET /pedagogico/turmas/{}/disciplinas": 1,
   "GET /pedagogico/turmas/{}/horarios": 1,
+  "GET /planos-aula": 2,
   "GET /professor/aulas": 1,
   "GET /professor/minhas-turmas": 3,
   "GET /regulatorio/diploma-digital/{}": 1,
@@ -115,6 +116,8 @@
   "PUT /financeiro/faturas/{}": 1,
   "PUT /nutricao/cardapios/{}": 1,
   "PUT /nutricao/pratos/{}": 1,
+  "PUT /planos-aula": 1,
+  "PUT /planos-aula/{}/comentario": 1,
   "PUT /secretaria/alunos/{}": 1,
   "PUT /secretaria/prontuarios/{}": 2,
   "PUT /tenant/integrations/banking": 1

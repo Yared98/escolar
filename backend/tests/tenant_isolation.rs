@@ -232,10 +232,10 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?;
 
-        // Garantir que as 67 tabelas com tenant_id estejam presentes no schema
-        if tables_with_tenant.len() != 67 {
+        // Garantir que as 68 tabelas com tenant_id estejam presentes no schema
+        if tables_with_tenant.len() != 68 {
             return Err(format!(
-                "Esperado 67 tabelas com tenant_id no schema public, encontrado {}",
+                "Esperado 68 tabelas com tenant_id no schema public, encontrado {}",
                 tables_with_tenant.len()
             ));
         }
@@ -438,6 +438,7 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
                 "perimetro_acessos_logs" => format!("INSERT INTO {tbl} (id, tenant_id, aluno_id, tipo_identificador, codigo) VALUES ($1, $2, '{aluno_b_id}', 'rfid', 'RFID-B-001')"),
                 "perimetro_credenciais" => format!("INSERT INTO {tbl} (id, tenant_id, aluno_id, codigo) VALUES ($1, $2, '{aluno_b_id}', 'RFID-B-001')"),
                 "plano_contas" => format!("INSERT INTO {tbl} (id, tenant_id, codigo, descricao, tipo) VALUES ($1, $2, '1.01.B', 'Receitas B', 'receita')"),
+                "planos_aula" => format!("INSERT INTO {tbl} (id, tenant_id, turma_id, disciplina_id, professor_id, semana_inicio, objetivos, conteudos, habilidades_bncc, atividades, avaliacao, comentario_coordenacao) VALUES ($1, $2, '{turma_b_id}', '{disciplina_b_id}', '{user_b}', CURRENT_DATE, 'Objetivo B', 'Conteudo B', ARRAY['EF01MA01']::text[], 'Atividade B', 'Avaliação B', 'Comentário B')"),
                 "portfolio_infantil" => format!("INSERT INTO {tbl} (id, tenant_id, aluno_id, professor_id, titulo, descricao) VALUES ($1, $2, '{aluno_b_id}', '{user_b}', 'Portfólio B', 'Atividade B')"),
                 "pratos" => format!("INSERT INTO {tbl} (id, tenant_id, titulo, descricao_ingredientes) VALUES ($1, $2, 'Prato B', 'Ingredientes B')"),
                 "presencas" => {

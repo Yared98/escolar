@@ -66,6 +66,7 @@ use crate::{
             listar_recorrencias_cardapio, prever_recorrencia_cardapio,
         },
         opensec::obter_status_opensec,
+        planos_aula::{comentar_plano_aula, consultar_planos_aula, salvar_plano_aula},
         professor::{aulas_do_dia, lancar_notas_lote, listar_notas, minhas_turmas},
         recuperacao_senha::{esqueci_senha, listar_emails_saida_handler, redefinir_senha_publico},
         regulatorio_ia::{
@@ -240,6 +241,11 @@ pub fn create_router(state: AppState) -> Router {
         )
         .route("/professor/minhas-turmas", get(minhas_turmas))
         .route("/professor/aulas", get(aulas_do_dia))
+        .route(
+            "/planos-aula",
+            get(consultar_planos_aula).put(salvar_plano_aula),
+        )
+        .route("/planos-aula/:id/comentario", put(comentar_plano_aula))
         .route("/avaliacoes", get(listar_avaliacoes).post(criar_avaliacao))
         .route("/avaliacoes/:id", delete(deletar_avaliacao))
         .route(

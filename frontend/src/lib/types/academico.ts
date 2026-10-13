@@ -160,6 +160,7 @@ export interface AulaDia {
   hora_inicio: string;
   hora_fim: string;
   chamada_registrada: boolean;
+  plano_semana_feito?: boolean;
 }
 
 export interface NotaAluno {
@@ -340,4 +341,33 @@ export interface ParecerBoletim {
   periodo: string;
   parecer: string;
   encaminhamento?: 'recuperacao' | 'acompanhamento' | 'sem_pendencias' | null;
+}
+
+export interface PlanoAula {
+  id: string;
+  turma_id: string;
+  disciplina_id: string;
+  disciplina_nome?: string;
+  professor_id: string;
+  professor_nome?: string;
+  semana_inicio: string;
+  objetivos: string;
+  conteudos: string;
+  habilidades_bncc: string[];
+  atividades: string;
+  avaliacao?: string | null;
+  comentario_coordenacao?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SalvarPlanoAulaPayload {
+  turma_id: string;
+  disciplina_id: string;
+  semana_inicio: string;
+  objetivos: string;
+  conteudos: string;
+  habilidades_bncc: string[];
+  atividades: string;
+  avaliacao?: string | null;
 }

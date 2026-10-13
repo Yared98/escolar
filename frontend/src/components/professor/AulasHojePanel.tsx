@@ -149,25 +149,46 @@ export function AulasHojePanel({
                     )}
                   </p>
                 </div>
-                <span
-                  className={`shrink-0 inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                    aula.chamada_registrada
-                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                      : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                  }`}
-                >
-                  {aula.chamada_registrada ? (
-                    <>
-                      <CheckCircle2 className="w-3 h-3" />
-                      <span>Chamada feita</span>
-                    </>
-                  ) : (
-                    <>
-                      <AlertCircle className="w-3 h-3" />
-                      <span>Chamada pendente</span>
-                    </>
-                  )}
-                </span>
+                <div className="flex flex-col items-end gap-1.5 shrink-0">
+                  <span
+                    className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                      aula.chamada_registrada
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                        : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                    }`}
+                  >
+                    {aula.chamada_registrada ? (
+                      <>
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>Chamada feita</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="w-3 h-3" />
+                        <span>Chamada pendente</span>
+                      </>
+                    )}
+                  </span>
+                  <span
+                    className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                      aula.plano_semana_feito
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                        : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                    }`}
+                  >
+                    {aula.plano_semana_feito ? (
+                      <>
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>Plano da semana: feito</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="w-3 h-3" />
+                        <span>Plano da semana: pendente</span>
+                      </>
+                    )}
+                  </span>
+                </div>
               </div>
               <button
                 type="button"

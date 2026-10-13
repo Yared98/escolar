@@ -7,6 +7,7 @@ import { apiFetch } from '@/lib/api';
 import type { NavRoute } from '@/components/Sidebar';
 import {
   CalendarCheck,
+  CalendarDays,
   BookOpen,
   ChevronLeft,
   ChevronRight,
@@ -23,17 +24,37 @@ import type {
   PeriodoNota,
   ToastMsg,
   FechamentoPeriodo,
+  PlanoAula,
 } from '@/lib/types/academico';
 import { PERIODOS_NOTA } from '@/lib/types/academico';
 import { parseNotaInput } from '@/lib/notas';
 import { AulasHojePanel } from './professor/AulasHojePanel';
 import { AvaliacoesPanel } from './professor/AvaliacoesPanel';
 import { LancarNotasPanel } from './professor/LancarNotasPanel';
+import { PlanejamentoPanel } from './professor/PlanejamentoPanel';
 
 const hojeLocal = () => {
   const agora = new Date();
   const offset = agora.getTimezoneOffset() * 60000;
   return new Date(agora.getTime() - offset).toISOString().split('T')[0];
+};
+
+const obterSegundaFeira = (dataStr: string) => {
+  const d = new Date(dataStr + 'T00:00:00');
+  const diaSemana = d.getDay();
+  const diff = diaSemana === 0 ? -6 : 1 - diaSemana;
+  d.setDate(d.getDate() + diff);
+  const offset = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - offset).toISOString().split('T')[0];
+};
+
+const formatarRotuloSemana = (segundaStr: string) => {
+  const seg = new Date(segundaStr + 'T00:00:00');
+  const sex = new Date(segundaStr + 'T00:00:00');
+  sex.setDate(sex.getDate() + 4);
+  const dSeg = seg.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  const dSex = sex.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return `Semana de ${dSeg} a ${dSex}`;
 };
 
 const adicionarDias = (data: string, dias: number) => {
@@ -70,17 +91,27 @@ export function ProfessorSection({ onRouteChange }: ProfessorSectionProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const tabInicial = searchParams?.get('tab') as 'hoje' | 'notas' | 'avaliacoes' | null;
-  const [activeTab, setActiveTab] = useState<'hoje' | 'notas' | 'avaliacoes'>(
-    tabInicial === 'notas' || tabInicial === 'avaliacoes' ? tabInicial : 'hoje'
+  const tabInicial = searchParams?.get('tab') as 'hoje' | 'notas' | 'avaliacoes' | 'planejamento' | null;
+  const [activeTab, setActiveTab] = useState<'hoje' | 'notas' | 'avaliacoes' | 'planejamento'>(
+    tabInicial === 'notas' || tabInicial === 'avaliacoes' || tabInicial === 'planejamento'
+      ? tabInicial
+      : 'hoje'
   );
 
   // A barra inferior e o menu trocam a aba pela URL com a seção já aberta: acompanhar o parâmetro.
   useEffect(() => {
     setActiveTab(
-      tabInicial === 'notas' || tabInicial === 'avaliacoes' ? tabInicial : 'hoje'
+      tabInicial === 'notas' || tabInicial === 'avaliacoes' || tabInicial === 'planejamento'
+        ? tabInicial
+        : 'hoje'
     );
   }, [tabInicial]);
+
+  const [semanaPlanejamento, setSemanaPlanejamento] = useState(() => obterSegundaFeira(hojeLocal()));
+  const [planoAtual, setPlanoAtual] = useState<PlanoAula | null>(null);
+  const [loadingPlano, setLoadingPlano] = useState(false);
+  const [erroPlano, setErroPlano] = useState<string | null>(null);
+  const [salvandoPlano, setSalvandoPlano] = useState(false);
 
   const [dataAula, setDataAula] = useState(hojeLocal);
   const [aulas, setAulas] = useState<AulaDia[]>([]);
@@ -226,6 +257,82 @@ export function ProfessorSection({ onRouteChange }: ProfessorSectionProps) {
     }
   }, []);
 
+  const carregarPlano = useCallback(async () => {
+    if (!turmaId || !disciplinaId) {
+      setPlanoAtual(null);
+      return;
+    }
+    setLoadingPlano(true);
+    setErroPlano(null);
+    try {
+      const data = await apiFetch<PlanoAula[]>(
+        `/planos-aula?turma_id=${encodeURIComponent(turmaId)}&disciplina_id=${encodeURIComponent(
+          disciplinaId
+        )}&semana=${encodeURIComponent(semanaPlanejamento)}`
+      );
+      const lista = data || [];
+      setPlanoAtual(lista.length > 0 ? lista[0] : null);
+    } catch (err: unknown) {
+      setErroPlano(
+        err instanceof Error ? err.message : 'Não foi possível carregar o plano de aula.'
+      );
+      setPlanoAtual(null);
+    } finally {
+      setLoadingPlano(false);
+    }
+  }, [turmaId, disciplinaId, semanaPlanejamento]);
+
+  const salvarPlano = async (dados: {
+    objetivos: string;
+    conteudos: string;
+    habilidades_bncc: string[];
+    atividades: string;
+    avaliacao: string;
+  }) => {
+    if (!turmaId || !disciplinaId) {
+      showToast({ text: 'Selecione uma turma e disciplina.', type: 'warn' });
+      return;
+    }
+    setSalvandoPlano(true);
+    try {
+      const res = await apiFetch<PlanoAula>('/planos-aula', {
+        method: 'PUT',
+        body: JSON.stringify({
+          turma_id: turmaId,
+          disciplina_id: disciplinaId,
+          semana_inicio: semanaPlanejamento,
+          objetivos: dados.objetivos,
+          conteudos: dados.conteudos,
+          habilidades_bncc: dados.habilidades_bncc,
+          atividades: dados.atividades,
+          avaliacao: dados.avaliacao ? dados.avaliacao : null,
+        }),
+      });
+      setPlanoAtual(res);
+      showToast({ text: 'Plano de aula salvo com sucesso.', type: 'success' });
+      void carregarAulas();
+    } catch (err: unknown) {
+      showToast({
+        text: err instanceof Error ? err.message : 'Erro ao salvar plano de aula.',
+        type: 'warn',
+      });
+    } finally {
+      setSalvandoPlano(false);
+    }
+  };
+
+  const voltarSemana = () => {
+    setSemanaPlanejamento((s) => adicionarDias(s, -7));
+  };
+
+  const avancarSemana = () => {
+    setSemanaPlanejamento((s) => adicionarDias(s, 7));
+  };
+
+  const hojeSemana = () => {
+    setSemanaPlanejamento(obterSegundaFeira(hojeLocal()));
+  };
+
   useEffect(() => {
     void carregarMinhasTurmas();
   }, [carregarMinhasTurmas]);
@@ -247,6 +354,12 @@ export function ProfessorSection({ onRouteChange }: ProfessorSectionProps) {
       void carregarAvaliacoes();
     }
   }, [activeTab, carregarAvaliacoes]);
+
+  useEffect(() => {
+    if (activeTab === 'planejamento') {
+      void carregarPlano();
+    }
+  }, [activeTab, carregarPlano]);
 
   useEffect(() => {
     const turma = minhasTurmas.find((t) => t.turma_id === turmaId);
@@ -400,7 +513,7 @@ export function ProfessorSection({ onRouteChange }: ProfessorSectionProps) {
     }
   };
 
-  const aoTrocarAba = (tab: 'hoje' | 'notas' | 'avaliacoes') => {
+  const aoTrocarAba = (tab: 'hoje' | 'notas' | 'avaliacoes' | 'planejamento') => {
     setActiveTab(tab);
     if (onRouteChange) {
       onRouteChange('professor', tab);
@@ -439,6 +552,18 @@ export function ProfessorSection({ onRouteChange }: ProfessorSectionProps) {
           >
             <CalendarCheck className="w-3.5 h-3.5" />
             <span>Aulas de hoje</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => aoTrocarAba('planejamento')}
+            className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+              activeTab === 'planejamento'
+                ? 'bg-white dark:bg-salvia-700 text-salvia-900 dark:text-salvia-50 shadow-sm'
+                : 'text-salvia-700 dark:text-salvia-300 hover:text-slate-900 dark:hover:text-salvia-50'
+            }`}
+          >
+            <CalendarDays className="w-3.5 h-3.5" />
+            <span>Planejamento</span>
           </button>
           <button
             type="button"
@@ -496,6 +621,26 @@ export function ProfessorSection({ onRouteChange }: ProfessorSectionProps) {
           erroTurmas={erroTurmas}
           onTentarTurmas={carregarMinhasTurmas}
           onIrParaChamada={irParaChamada}
+        />
+      ) : activeTab === 'planejamento' ? (
+        <PlanejamentoPanel
+          minhasTurmas={minhasTurmas}
+          turmaId={turmaId}
+          onChangeTurma={aoMudarTurma}
+          disciplinas={disciplinasDaTurma}
+          disciplinaId={disciplinaId}
+          onChangeDisciplina={aoMudarDisciplina}
+          semana={semanaPlanejamento}
+          rotuloSemana={formatarRotuloSemana(semanaPlanejamento)}
+          onVoltarSemana={voltarSemana}
+          onAvancarSemana={avancarSemana}
+          onHoje={hojeSemana}
+          plano={planoAtual}
+          loading={loadingPlano}
+          erro={erroPlano}
+          onTentarNovamente={carregarPlano}
+          onSalvar={salvarPlano}
+          salvando={salvandoPlano}
         />
       ) : activeTab === 'avaliacoes' ? (
         <AvaliacoesPanel

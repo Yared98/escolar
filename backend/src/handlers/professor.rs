@@ -76,6 +76,7 @@ pub struct AulaDiaDto {
     pub hora_inicio: String,
     pub hora_fim: String,
     pub chamada_registrada: bool,
+    pub plano_semana_feito: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -333,6 +334,8 @@ pub async fn aulas_do_dia(
         Some(auth_user.id)
     };
 
+    let semana_segunda = crate::handlers::planos_aula::normalizar_para_segunda_feira(data);
+
     let rows = match professor_filtro {
         Some(prof_id) => {
             sqlx::query(
@@ -354,7 +357,13 @@ pub async fn aulas_do_dia(
                               dc.disciplina_id = h.disciplina_id
                               OR dc.disciplina_id IS NULL
                           )
-                    ) AS chamada_registrada
+                    ) AS chamada_registrada,
+                    EXISTS(
+                        SELECT 1 FROM planos_aula pa
+                        WHERE pa.turma_id = h.turma_id
+                          AND pa.disciplina_id = h.disciplina_id
+                          AND pa.semana_inicio = $4
+                    ) AS plano_semana_feito
                 FROM horarios_turma h
                 JOIN turmas t ON t.id = h.turma_id
                 JOIN disciplinas d ON d.id = h.disciplina_id
@@ -367,6 +376,7 @@ pub async fn aulas_do_dia(
             .bind(dia_semana)
             .bind(data)
             .bind(prof_id)
+            .bind(semana_segunda)
             .fetch_all(&mut *db)
             .await?
         }
@@ -390,7 +400,13 @@ pub async fn aulas_do_dia(
                               dc.disciplina_id = h.disciplina_id
                               OR dc.disciplina_id IS NULL
                           )
-                    ) AS chamada_registrada
+                    ) AS chamada_registrada,
+                    EXISTS(
+                        SELECT 1 FROM planos_aula pa
+                        WHERE pa.turma_id = h.turma_id
+                          AND pa.disciplina_id = h.disciplina_id
+                          AND pa.semana_inicio = $3
+                    ) AS plano_semana_feito
                 FROM horarios_turma h
                 JOIN turmas t ON t.id = h.turma_id
                 JOIN disciplinas d ON d.id = h.disciplina_id
@@ -401,6 +417,7 @@ pub async fn aulas_do_dia(
             )
             .bind(dia_semana)
             .bind(data)
+            .bind(semana_segunda)
             .fetch_all(&mut *db)
             .await?
         }
@@ -419,6 +436,7 @@ pub async fn aulas_do_dia(
             hora_inicio: row.get("hora_inicio"),
             hora_fim: row.get("hora_fim"),
             chamada_registrada: row.get("chamada_registrada"),
+            plano_semana_feito: row.get("plano_semana_feito"),
         })
         .collect();
 

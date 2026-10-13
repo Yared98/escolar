@@ -9,3 +9,4 @@ export * from './ProjetosPanel';
 export * from './AtribuirProfessorModal';
 export * from './NovoHorarioModal';
 export * from './FechamentoPanel';
+export * from './PlanosAulaPanel';
