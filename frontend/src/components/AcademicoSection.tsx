@@ -30,6 +30,8 @@ export function AcademicoSection() {
 
   const [dataAula, setDataAula] = useState(hojeLocal);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [diarioDisciplinaId, setDiarioDisciplinaId] = useState('');
+  const [diarioHorarioId, setDiarioHorarioId] = useState('');
 
   const {
     turmasOpcoes,
@@ -59,6 +61,8 @@ export function AcademicoSection() {
   useEffect(() => {
     const turmaParam = searchParams?.get('turma');
     const dataParam = searchParams?.get('data');
+    const disciplinaParam = searchParams?.get('disciplina');
+    const horarioParam = searchParams?.get('horario');
 
     if (dataParam && /^\d{4}-\d{2}-\d{2}$/.test(dataParam)) {
       setDataAula(dataParam);
@@ -68,9 +72,20 @@ export function AcademicoSection() {
       const encontrada = turmasOpcoes.find((t) => t.id === turmaParam);
       if (encontrada) {
         selecionarTurma(turmaParam);
+        // Navegação "Fazer chamada" traz a aula (disciplina + horário) na URL;
+        // sem disciplina na URL, o Diário volta ao registro do dia inteiro.
+        setDiarioDisciplinaId(disciplinaParam || '');
+        setDiarioHorarioId(horarioParam || '');
       }
     }
   }, [searchParams, turmasOpcoes, selecionarTurma]);
+
+  const selecionarTurmaLocal = (id: string) => {
+    // Troca manual de turma sai do contexto de uma aula específica.
+    setDiarioDisciplinaId('');
+    setDiarioHorarioId('');
+    selecionarTurma(id);
+  };
 
   return (
     <section
@@ -105,7 +120,7 @@ export function AcademicoSection() {
           <label className="block text-salvia-700 dark:text-salvia-300 font-bold mb-1">Turma:</label>
           <select
             value={turmaId}
-            onChange={(e) => selecionarTurma(e.target.value)}
+            onChange={(e) => selecionarTurmaLocal(e.target.value)}
             className="w-full bg-white dark:bg-salvia-900 border border-salvia-300 dark:border-salvia-700 rounded-xl px-3 py-2 font-bold text-slate-900 dark:text-salvia-50 focus:outline-none focus:border-salvia-600"
           >
             <option value="">Nenhuma turma cadastrada</option>
@@ -163,6 +178,8 @@ export function AcademicoSection() {
         turmaId={turmaId}
         turmaNome={turmaNome}
         dataAula={dataAula}
+        disciplinaId={diarioDisciplinaId}
+        horarioId={diarioHorarioId}
         onDataAulaChange={setDataAula}
         alunos={alunos}
         setAlunos={setAlunos}

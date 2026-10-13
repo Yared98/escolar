@@ -9,6 +9,8 @@ pub struct DiarioClasse {
     pub tenant_id: Uuid,
     pub turma_id: Uuid,
     pub professor_id: Uuid,
+    pub disciplina_id: Option<Uuid>,
+    pub horario_id: Option<Uuid>,
     pub data_aula: NaiveDate,
     pub conteudo_ministrado: String,
     pub created_at: DateTime<Utc>,
@@ -26,6 +28,8 @@ pub struct SyncPresencaItemDto {
 pub struct SyncDiarioDto {
     pub turma_id: Uuid,
     pub data_aula: NaiveDate,
+    pub disciplina_id: Option<Uuid>,
+    pub horario_id: Option<Uuid>,
     pub conteudo_ministrado: String,
     pub presencas: Vec<SyncPresencaItemDto>,
     pub observacao: Option<String>,
@@ -35,11 +39,13 @@ pub struct SyncDiarioDto {
 pub struct ConsultarDiarioQuery {
     pub turma_id: Uuid,
     pub data_aula: NaiveDate,
+    pub disciplina_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct DiariosRecentesQuery {
     pub turma_id: Uuid,
+    pub disciplina_id: Option<Uuid>,
     pub limit: Option<i64>,
 }
 
@@ -55,6 +61,11 @@ pub struct DiarioDiaResponse {
     pub encontrado: bool,
     pub diario_id: Option<Uuid>,
     pub turma_id: Uuid,
+    pub disciplina_id: Option<Uuid>,
+    pub disciplina_nome: Option<String>,
+    pub horario_id: Option<Uuid>,
+    pub hora_inicio: Option<String>,
+    pub hora_fim: Option<String>,
     pub data_aula: NaiveDate,
     pub conteudo_ministrado: String,
     pub observacao: String,
@@ -65,6 +76,8 @@ pub struct DiarioDiaResponse {
 pub struct DiarioRecenteItem {
     pub diario_id: Uuid,
     pub data_aula: NaiveDate,
+    pub disciplina_id: Option<Uuid>,
+    pub disciplina_nome: Option<String>,
     pub conteudo_ministrado: String,
     pub observacao: String,
     pub total_presencas: i64,

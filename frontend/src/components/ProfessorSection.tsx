@@ -313,11 +313,18 @@ export function ProfessorSection({ onRouteChange }: ProfessorSectionProps) {
     }
   };
 
-  const irParaChamada = (turmaIdDestino: string, dataDestino: string) => {
+  const irParaChamada = (
+    turmaIdDestino: string,
+    dataDestino: string,
+    disciplinaId?: string,
+    horarioId?: string
+  ) => {
     const params = new URLSearchParams();
     params.set('route', 'academico');
     params.set('turma', turmaIdDestino);
     params.set('data', dataDestino);
+    if (disciplinaId) params.set('disciplina', disciplinaId);
+    if (horarioId) params.set('horario', horarioId);
     router.push(`/?${params.toString()}`, { scroll: false });
   };
 

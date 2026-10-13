@@ -161,7 +161,7 @@ pub fn professor_pode_lancar(
         && role_norm == "professor"
 }
 
-async fn carregar_atribuicoes_professor(
+pub async fn carregar_atribuicoes_professor(
     db: &mut sqlx::PgConnection,
     professor_id: Uuid,
 ) -> Result<Vec<(Uuid, Uuid)>, AppError> {
@@ -325,7 +325,12 @@ pub async fn aulas_do_dia(
                     h.hora_fim,
                     EXISTS(
                         SELECT 1 FROM diarios_classe dc
-                        WHERE dc.turma_id = h.turma_id AND dc.data_aula = $2
+                        WHERE dc.turma_id = h.turma_id
+                          AND dc.data_aula = $2
+                          AND (
+                              dc.disciplina_id = h.disciplina_id
+                              OR dc.disciplina_id IS NULL
+                          )
                     ) AS chamada_registrada
                 FROM horarios_turma h
                 JOIN turmas t ON t.id = h.turma_id
@@ -356,7 +361,12 @@ pub async fn aulas_do_dia(
                     h.hora_fim,
                     EXISTS(
                         SELECT 1 FROM diarios_classe dc
-                        WHERE dc.turma_id = h.turma_id AND dc.data_aula = $2
+                        WHERE dc.turma_id = h.turma_id
+                          AND dc.data_aula = $2
+                          AND (
+                              dc.disciplina_id = h.disciplina_id
+                              OR dc.disciplina_id IS NULL
+                          )
                     ) AS chamada_registrada
                 FROM horarios_turma h
                 JOIN turmas t ON t.id = h.turma_id
