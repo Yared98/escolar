@@ -11,6 +11,7 @@ import {
   Check,
   ArrowRight,
   X,
+  CalendarCheck,
 } from 'lucide-react';
 import {
   PRIORIDADE_OCORRENCIA,
@@ -26,6 +27,10 @@ import { useTurmaAlunos } from './academico/useTurmaAlunos';
 import { useOfflineSyncQueue } from './academico/useOfflineSyncQueue';
 import { ChamadaPanel } from './academico/ChamadaPanel';
 import { InfantilRotinaPanel } from './academico/InfantilRotinaPanel';
+import {
+  FrequenciaPanel,
+  type RelatorioFrequencia,
+} from './academico/FrequenciaPanel';
 import {
   OcorrenciaModal,
   type OcorrenciaFormData,
@@ -44,10 +49,21 @@ export function AcademicoSection() {
   const role = user?.role || 'admin';
   const searchParams = useSearchParams();
 
+  const [tabAtiva, setTabAtiva] = useState<'diario' | 'frequencia'>(() => {
+    return searchParams?.get('tab') === 'frequencia' ? 'frequencia' : 'diario';
+  });
+
   const [dataAula, setDataAula] = useState(hojeLocal);
   const [refreshKey, setRefreshKey] = useState(0);
   const [diarioDisciplinaId, setDiarioDisciplinaId] = useState('');
   const [diarioHorarioId, setDiarioHorarioId] = useState('');
+
+  // Frequência
+  const [mesFrequencia, setMesFrequencia] = useState(() => hojeLocal().slice(0, 7));
+  const [disciplinaFrequenciaId, setDisciplinaFrequenciaId] = useState('');
+  const [relatorioFrequencia, setRelatorioFrequencia] = useState<RelatorioFrequencia | null>(null);
+  const [loadingFrequencia, setLoadingFrequencia] = useState(false);
+  const [erroFrequencia, setErroFrequencia] = useState<string | null>(null);
 
   const {
     turmasOpcoes,
@@ -109,10 +125,47 @@ export function AcademicoSection() {
     }
   }, [turmaId, dataAula, isOnline]);
 
+  const carregarRelatorioFrequencia = useCallback(async () => {
+    if (!turmaId || !mesFrequencia || !isOnline) {
+      setRelatorioFrequencia(null);
+      return;
+    }
+    setLoadingFrequencia(true);
+    setErroFrequencia(null);
+    try {
+      let data: RelatorioFrequencia;
+      if (disciplinaFrequenciaId) {
+        data = await apiFetch<RelatorioFrequencia>(
+          `/academico/frequencia?turma_id=${encodeURIComponent(turmaId)}&mes=${encodeURIComponent(mesFrequencia)}&disciplina_id=${encodeURIComponent(disciplinaFrequenciaId)}`
+        );
+      } else {
+        data = await apiFetch<RelatorioFrequencia>(
+          `/academico/frequencia?turma_id=${encodeURIComponent(turmaId)}&mes=${encodeURIComponent(mesFrequencia)}`
+        );
+      }
+      setRelatorioFrequencia(data);
+    } catch (err: unknown) {
+      setErroFrequencia(
+        err instanceof Error
+          ? err.message
+          : 'Não foi possível carregar o relatório de frequência.'
+      );
+      setRelatorioFrequencia(null);
+    } finally {
+      setLoadingFrequencia(false);
+    }
+  }, [turmaId, mesFrequencia, disciplinaFrequenciaId, isOnline]);
+
   useEffect(() => {
     void carregarOcorrencias();
     // Recarrega sempre que a chamada do dia é salva ou a turma/data muda.
   }, [carregarOcorrencias, refreshKey]);
+
+  useEffect(() => {
+    if (tabAtiva === 'frequencia') {
+      void carregarRelatorioFrequencia();
+    }
+  }, [tabAtiva, carregarRelatorioFrequencia]);
 
   useEffect(() => {
     const turmaParam = searchParams?.get('turma');
@@ -274,154 +327,202 @@ export function AcademicoSection() {
             )}
           </div>
           <p className="text-xs text-salvia-600 dark:text-salvia-400 mt-0.5">
-            Chamada e registro da aula do dia.
+            {tabAtiva === 'frequencia'
+              ? 'Relatórios mensais de frequência e apuração de faltas.'
+              : 'Chamada e registro da aula do dia.'}
           </p>
         </div>
-      </div>
 
-      <div className="mb-6 p-4 bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 rounded-2xl grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-        <div>
-          <label className="block text-salvia-700 dark:text-salvia-300 font-bold mb-1">Turma:</label>
-          <select
-            value={turmaId}
-            onChange={(e) => selecionarTurmaLocal(e.target.value)}
-            className="w-full bg-white dark:bg-salvia-900 border border-salvia-300 dark:border-salvia-700 rounded-xl px-3 py-2 font-bold text-slate-900 dark:text-salvia-50 focus:outline-none focus:border-salvia-600"
-          >
-            <option value="">{turmasOpcoes.length === 0 ? 'Nenhuma turma disponível' : 'Selecione a turma'}</option>
-            {turmasOpcoes.map((turma) => (
-              <option key={turma.id} value={turma.id}>
-                {turma.nome}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-salvia-700 dark:text-salvia-300 font-bold mb-1">Data:</label>
-          <input
-            type="date"
-            value={dataAula}
-            onChange={(e) => setDataAula(e.target.value)}
-            className="w-full bg-white dark:bg-salvia-900 border border-salvia-300 dark:border-salvia-700 rounded-xl px-3 py-2 font-mono font-bold text-slate-900 dark:text-salvia-50 focus:outline-none focus:border-salvia-600"
-          />
-        </div>
-        <div>
-          <label className="block text-salvia-700 dark:text-salvia-300 font-bold mb-1">Etapa da turma:</label>
-          <span
-            className={`inline-block mt-1 px-3 py-1 rounded-full text-[11px] font-bold border ${
-              infantil
-                ? 'bg-amber-100 border-amber-300 text-amber-900 dark:bg-amber-950 dark:text-amber-300'
-                : 'bg-salvia-100 border-salvia-300 text-salvia-900 dark:bg-salvia-800 dark:text-salvia-100'
+        <div className="flex items-center space-x-1 bg-salvia-100 dark:bg-salvia-800 p-1 rounded-xl">
+          <button
+            type="button"
+            onClick={() => setTabAtiva('diario')}
+            className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all min-h-[44px] ${
+              tabAtiva === 'diario'
+                ? 'bg-white dark:bg-salvia-700 text-salvia-900 dark:text-salvia-50 shadow-sm'
+                : 'text-salvia-700 dark:text-salvia-300 hover:text-slate-900 dark:hover:text-salvia-50'
             }`}
           >
-            {turmaSelecionada
-              ? `${infantil ? 'Diário infantil' : 'Chamada'} · ${etapaEnsinoLabel(turmaSelecionada.etapa_ensino)}`
-              : '—'}
-          </span>
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Chamada do dia</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setTabAtiva('frequencia')}
+            className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all min-h-[44px] ${
+              tabAtiva === 'frequencia'
+                ? 'bg-white dark:bg-salvia-700 text-salvia-900 dark:text-salvia-50 shadow-sm'
+                : 'text-salvia-700 dark:text-salvia-300 hover:text-slate-900 dark:hover:text-salvia-50'
+            }`}
+          >
+            <CalendarCheck className="w-3.5 h-3.5" />
+            <span>Frequência</span>
+          </button>
         </div>
       </div>
 
-      {toastMsg && (
-        <div
-          className={`mb-4 p-3.5 rounded-xl border text-xs font-bold flex items-center space-x-2 transition-all ${
-            toastMsg.type === 'success'
-              ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200'
-              : 'bg-amber-50 dark:bg-amber-950/60 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200'
-          }`}
-        >
-          <Check className="w-4 h-4 shrink-0" />
-          <span>{toastMsg.text}</span>
-        </div>
-      )}
-
-      {avisoRecado && (
-        <div className="mb-4 p-4 rounded-2xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 text-xs font-bold text-emerald-900 dark:text-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
-          <div className="flex items-center space-x-2">
-            <Check className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-            <span>{formatarAvisoRecadoEnviado(avisoRecado.responsavel)}</span>
+      {tabAtiva === 'frequencia' ? (
+        <FrequenciaPanel
+          turmasOpcoes={turmasOpcoes}
+          turmaId={turmaId}
+          onSelectTurma={selecionarTurmaLocal}
+          mes={mesFrequencia}
+          onMesChange={setMesFrequencia}
+          disciplinaId={disciplinaFrequenciaId}
+          onDisciplinaChange={setDisciplinaFrequenciaId}
+          disciplinasOpcoes={turmaSelecionada?.disciplinas || []}
+          relatorio={relatorioFrequencia}
+          loading={loadingFrequencia}
+          erro={erroFrequencia}
+          onRecarregar={carregarRelatorioFrequencia}
+        />
+      ) : (
+        <>
+          <div className="mb-6 p-4 bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 rounded-2xl grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div>
+              <label className="block text-salvia-700 dark:text-salvia-300 font-bold mb-1">Turma:</label>
+              <select
+                value={turmaId}
+                onChange={(e) => selecionarTurmaLocal(e.target.value)}
+                className="w-full bg-white dark:bg-salvia-900 border border-salvia-300 dark:border-salvia-700 rounded-xl px-3 py-2 font-bold text-slate-900 dark:text-salvia-50 focus:outline-none focus:border-salvia-600"
+              >
+                <option value="">{turmasOpcoes.length === 0 ? 'Nenhuma turma disponível' : 'Selecione a turma'}</option>
+                {turmasOpcoes.map((turma) => (
+                  <option key={turma.id} value={turma.id}>
+                    {turma.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-salvia-700 dark:text-salvia-300 font-bold mb-1">Data:</label>
+              <input
+                type="date"
+                value={dataAula}
+                onChange={(e) => setDataAula(e.target.value)}
+                className="w-full bg-white dark:bg-salvia-900 border border-salvia-300 dark:border-salvia-700 rounded-xl px-3 py-2 font-mono font-bold text-slate-900 dark:text-salvia-50 focus:outline-none focus:border-salvia-600"
+              />
+            </div>
+            <div>
+              <label className="block text-salvia-700 dark:text-salvia-300 font-bold mb-1">Etapa da turma:</label>
+              <span
+                className={`inline-block mt-1 px-3 py-1 rounded-full text-[11px] font-bold border ${
+                  infantil
+                    ? 'bg-amber-100 border-amber-300 text-amber-900 dark:bg-amber-950 dark:text-amber-300'
+                    : 'bg-salvia-100 border-salvia-300 text-salvia-900 dark:bg-salvia-800 dark:text-salvia-100'
+                }`}
+              >
+                {turmaSelecionada
+                  ? `${infantil ? 'Diário infantil' : 'Chamada'} · ${etapaEnsinoLabel(turmaSelecionada.etapa_ensino)}`
+                  : '—'}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center space-x-2 shrink-0">
-            <a
-              href={urlConversaAgenda(avisoRecado.conversaId)}
-              className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white dark:bg-emerald-600 dark:hover:bg-emerald-500 min-h-[44px] transition-all"
+
+          {toastMsg && (
+            <div
+              className={`mb-4 p-3.5 rounded-xl border text-xs font-bold flex items-center space-x-2 transition-all ${
+                toastMsg.type === 'success'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200'
+                  : 'bg-amber-50 dark:bg-amber-950/60 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200'
+              }`}
             >
-              <span>Abrir conversa</span>
-              <ArrowRight className="w-4 h-4" />
-            </a>
-            <button
-              type="button"
-              onClick={() => setAvisoRecado(null)}
-              className="p-2 text-emerald-700 hover:text-emerald-900 dark:text-emerald-300 dark:hover:text-white min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl"
-              aria-label="Fechar aviso de recado"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
+              <Check className="w-4 h-4 shrink-0" />
+              <span>{toastMsg.text}</span>
+            </div>
+          )}
 
-      {listaErro && (
-        <p className="mb-4 text-xs font-medium text-amber-700 dark:text-amber-300">{listaErro}</p>
-      )}
+          {avisoRecado && (
+            <div className="mb-4 p-4 rounded-2xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 text-xs font-bold text-emerald-900 dark:text-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+              <div className="flex items-center space-x-2">
+                <Check className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <span>{formatarAvisoRecadoEnviado(avisoRecado.responsavel)}</span>
+              </div>
+              <div className="flex items-center space-x-2 shrink-0">
+                <a
+                  href={urlConversaAgenda(avisoRecado.conversaId)}
+                  className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white dark:bg-emerald-600 dark:hover:bg-emerald-500 min-h-[44px] transition-all"
+                >
+                  <span>Abrir conversa</span>
+                  <ArrowRight className="w-4 h-4" />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setAvisoRecado(null)}
+                  className="p-2 text-emerald-700 hover:text-emerald-900 dark:text-emerald-300 dark:hover:text-white min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl"
+                  aria-label="Fechar aviso de recado"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
 
-      <ChamadaPanel
-        modo={infantil ? 'infantil' : 'fundamental'}
-        turmaId={turmaId}
-        turmaNome={turmaNome}
-        dataAula={dataAula}
-        disciplinaId={diarioDisciplinaId}
-        disciplinaNome={
-          turmaSelecionada?.disciplinas?.find((d) => d.disciplina_id === diarioDisciplinaId)?.disciplina_nome
-        }
-        horarioId={diarioHorarioId}
-        onDataAulaChange={setDataAula}
-        alunos={alunos}
-        setAlunos={setAlunos}
-        isOnline={isOnline}
-        tenantId={tenant?.id}
-        enqueue={enqueue}
-        removeByUuid={removeByUuid}
-        showToast={showToast}
-        onSaved={() => setRefreshKey((k) => k + 1)}
-        ocorrenciasPorAluno={ocorrenciasPorAluno}
-        onAbrirOcorrencia={abrirOcorrencia}
-        onAbrirRecadoFamilia={abrirRecadoFamilia}
-      />
+          {listaErro && (
+            <p className="mb-4 text-xs font-medium text-amber-700 dark:text-amber-300">{listaErro}</p>
+          )}
 
-      <OcorrenciaModal
-        open={!!ocorrenciaAluno}
-        alunoNome={ocorrenciaAluno?.nome}
-        salvando={salvandoOcorrencia}
-        erro={erroOcorrencia}
-        onClose={fecharOcorrencia}
-        onSave={salvarOcorrencia}
-      />
-
-      <RecadoFamiliaModal
-        open={!!recadoAluno}
-        alunoNome={recadoAluno?.nome}
-        responsavelNome={recadoAluno?.responsavel_nome}
-        salvando={salvandoRecado}
-        erro={erroRecado}
-        onClose={fecharRecadoFamilia}
-        onSend={enviarRecadoFamilia}
-      />
-
-      {infantil && (
-        <div className="mt-8 pt-6 border-t border-salvia-200 dark:border-salvia-800">
-          <InfantilRotinaPanel
+          <ChamadaPanel
+            modo={infantil ? 'infantil' : 'fundamental'}
             turmaId={turmaId}
             turmaNome={turmaNome}
             dataAula={dataAula}
+            disciplinaId={diarioDisciplinaId}
+            disciplinaNome={
+              turmaSelecionada?.disciplinas?.find((d) => d.disciplina_id === diarioDisciplinaId)?.disciplina_nome
+            }
+            horarioId={diarioHorarioId}
+            onDataAulaChange={setDataAula}
             alunos={alunos}
-            selectedAlunoId={selectedAlunoId}
-            setSelectedAlunoId={setSelectedAlunoId}
+            setAlunos={setAlunos}
             isOnline={isOnline}
             tenantId={tenant?.id}
             enqueue={enqueue}
+            removeByUuid={removeByUuid}
             showToast={showToast}
-            refreshKey={refreshKey}
+            onSaved={() => setRefreshKey((k) => k + 1)}
+            ocorrenciasPorAluno={ocorrenciasPorAluno}
+            onAbrirOcorrencia={abrirOcorrencia}
+            onAbrirRecadoFamilia={abrirRecadoFamilia}
           />
-        </div>
+
+          <OcorrenciaModal
+            open={!!ocorrenciaAluno}
+            alunoNome={ocorrenciaAluno?.nome}
+            salvando={salvandoOcorrencia}
+            erro={erroOcorrencia}
+            onClose={fecharOcorrencia}
+            onSave={salvarOcorrencia}
+          />
+
+          <RecadoFamiliaModal
+            open={!!recadoAluno}
+            alunoNome={recadoAluno?.nome}
+            responsavelNome={recadoAluno?.responsavel_nome}
+            salvando={salvandoRecado}
+            erro={erroRecado}
+            onClose={fecharRecadoFamilia}
+            onSend={enviarRecadoFamilia}
+          />
+
+          {infantil && (
+            <div className="mt-8 pt-6 border-t border-salvia-200 dark:border-salvia-800">
+              <InfantilRotinaPanel
+                turmaId={turmaId}
+                turmaNome={turmaNome}
+                dataAula={dataAula}
+                alunos={alunos}
+                selectedAlunoId={selectedAlunoId}
+                setSelectedAlunoId={setSelectedAlunoId}
+                isOnline={isOnline}
+                tenantId={tenant?.id}
+                enqueue={enqueue}
+                showToast={showToast}
+                refreshKey={refreshKey}
+              />
+            </div>
+          )}
+        </>
       )}
 
       {pendingSyncCount > 0 && (

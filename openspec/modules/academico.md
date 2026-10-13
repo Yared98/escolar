@@ -25,6 +25,7 @@ O processo avaliativo opera pelo lançamento de notas por período letivo e falt
 | Simulados TRI (cadastro de itens a/b/c + apuração de gabarito via API/UI) | **Parcial** — endpoints e aba em `PedagocioNutricaoSection`; sem leitora física |
 | Leitora Ótica de Gabaritos Físicos (hardware/scan) | **Fora de escopo MVP** |
 | Banco TRI “produção ENEM” / calibração estatística avançada | **Fora de escopo MVP** (parâmetros a/b/c manuais no cadastro do simulado) |
+| Relatórios de Frequência, Alertas < 75% e Frequência do Dia | Implementado |
 
 ---
 
@@ -53,6 +54,74 @@ O processo avaliativo opera pelo lançamento de notas por período letivo e falt
 - **Roster canônico**: a lista de alunos do Diário vem de `GET /secretaria/turmas/:turma_id/alunos` (vínculo ativo + aluno `ativo`) — **não** há entidade paralela. O Pedagógico usa o mesmo endpoint para exibir alunos enturmados; cadastro, ciclo de vida e prontuário ficam na Secretaria.
 - **Celular / professor**: o Diário pode ser aberto diretamente a partir da tela "Meu dia" (`route=academico&turma=<id>&data=<YYYY-MM-DD>`). A lista de turmas do professor no Diário vem de `GET /api/v1/professor/minhas-turmas`; gestores/administradores continuam usando `GET /api/v1/secretaria/turmas`.
 - **Conteúdo da aula**: o campo "Conteúdo Ministrado" aceita string vazia. O seletor falso de "Horário (referência local)" foi removido; o histórico mostra "Conteúdo não informado" quando nenhum conteúdo foi preenchido.
+
+### 1.1 Relatórios de Frequência, Alerta de Infrequência (< 75%) e Panorama Diário
+
+- **Relatório Mensal de Frequência por Turma (`GET /api/v1/academico/frequencia?turma_id=&mes=YYYY-MM[&disciplina_id=]`)**:
+  - Consolida chamadas do mês informado para a turma selecionada (e disciplina opcional, caso informado).
+  - Papéis permitidos: `gestor`, `admin`, `secretaria` (todas as turmas ativas); `professor` (restrito às turmas onde possui atribuição docente em `turma_professores`, caso contrário retorna `403 Forbidden`). Alunos e responsáveis recebem `403 Forbidden`.
+  - Resposta 200 OK:
+    ```json
+    {
+      "turma_id": "UUID",
+      "turma_nome": "9º Ano A",
+      "mes": "2026-03",
+      "disciplina_id": "UUID ou null",
+      "disciplina_nome": "Matemática ou null",
+      "total_dias_letivos_mes": 22,
+      "percentual_geral_turma": 88.5,
+      "alunos": [
+        {
+          "aluno_id": "UUID",
+          "aluno_nome": "Ana Clara Santos",
+          "numero_chamada": 1,
+          "total_aulas": 22,
+          "total_presencas": 15,
+          "total_faltas": 7,
+          "total_faltas_justificadas": 2,
+          "percentual_frequencia": 68.2,
+          "alerta_abaixo_75": true
+        }
+      ]
+    }
+    ```
+  - Regra de cálculo: `percentual_frequencia = (total_presencas / total_aulas) * 100` (arredondado para 1 casa decimal; `100.0` se `total_aulas = 0`).
+  - Alerta `alerta_abaixo_75`: verdadeiro quando `total_aulas > 0` e `percentual_frequencia < 75.0` (LDB 9.394/96 Art. 24). Faltas justificadas permanecem computadas como ausência no cálculo da porcentagem, mas são discriminadas na coluna específica.
+
+- **Alertas de Frequência Crítica no Ano Letivo (`GET /api/v1/academico/frequencia/alertas`)**:
+  - Identifica estudantes ativos com frequência consolidada inferior a 75% no ano letivo corrente (com base na data de Brasília UTC-3).
+  - Papéis: `gestor`, `admin`, `secretaria` (panorama de toda a escola); `professor` (apenas estudantes das turmas em que leciona).
+  - Ordenação: do menor percentual para o maior (casos mais graves primeiro), seguido pelo nome do aluno.
+  - Resposta 200 OK: `{ "total_alertas": 3, "alunos": [{ "aluno_id", "aluno_nome", "turma_id", "turma_nome", "total_aulas", "total_presencas", "total_faltas", "total_faltas_justificadas", "percentual_frequencia" }] }`.
+
+- **Frequência do Dia no Painel Principal (`GET /api/v1/academico/frequencia/hoje`)**:
+  - Exibe resumo em tempo real da realização de chamadas no dia corrente (Brasília UTC-3).
+  - Papéis: exclusivo de `gestor`, `admin`, `secretaria`. Usuários com perfil exclusivo `professor` ou famílias recebem `403 Forbidden`.
+  - Resposta 200 OK:
+    ```json
+    {
+      "data": "2026-10-13",
+      "total_turmas_com_chamada": 5,
+      "total_presentes": 112,
+      "total_alunos": 120,
+      "percentual_geral": 93.3,
+      "turmas": [
+        {
+          "turma_id": "UUID",
+          "turma_nome": "1º Ano A",
+          "presentes": 24,
+          "total": 25,
+          "percentual": 96.0
+        }
+      ]
+    }
+    ```
+
+- **Interface do Usuário (Frontend)**:
+  - `OverviewDashboard.tsx`: cartões "Frequência hoje" e "Alunos abaixo de 75%" adicionados ao painel administrativo (quando o usuário tem permissão de secretaria).
+  - `AcademicoSection.tsx`: orquestra a nova aba "Frequência" em paralelo a "Chamada do dia". Mantém seletores de turma, mês (`YYYY-MM`) e filtro opcional por componente curricular.
+  - `FrequenciaPanel.tsx`: componente de apresentação pura, adaptado para mobile (cards com alvos de toque amplos) e desktop (tabela com badges coloridos de alerta para < 75%). Oferece botão para exportação em CSV gerada no cliente com UTF-8 BOM (`\uFEFF`) para compatibilidade com Microsoft Excel.
+
 
 ---
 
@@ -232,4 +301,5 @@ Organização após o refactor B12 (só moveu código, sem mudança de regra):
 - **Sem aviso automático à família**: a observação não dispara push, e-mail ou WhatsApp; `notificado_responsavel` apenas registra a intenção do aviso. A coluna `lido_pelo_responsavel` existe no banco, mas não há rota para a família marcar a leitura — o portal não mostra selo de "lido".
 - **Ocorrências no celular sem internet**: o registro de observação exige conexão (não entra na fila offline do diário); se falhar, o modal mostra o erro e nada é gravado.
 - **Fechamento e conselho**: a reabertura exige o `id` do registro de `fechamentos_periodo`; a UI lista os fechamentos e descobre o id automaticamente. A média do conselho é a média aritmética simples das notas do período (não ponderada por carga horária). Não há notificação automática para a família quando um parecer é registrado.
+- **Relatório e alertas de frequência**: o percentual de frequência considera presenças sobre o total de chamadas lançadas. Faltas justificadas são destacadas na coluna própria, mas contam como ausência no cálculo frente aos 75% da LDB. A exportação para planilha é gerada no próprio cliente em CSV com UTF-8 BOM, sem processamento de XLSX binário no servidor.
 
