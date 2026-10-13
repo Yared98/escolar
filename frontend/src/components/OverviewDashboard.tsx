@@ -6,7 +6,6 @@ import { perfilAmigavel } from '@/lib/perfis';
 import {
   Users,
   DollarSign,
-  CheckCircle2,
   AlertTriangle,
   Sparkles,
   HeartHandshake,
@@ -149,14 +148,8 @@ export function OverviewDashboard({ onRouteChange }: OverviewDashboardProps) {
           </div>
           )}
 
-          <div className="bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 p-4 rounded-xl">
-            <div className="flex items-center justify-between text-salvia-600 dark:text-salvia-400 text-xs mb-1 font-medium">
-              <span>Frequência Hoje</span>
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <p className="text-2xl font-bold text-slate-900 dark:text-salvia-50 font-mono">—</p>
-            <span className="text-[10px] text-salvia-500 font-medium mt-1 block">Sem chamada registrada hoje</span>
-          </div>
+          {/* Frequência do dia: sem consulta agregada por escola ainda (ver openspec/ROADMAP.md, P2);
+              o cartão volta quando houver o número real, em vez de afirmar que não houve chamada. */}
 
           {podeVerIaEvasao && (
           <div className="bg-salvia-50/60 dark:bg-salvia-950/50 border border-salvia-200 dark:border-salvia-800 p-4 rounded-xl">
