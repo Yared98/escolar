@@ -89,7 +89,7 @@ A fonte de verdade é `openspec/`. Estes arquivos são histórico ou referência
 | Financeiro | `openspec/modules/financeiro.md` | `backend/src/handlers/financeiro/**`, `frontend/src/components/FinanceiroSection.tsx` (orquestra), `frontend/src/components/financeiro/**` |
 | Acadêmico | `openspec/modules/academico.md` | `backend/src/handlers/academico.rs`, `handlers/professor.rs` (Meu dia e notas), `ProfessorSection.tsx` (orquestra) + `frontend/src/components/professor/**`, `frontend/src/components/academico/**`, `PedagocioNutricaoSection.tsx` (orquestra; TRI) + `frontend/src/components/pedagogico/**`, `PortalAlunoSection.tsx` (orquestra) + `frontend/src/components/portal_aluno/**` |
 | Nutrição | `openspec/modules/nutricao.md` | `backend/src/handlers/nutricao/**`, `frontend/src/components/nutricao/**` |
-| Agenda & Calendário | `openspec/modules/agenda_calendario.md` | `backend/src/handlers/agenda_admin.rs`, `handlers/avaliacoes.rs`, `AgendaDigitalSection.tsx` (orquestra) + `frontend/src/components/agenda/**`, `CalendarioEscolarSection.tsx`, `worker/**` |
+| Agenda & Calendário | `openspec/modules/agenda_calendario.md` | `backend/src/handlers/agenda_admin/**`, `handlers/avaliacoes.rs`, `AgendaDigitalSection.tsx` (orquestra) + `frontend/src/components/agenda/**`, `CalendarioEscolarSection.tsx`, `worker/**` |
 | CRM | `openspec/modules/crm_atendimento.md` | `backend/src/handlers/crm_lms/crm.rs`, `crm_lms/whatsapp.rs`, `frontend/src/components/CrmSection.tsx` |
 | IA Evasão | `openspec/modules/ia_preditiva.md` | `backend/src/handlers/regulatorio_ia/evasao/` (score), `PainelEvasao.tsx` |
 | Regulatório & LGPD | `openspec/modules/regulatorio_lgpd.md` | `backend/src/handlers/regulatorio_ia/`, `AdministrativoSection.tsx` (conformidade) |
