@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useMensagensRealtime } from '@/lib/realtime';
@@ -10,15 +10,9 @@ import {
   Megaphone,
   MessageCircle,
   Plus,
-  Search,
-  Send,
-  Users,
-  Lock,
-  X,
-  Inbox,
 } from 'lucide-react';
 
-import { MensagemAgenda, ThreadAgenda, AtendimentoProtocolo, AlunoResumo, TurmaOpcao, FiltroCanal, TipoEnvio, ContatoEscola, rotuloCanal, estiloCanal, formatarQuando, tituloTema, agruparThreads, WhatsappPanel, ComunicacaoPanel, ComposerModal } from './agenda';
+import { MensagemAgenda, ThreadAgenda, AtendimentoProtocolo, AlunoResumo, TurmaOpcao, FiltroCanal, TipoEnvio, ContatoEscola, tituloTema, agruparThreads, WhatsappPanel, ComunicacaoPanel, ComposerModal } from './agenda';
 
 const campo =
   'w-full bg-white dark:bg-salvia-900 border border-salvia-300 dark:border-salvia-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-salvia-50 focus:outline-none focus:border-salvia-600';
@@ -27,9 +21,20 @@ export function AgendaDigitalSection() {
   const { user } = useAuth();
   const isResponsavel = (user?.role || '').toLowerCase() === 'responsavel';
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const tabParam = searchParams ? searchParams.get('tab') : null;
   const activeTab: 'comunicacao' | 'whatsapp' =
     tabParam === 'whatsapp' ? 'whatsapp' : 'comunicacao';
+
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 1023px)');
+    setIsMobile(media.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    media.addEventListener('change', handler);
+    return () => media.removeEventListener('change', handler);
+  }, []);
 
   const [mensagens, setMensagens] = useState<MensagemAgenda[]>([]);
   const [protocolos, setProtocolos] = useState<AtendimentoProtocolo[]>([]);
@@ -150,11 +155,40 @@ export function AgendaDigitalSection() {
     return threads.find((t) => t.id === threadIdAtiva) || null;
   }, [threads, threadIdAtiva]);
 
+  // Sincroniza conversa aberta com a URL (&conversa=<id>)
+  const queryString = searchParams ? searchParams.toString() : '';
   useEffect(() => {
-    if (threadIdAtiva && !threads.some((t) => t.id === threadIdAtiva)) {
-      setThreadIdAtiva(threads[0]?.id || null);
+    const params = new URLSearchParams(queryString);
+    const idFromUrl = params.get('conversa');
+
+    if (idFromUrl && threads.some((t) => t.id === idFromUrl)) {
+      setThreadIdAtiva(idFromUrl);
+    } else if (!idFromUrl) {
+      // No desktop mantém auto-seleção da primeira conversa; no celular fica vazio.
+      if (!isMobile && threads.length > 0) {
+        setThreadIdAtiva(threads[0].id);
+      } else {
+        setThreadIdAtiva(null);
+      }
+    } else {
+      setThreadIdAtiva(null);
     }
-  }, [threads, threadIdAtiva]);
+  }, [queryString, threads, isMobile]);
+
+  useEffect(() => {
+    if (!router || !searchParams) return;
+    const params = new URLSearchParams(searchParams.toString());
+    if (threadIdAtiva) {
+      params.set('conversa', threadIdAtiva);
+    } else {
+      params.delete('conversa');
+    }
+    const targetUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+    const currentUrl = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
+    if (targetUrl !== currentUrl) {
+      router.replace(targetUrl, { scroll: false });
+    }
+  }, [threadIdAtiva, router, searchParams, pathname]);
 
   const protocolosFiltrados = useMemo(() => {
     if (filtroZap === 'todos') return protocolos;
@@ -177,6 +211,11 @@ export function AgendaDigitalSection() {
     } catch {
       // leitura é best-effort
     }
+  };
+
+  const voltarParaLista = () => {
+    setThreadIdAtiva(null);
+    setRespostaTexto('');
   };
 
   const handleResponderMensagem = async () => {
@@ -312,8 +351,8 @@ export function AgendaDigitalSection() {
             {activeTab === 'whatsapp'
               ? 'Fila de atendimento transferida pelo chatbot para resposta humana.'
               : isResponsavel
-                ? 'Escolha um tema à esquerda e acompanhe a conversa à direita.'
-                : 'Temas à esquerda; thread completa com respostas à direita.'}
+                ? 'Escolha uma conversa à esquerda e acompanhe as mensagens à direita.'
+                : 'Conversas à esquerda; mensagens completas à direita.'}
           </p>
         </div>
         {activeTab === 'comunicacao' && (
@@ -337,7 +376,6 @@ export function AgendaDigitalSection() {
           setFiltroCanal={setFiltroCanal}
           busca={busca}
           setBusca={setBusca}
-          campo={campo}
           threads={threads}
           isResponsavel={isResponsavel}
           abrirComposer={abrirComposer}
@@ -350,6 +388,8 @@ export function AgendaDigitalSection() {
           setRespostaTexto={setRespostaTexto}
           respondendo={respondendo}
           handleResponderMensagem={handleResponderMensagem}
+          onVoltar={voltarParaLista}
+          isMobile={isMobile}
         />
       )}
 
