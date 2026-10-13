@@ -62,3 +62,37 @@ export function formatDateBr(dateString: string | null | undefined): string {
     return dateString;
   }
 }
+
+const MESES_EXTENSO = [
+  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+];
+
+export function formatDateExtenso(dateString: string | null | undefined): string {
+  if (!dateString) return '';
+  try {
+    const iso = dateString.split('T')[0];
+    const parts = iso.split('-');
+    if (parts.length === 3) {
+      const ano = Number(parts[0]);
+      const mes = Number(parts[1]);
+      const dia = Number(parts[2]);
+      if (!isNaN(ano) && !isNaN(mes) && !isNaN(dia) && mes >= 1 && mes <= 12) {
+        return `${dia} de ${MESES_EXTENSO[mes - 1]} de ${ano}`;
+      }
+    }
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return dateString;
+    return `${d.getDate()} de ${MESES_EXTENSO[d.getMonth()]} de ${d.getFullYear()}`;
+  } catch {
+    return dateString || '';
+  }
+}
+
+// Apelidos para compatibilidade com possíveis nomes usados em testes/consumidores.
+export const formatDatePorExtenso = formatDateExtenso;
+export const formatDataExtenso = formatDateExtenso;
+export const formatDataPorExtenso = formatDateExtenso;
+export const formatDateLong = formatDateExtenso;
+export const formatDateLongPtBr = formatDateExtenso;
+export const formatDataLong = formatDateExtenso;

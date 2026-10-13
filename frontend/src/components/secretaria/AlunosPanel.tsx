@@ -22,6 +22,7 @@ export interface AlunosPanelProps {
   loading: boolean;
   alunos: Aluno[];
   handleViewProntuario: (aluno: Aluno) => void;
+  handleEmitirDocumento?: (aluno: Aluno) => void;
   menuStatusAlunoId: string | null;
   setMenuStatusAlunoId: React.Dispatch<React.SetStateAction<string | null>>;
   handleAlterarStatus: (aluno: Aluno, novoStatus: string) => Promise<void> | void;
@@ -53,6 +54,7 @@ export function AlunosPanel({
   loading,
   alunos,
   handleViewProntuario,
+  handleEmitirDocumento,
   menuStatusAlunoId,
   setMenuStatusAlunoId,
   handleAlterarStatus,
@@ -281,6 +283,18 @@ export function AlunosPanel({
                             </button>
                             {menuStatusAlunoId === aluno.id && (
                               <div className="absolute right-0 top-9 z-20 w-52 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#141d17] shadow-lg py-1 text-left">
+                                {handleEmitirDocumento && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setMenuStatusAlunoId(null);
+                                      handleEmitirDocumento(aluno);
+                                    }}
+                                    className="w-full px-3 py-2 text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left border-b border-slate-100 dark:border-slate-800"
+                                  >
+                                    Emitir documento
+                                  </button>
+                                )}
                                 <p className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-slate-400 font-bold">
                                   Ciclo de vida
                                 </p>
