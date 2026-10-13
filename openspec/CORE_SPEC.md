@@ -178,3 +178,18 @@ A gestão de calendário escolar e engajamento familiar suporta confirmação de
 ### 8.4 Privacidade das Listas
 - **Acesso Estrito**: Convidado só vê sua própria resposta. Apenas a Gestão Escolar (Administração, Secretaria, Professores) tem acesso ao dashboard consolidado do evento para ver os nomes e os acompanhantes por questões de LGPD.
 
+---
+
+## 9. Implantação (homelab)
+
+A stack de produção para servidor próprio (homelab) está em [`deploy/homelab/`](../deploy/homelab/README.md). Ela inclui:
+
+- PostgreSQL 16 sem porta publicada, com healthcheck e volume persistente.
+- Backend Rust e worker Node em rede interna (não expostos diretamente).
+- Frontend Next.js buildado com URL de API relativa (`/api/v1`).
+- Proxy reverso Caddy como único ponto de entrada, publicando 80/443 e encaminhando `/api/*` e `/.well-known/*` para o backend.
+- Backup diário automático via `pg_dump -Fc`, mantendo os 14 arquivos mais recentes.
+- Segredos e chaves JWT lidos de `deploy/homelab/.env` (não versionado).
+
+Em produção (`APP_ENV=production`) as migrations de seed demo são filtradas no boot. O primeiro tenant deve ser criado pela tela "Cadastrar Escola". Veja o README do diretório para instruções passo a passo.
+

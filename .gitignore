@@ -30,6 +30,10 @@ pnpm-debug.log*
 *.pem
 *.key
 
+# Deploy local
+/deploy/homelab/.env
+/deploy/homelab/backups/
+
 # TypeScript build cache
 *.tsbuildinfo
 

@@ -1,0 +1,28 @@
+# Caddyfile de produção para homelab.
+# A variável {$DOMINIO} vem do .env via docker-compose.
+#
+# Para uso APENAS na rede local (sem certificado TLS):
+# 1. Comente a linha "{$DOMINIO}" abaixo.
+# 2. Descomente a linha ":80".
+# Aviso: PWA, notificações push e acesso pelo celular exigem HTTPS.
+
+{$DOMINIO}
+# :80
+
+encode gzip
+
+# API e autenticação vão para o backend
+handle /api/* {
+    reverse_proxy backend:8000
+}
+
+# OIDC Discovery / JWKS são publicados pelo backend em /api/v1/.well-known/*
+handle_path /.well-known/* {
+    rewrite * /api/v1/.well-known/{path}
+    reverse_proxy backend:8000
+}
+
+# Todo o restante (frontend Next.js / PWA)
+handle {
+    reverse_proxy frontend:3000
+}
