@@ -157,12 +157,13 @@ where
     }
 }
 
-pub const SEEDS_DEMO: [i64; 5] = [
+pub const SEEDS_DEMO: [i64; 6] = [
     20260929180000,
     20260929234000,
     20260930120000,
     20260930160000,
     20261009000000,
+    20261013000000,
 ];
 
 pub fn prepare_migrator(
