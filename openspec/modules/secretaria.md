@@ -132,6 +132,7 @@ O módulo cobre o **ciclo de vida completo do estudante** (matrícula com duplo 
 
 ## 6.1. Documentos para impressão (declarações e histórico)
 
+- Handlers do módulo: `backend/src/handlers/secretaria/**` (alunos, matrícula, prontuário, turmas, vínculos, salas, contratos e família) e `backend/src/handlers/documentos.rs` (declarações e histórico).
 - Endpoint: `GET /api/v1/secretaria/alunos/:aluno_id/documento?tipo=declaracao_matricula|declaracao_frequencia|historico`, papéis `admin`, `gestor`, `secretaria`, handler em `backend/src/handlers/documentos.rs`, `TenantDb`, aluno do próprio tenant (404 se de outro tenant).
 - Resposta JSON com escola (nome, CNPJ e endereço quando existirem, senão `null`), aluno (nome, data de nascimento, CPF quando houver, matrícula/RA quando houver), turma atual e ano letivo, situação da matrícula, frequência anual (total de aulas/presenças/percentual) no caso de declaração de frequência, notas por disciplina e período com média no histórico, `emitido_em` e `codigo_verificacao` (SHA-256 curto de tenant+aluno+tipo+data). Registra `log_audit` com ação `DOCUMENTO_EMITIDO`.
 - Frontend: em `frontend/src/components/secretaria/AlunosPanel.tsx`, menu de ações do aluno ("⋮") possui opção "Emitir documento" que abre modal de escolha de tipo em `SecretariaSection.tsx` e, na sequência, a visualização para impressão em `secretaria/DocumentoImpressao.tsx` (somente exibição; chamada de API em `SecretariaSection.tsx`). Impressão via `window.print()` (menu, cabeçalho do app e barra inferior ocultos em `@media print`).
