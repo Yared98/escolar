@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  formatNumero,
   cleanDigits,
   formatCpf,
   formatPhone,
@@ -109,5 +110,14 @@ describe('formatters', () => {
     it('retorna a string original quando a data for inválida', () => {
       expect(formatDateBr('data-invalida')).toBe('data-invalida');
     });
+  });
+});
+
+describe('formatNumero', () => {
+  it('formata com as casas pedidas e usa "-" quando não há valor', () => {
+    expect(formatNumero(7.25, 1)).toBe('7.3');
+    expect(formatNumero(8, 2)).toBe('8.00');
+    expect(formatNumero(null, 1)).toBe('-');
+    expect(formatNumero(undefined, 2)).toBe('-');
   });
 });

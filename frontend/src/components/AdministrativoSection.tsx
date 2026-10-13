@@ -44,13 +44,14 @@ export function AdministrativoSection() {
   const searchParams = useSearchParams();
   const routeParam = searchParams ? searchParams.get('route') : null;
   const tabParam = searchParams ? searchParams.get('tab') : null;
+  // "usuarios" fica dentro de Pessoas: precisa ser checado antes do padrão da rota.
   const subTab: 'entidades' | 'relatorios' | 'envios' | 'usuarios' =
-    routeParam === 'pessoas' || tabParam === 'entidades'
-      ? 'entidades'
-      : tabParam === 'relatorios'
-        ? 'relatorios'
-        : tabParam === 'usuarios'
-          ? 'usuarios'
+    tabParam === 'usuarios'
+      ? 'usuarios'
+      : routeParam === 'pessoas' || tabParam === 'entidades'
+        ? 'entidades'
+        : tabParam === 'relatorios'
+          ? 'relatorios'
           : 'envios';
 
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);

@@ -34,6 +34,12 @@ export function formatCep(cep: string | null | undefined): string {
   return `${digits.slice(0, 5)}-${digits.slice(5, 8)}`;
 }
 
+/** Número com casas fixas ou "-" quando não há valor (ex.: período ainda sem nota). */
+export function formatNumero(valor: number | null | undefined, casas: number): string {
+  if (valor == null || isNaN(valor)) return '-';
+  return valor.toFixed(casas);
+}
+
 export function formatCurrency(amount: number | null | undefined): string {
   if (amount == null || isNaN(amount)) return 'R$ 0,00';
   return new Intl.NumberFormat('pt-BR', {

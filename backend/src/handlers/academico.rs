@@ -339,6 +339,33 @@ pub async fn listar_diarios_recentes(
     Ok(Json(itens))
 }
 
+/// Situação do boletim. O resultado final (aprovado, recuperação, reprovado) só existe com os
+/// quatro bimestres lançados em todas as disciplinas; antes disso o ano está "Em andamento".
+pub fn status_boletim(
+    sem_notas: bool,
+    ano_completo: bool,
+    media_geral: f64,
+    freq_geral: f64,
+) -> String {
+    if sem_notas {
+        return "Sem notas lançadas".to_string();
+    }
+    if !ano_completo {
+        return if media_geral >= 7.0 && freq_geral >= 75.0 {
+            "Em andamento".to_string()
+        } else {
+            "Em andamento (precisa de atenção)".to_string()
+        };
+    }
+    if media_geral >= 7.0 && freq_geral >= 75.0 {
+        "Aprovado".to_string()
+    } else if media_geral >= 5.0 && freq_geral >= 75.0 {
+        "Em Recuperação".to_string()
+    } else {
+        "Reprovado".to_string()
+    }
+}
+
 pub async fn consultar_boletim(
     State(_state): State<AppState>,
     TenantDb(mut db): TenantDb,
@@ -460,13 +487,19 @@ pub async fn consultar_boletim(
         0.0
     };
 
-    let status_aprovacao = if media_geral >= 7.0 && freq_geral >= 75.0 {
-        "Aprovado".to_string()
-    } else if media_geral >= 5.0 && freq_geral >= 75.0 {
-        "Em Recuperação".to_string()
-    } else {
-        "Reprovado".to_string()
-    };
+    let ano_completo = !disciplinas.is_empty()
+        && disciplinas.iter().all(|d| {
+            d.nota_1_bim.is_some()
+                && d.nota_2_bim.is_some()
+                && d.nota_3_bim.is_some()
+                && d.nota_4_bim.is_some()
+        });
+    let status_aprovacao = status_boletim(
+        disciplinas.is_empty(),
+        ano_completo,
+        media_geral,
+        freq_geral,
+    );
 
     Ok(Json(BoletimCompletoDto {
         aluno_id,
@@ -1864,6 +1897,24 @@ pub async fn listar_professores_disponiveis(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_status_boletim_so_fecha_com_ano_completo() {
+        assert_eq!(
+            status_boletim(true, false, 0.0, 100.0),
+            "Sem notas lançadas"
+        );
+        // Meio do ano com média baixa: não pode aparecer "Reprovado" para a família.
+        assert_eq!(
+            status_boletim(false, false, 4.25, 60.0),
+            "Em andamento (precisa de atenção)"
+        );
+        assert_eq!(status_boletim(false, false, 8.0, 90.0), "Em andamento");
+        assert_eq!(status_boletim(false, true, 8.0, 90.0), "Aprovado");
+        assert_eq!(status_boletim(false, true, 6.0, 90.0), "Em Recuperação");
+        assert_eq!(status_boletim(false, true, 4.0, 90.0), "Reprovado");
+        assert_eq!(status_boletim(false, true, 9.0, 60.0), "Reprovado");
+    }
 
     #[test]
     fn test_probabilidade_tri_3pl() {

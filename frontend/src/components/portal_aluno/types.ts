@@ -6,10 +6,13 @@ export interface AlunoVinculado {
 
 export interface DisciplinaBoletim {
   nome: string;
-  nota_1_bim?: number;
-  nota_2_bim?: number;
-  media: number;
-  frequencia_pct: number;
+  // A API devolve null quando o período ainda não tem nota.
+  nota_1_bim?: number | null;
+  nota_2_bim?: number | null;
+  nota_3_bim?: number | null;
+  nota_4_bim?: number | null;
+  media: number | null;
+  frequencia_pct: number | null;
 }
 
 
@@ -26,7 +29,7 @@ export interface BoletimData {
   aluno_id: string;
   nome_aluno: string;
   disciplinas: DisciplinaBoletim[];
-  media_geral: number;
+  media_geral: number | null;
   status_aprovacao: string;
 }
 

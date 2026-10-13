@@ -51,6 +51,7 @@ O processo avaliativo opera pelo lançamento de notas por período letivo e falt
 
 - **Boletim Consolidado Multi-Período (`GET /api/v1/academico/boletim/:aluno_id`)**:
   - Consolida notas dos bimestres/trimestres por disciplina, calcula média aritmética/ponderada e apura a frequência presencial consolidada (LDB 75%).
+  - **Situação (`status_aprovacao`)**: o resultado final (`Aprovado` com média ≥ 7 e frequência ≥ 75%, `Em Recuperação` com média ≥ 5, senão `Reprovado`) só é calculado quando todas as disciplinas têm os quatro bimestres lançados. Antes disso a API devolve `Em andamento` ou `Em andamento (precisa de atenção)` (abaixo da média ou da frequência), e `Sem notas lançadas` quando não há nota. O portal da família mostra os quatro bimestres e, por disciplina, "Na média" / "Abaixo da média".
   - Retorna status de aproveitamento ("Aprovado", "Em Recuperação", "Reprovado").
   - Guarda de propriedade estrita: aluno ou responsável só acessam seus próprios registros (`check_aluno_ownership`).
   - Response 200 OK:
