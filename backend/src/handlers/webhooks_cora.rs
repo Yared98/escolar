@@ -126,8 +126,32 @@ pub async fn cora_webhook_handler(
 
     // Formato documentado da Cora envia os dados do evento nos headers e o corpo pode ser vazio.
     // Montamos um payload compatível a partir dos headers quando necessário.
-    let (event_id, event_type, invoice) = extract_event_from_headers_or_body(&headers, &body)?;
+    let (event_id, event_type, mut invoice) = extract_event_from_headers_or_body(&headers, &body)?;
     let cora_id = invoice.id.clone();
+
+    // Com a Cora ligada (Stage ou produção), o aviso não basta: a autenticação é só um token e o
+    // corpo pode vir vazio. Antes de dar baixa, a cobrança é consultada na própria Cora e só segue
+    // se estiver paga; o valor pago informado pela Cora substitui o do aviso.
+    let evento_de_pagamento = event_type == "invoice.paid" || event_type == "invoice.settled";
+    if evento_de_pagamento && state.config.cora_mode != crate::config::CoraMode::Mock {
+        let confirmada = crate::services::cora_api::gateway_for(&state.config)
+            .get_invoice(&cora_id)
+            .await?;
+        if !confirmada.esta_paga() {
+            tracing::warn!(
+                tenant_id = %tenant_id,
+                "aviso de pagamento da Cora não confirmado na consulta da cobrança"
+            );
+            // Não registra o evento: um novo aviso, depois da confirmação, ainda será processado.
+            return Ok(Json(serde_json::json!({"status": "not_confirmed"})));
+        }
+        if let Some(centavos) = confirmada.total_paid {
+            invoice.amount_cents = Some(centavos);
+            invoice.paid_amount = None;
+            invoice.amount = None;
+            invoice.value = None;
+        }
+    }
 
     // Atomic transaction for idempotency check and business processing
     let mut tx = db.begin().await?;

@@ -423,23 +423,28 @@ pub async fn emitir_cora_fatura(
         return Ok(Json(fatura));
     }
 
-    let responsavel = sqlx::query_as::<
-        _,
-        (
-            Option<String>,
-            Option<String>,
-            Option<String>,
-            Option<String>,
-            Option<String>,
-        ),
-    >(
+    // Dados do pagador: responsável financeiro (ou legal) do aluno. Nada é inventado: sem CPF/CNPJ
+    // válido a emissão é recusada com orientação; e-mail e endereço vão só se estiverem cadastrados.
+    #[derive(sqlx::FromRow)]
+    struct Pagador {
+        nome: Option<String>,
+        documento: Option<String>,
+        email: Option<String>,
+        logradouro: Option<String>,
+        numero: Option<String>,
+        bairro: Option<String>,
+        cidade: Option<String>,
+        estado: Option<String>,
+        complemento: Option<String>,
+        cep: Option<String>,
+    }
+    let pagador = sqlx::query_as::<_, Pagador>(
         r#"
         SELECT
-            COALESCE(NULLIF(a.nome_responsavel_financeiro, ''), a.nome_responsavel) AS nome,
-            COALESCE(NULLIF(a.cpf_responsavel_financeiro, ''), a.cpf) AS cpf,
-            COALESCE(NULLIF(a.email_responsavel_financeiro, ''), a.email_responsavel) AS email,
-            a.nome AS aluno_nome,
-            a.cpf AS aluno_cpf
+            COALESCE(NULLIF(TRIM(a.nome_responsavel_financeiro), ''), NULLIF(TRIM(a.nome_responsavel), '')) AS nome,
+            COALESCE(NULLIF(a.cpf_responsavel_financeiro, ''), NULLIF(a.cpf_responsavel_legal, '')) AS documento,
+            COALESCE(NULLIF(TRIM(a.email_responsavel_financeiro), ''), NULLIF(TRIM(a.email_responsavel), '')) AS email,
+            a.logradouro, a.numero, a.bairro, a.cidade, a.estado, a.complemento, a.cep
         FROM faturas f
         JOIN alunos a ON a.id = f.aluno_id AND a.tenant_id = f.tenant_id
         WHERE f.id = $1 AND f.tenant_id = $2
@@ -449,33 +454,47 @@ pub async fn emitir_cora_fatura(
     .bind(tenant_id)
     .fetch_optional(&mut *db)
     .await?
-    .unwrap_or((None, None, None, None, None));
+    .ok_or_else(|| AppError::BadRequest("A fatura não está ligada a um aluno cadastrado.".to_string()))?;
 
-    let nome = responsavel
-        .0
+    let nome: String = pagador
+        .nome
         .clone()
-        .or(responsavel.3.clone())
-        .unwrap_or_else(|| "Responsável".to_string())
-        .trim()
+        .ok_or_else(|| {
+            AppError::BadRequest(
+                "Cadastre o nome do responsável financeiro do aluno antes de emitir o boleto."
+                    .to_string(),
+            )
+        })?
         .chars()
         .take(60)
-        .collect::<String>();
-    let documento_raw = responsavel
-        .1
-        .clone()
-        .or(responsavel.4.clone())
-        .unwrap_or_else(|| "00000000000".to_string());
-    let documento = limpar_documento(&documento_raw);
-    let email = responsavel
-        .2
-        .clone()
-        .unwrap_or_else(|| "financeiro@escola.test".to_string())
-        .trim()
-        .chars()
-        .take(60)
-        .collect::<String>();
+        .collect();
+    let documento = limpar_documento(pagador.documento.as_deref().unwrap_or(""));
+    if documento.len() != 11 && documento.len() != 14 {
+        return Err(AppError::BadRequest(
+            "Cadastre o CPF (ou CNPJ) do responsável financeiro do aluno antes de emitir o boleto."
+                .to_string(),
+        ));
+    }
+    let email = pagador
+        .email
+        .as_deref()
+        .map(|e| e.chars().take(60).collect::<String>());
+    let endereco = CoraAddress::do_cadastro(
+        pagador.logradouro.as_deref(),
+        pagador.numero.as_deref(),
+        pagador.bairro.as_deref(),
+        pagador.cidade.as_deref(),
+        pagador.estado.as_deref(),
+        pagador.complemento.as_deref(),
+        pagador.cep.as_deref(),
+    );
 
     let amount_cents = (fatura.valor * 100.0).round() as i64;
+    if amount_cents < 500 {
+        return Err(AppError::BadRequest(
+            "A Cora só emite boletos a partir de R$ 5,00.".to_string(),
+        ));
+    }
     let due_date = fatura.data_vencimento.format("%Y-%m-%d").to_string();
 
     let invoice_request = CoraCreateInvoiceRequest {
@@ -487,6 +506,7 @@ pub async fn emitir_cora_fatura(
                 identity: documento.clone(),
                 document_type: tipo_documento(&documento).to_string(),
             },
+            address: endereco,
         },
         services: vec![CoraService {
             name: "Mensalidade".to_string(),

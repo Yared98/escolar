@@ -3,7 +3,7 @@ use axum::{
     extract::State,
     http::{Request, StatusCode},
     response::Json,
-    routing::post,
+    routing::{get, post},
     Router,
 };
 use escolar_backend::{
@@ -97,12 +97,22 @@ async fn sim_pay(State(state): State<SimState>) -> Json<Value> {
     Json(json!({"status":"IN_PAYMENT"}))
 }
 
+// Consulta da cobrança: só aparece paga depois do pagamento simulado.
+async fn sim_get_invoice(State(state): State<SimState>) -> Json<Value> {
+    if state.pays() > 0 {
+        Json(json!({"id": "cora_inv_sim_001", "status": "PAID", "total_paid": 15000}))
+    } else {
+        Json(json!({"id": "cora_inv_sim_001", "status": "OPEN"}))
+    }
+}
+
 async fn start_simulator() -> (String, SimState) {
     let state = SimState::default();
     let app = Router::new()
         .route("/token", post(sim_token))
         .route("/v2/invoices", post(sim_create_invoice))
         .route("/v2/invoices/pay", post(sim_pay))
+        .route("/v2/invoices/:id", get(sim_get_invoice))
         .with_state(state.clone());
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -383,6 +393,38 @@ async fn run_checks(pool: &PgPool, sim_url: &str, sim_state: &SimState) -> Resul
     }
 
     // 5. Simular pagamento (sandbox)
+    // 5a. Aviso de pagamento com token certo, mas ANTES de a Cora confirmar: não dá baixa.
+    let req_forjado = Request::builder()
+        .method("POST")
+        .uri(format!(
+            "/api/v1/webhooks/cora/{tenant_a}?token=wh_secret_a"
+        ))
+        .header("webhook-event-id", "evt_forjado_000")
+        .header("webhook-event-type", "invoice.paid")
+        .header("webhook-resource-id", "cora_inv_sim_001")
+        .body(Body::empty())
+        .map_err(|e| e.to_string())?;
+    let resp_forjado = router
+        .clone()
+        .oneshot(req_forjado)
+        .await
+        .map_err(|e| e.to_string())?;
+    if resp_forjado.status() != StatusCode::OK {
+        return Err(format!(
+            "Aviso não confirmado deveria responder 200, recebeu {}",
+            resp_forjado.status()
+        ));
+    }
+    let status_antes: (String,) = sqlx::query_as("SELECT status FROM faturas WHERE id = $1")
+        .bind(fatura_id)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    assert_eq!(
+        status_antes.0, "pendente",
+        "Aviso sem confirmação da Cora não pode dar baixa"
+    );
+
     let req_sim = Request::builder()
         .method("POST")
         .uri(format!(
@@ -435,6 +477,52 @@ async fn run_checks(pool: &PgPool, sim_url: &str, sim_state: &SimState) -> Resul
         .await
         .map_err(|e| e.to_string())?;
     assert_eq!(status_fatura.0, "pago", "Webhook deve ter baixado a fatura");
+
+    // 6b. Responsável sem CPF: emissão recusada com orientação e nada vai para a Cora.
+    let aluno_sem_cpf = Uuid::new_v4();
+    sqlx::query(
+        "INSERT INTO alunos (id, tenant_id, nome, cpf, data_nascimento, nome_responsavel, email_responsavel, telefone_responsavel) VALUES ($1, $2, 'Aluno Sem CPF', '55566677788', '2015-05-05', 'Resp Sem CPF', 'semcpf@a.test', '11988887777')",
+    )
+    .bind(aluno_sem_cpf)
+    .bind(tenant_a)
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+    let fatura_sem_cpf = Uuid::new_v4();
+    sqlx::query(
+        "INSERT INTO faturas (id, tenant_id, aluno_id, descricao, valor, data_vencimento, status, metodo_pagamento) VALUES ($1, $2, $3, 'Mensalidade sem CPF', 150.0, CURRENT_DATE + INTERVAL '5 days', 'pendente', 'boleto')",
+    )
+    .bind(fatura_sem_cpf)
+    .bind(tenant_a)
+    .bind(aluno_sem_cpf)
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+    let criadas_antes = sim_state.creates();
+    let req_sem_cpf = Request::builder()
+        .method("POST")
+        .uri(format!("/api/v1/financeiro/faturas/{fatura_sem_cpf}/cora"))
+        .header("X-Tenant-ID", tenant_a.to_string())
+        .header("Authorization", format!("Bearer {token_gestor}"))
+        .header("Content-Type", "application/json")
+        .body(Body::from("{}"))
+        .map_err(|e| e.to_string())?;
+    let resp_sem_cpf = router
+        .clone()
+        .oneshot(req_sem_cpf)
+        .await
+        .map_err(|e| e.to_string())?;
+    if resp_sem_cpf.status() != StatusCode::BAD_REQUEST {
+        return Err(format!(
+            "Sem CPF do responsável a emissão deveria dar 400, recebeu {}",
+            resp_sem_cpf.status()
+        ));
+    }
+    assert_eq!(
+        sim_state.creates(),
+        criadas_antes,
+        "Nada deve ser enviado à Cora sem CPF"
+    );
 
     // 7. Mock não chama o simulador
     config.cora_mode = CoraMode::Mock;

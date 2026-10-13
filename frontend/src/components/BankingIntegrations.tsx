@@ -118,9 +118,9 @@ export function BankingIntegrations() {
           </div>
         ) : !hasServerCredentials ? (
           <div className="rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/30 p-3 text-[11px] text-rose-900 dark:text-rose-200">
-            As credenciais da Cora ainda não foram configuradas no servidor. Solicite as chaves em
-            Conta &gt; Integrações via APIs no app da Cora, coloque os arquivos em{' '}
-            <code>./segredos</code> e ligue <code>CORA_MODE=sandbox</code>.
+            A conexão com a Cora ainda não foi configurada. Peça as credenciais no app da Cora, em
+            Conta &gt; Integrações via APIs, e entregue os arquivos a quem cuida da instalação do
+            sistema (o passo a passo está no guia de instalação).
           </div>
         ) : (
           <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 p-3 text-[11px] text-emerald-900 dark:text-emerald-200">

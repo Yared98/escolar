@@ -21,8 +21,8 @@ use crate::{
         ReguaCobrancaLog, ReguaExecucaoResultDto, UpdateDespesaDto, UpdateFaturaDto,
     },
     services::cora_api::{
-        gateway_for, CoraCreateInvoiceRequest, CoraCustomer, CoraDocument, CoraFine, CoraInterest,
-        CoraPaymentTerms, CoraService,
+        gateway_for, CoraAddress, CoraCreateInvoiceRequest, CoraCustomer, CoraDocument, CoraFine,
+        CoraInterest, CoraPaymentTerms, CoraService,
     },
     services::faturamento::{
         gerar_parcelas_contrato, inserir_fatura, tenant_nome, valor_atualizado_com_encargos,

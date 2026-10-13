@@ -96,11 +96,57 @@ pub struct CoraDocument {
     pub document_type: String,
 }
 
+/// Endereço do pagador (opcional na Cora; quando enviado, todos os campos são exigidos).
+#[derive(Serialize, Clone, Debug, PartialEq)]
+pub struct CoraAddress {
+    pub street: String,
+    pub number: String,
+    pub district: String,
+    pub city: String,
+    pub state: String,
+    pub complement: String,
+    pub zip_code: String,
+}
+
+impl CoraAddress {
+    /// Monta o endereço só quando o cadastro tem todos os campos exigidos; CEP só com dígitos
+    /// (8) e UF com 2 letras. Complemento vazio vira "N/A", como nos exemplos da Cora.
+    #[allow(clippy::too_many_arguments)]
+    pub fn do_cadastro(
+        logradouro: Option<&str>,
+        numero: Option<&str>,
+        bairro: Option<&str>,
+        cidade: Option<&str>,
+        estado: Option<&str>,
+        complemento: Option<&str>,
+        cep: Option<&str>,
+    ) -> Option<Self> {
+        let limpo = |v: Option<&str>| v.map(str::trim).filter(|s| !s.is_empty()).map(String::from);
+        let cep: String = cep?.chars().filter(|c| c.is_ascii_digit()).collect();
+        let estado = limpo(estado)?.to_uppercase();
+        if cep.len() != 8 || estado.len() != 2 {
+            return None;
+        }
+        Some(Self {
+            street: limpo(logradouro)?,
+            number: limpo(numero)?,
+            district: limpo(bairro)?,
+            city: limpo(cidade)?,
+            state: estado,
+            complement: limpo(complemento).unwrap_or_else(|| "N/A".to_string()),
+            zip_code: cep,
+        })
+    }
+}
+
 #[derive(Serialize, Clone, Debug)]
 pub struct CoraCustomer {
     pub name: String,
-    pub email: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
     pub document: CoraDocument,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address: Option<CoraAddress>,
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -171,9 +217,20 @@ pub struct CoraInvoiceResponse {
     pub payment_options: Option<CoraPaymentOptions>,
     #[serde(default)]
     pub pix: Option<CoraPixResponse>,
+    /// Valor pago em centavos, quando a Cora informa na consulta.
+    #[serde(default)]
+    pub total_paid: Option<i64>,
 }
 
 impl CoraInvoiceResponse {
+    /// Situação confirmada de pagamento na consulta da cobrança.
+    pub fn esta_paga(&self) -> bool {
+        self.status
+            .as_deref()
+            .map(|s| s.eq_ignore_ascii_case("PAID"))
+            .unwrap_or(false)
+    }
+
     pub fn boleto_url(&self) -> Option<String> {
         self.payment_options
             .as_ref()
@@ -258,6 +315,7 @@ impl BankGateway for CoraMock {
                     Uuid::new_v4().simple()
                 )),
             }),
+            total_paid: None,
         })
     }
 
@@ -559,6 +617,56 @@ pub fn gateway_for(config: &Config) -> Box<dyn BankGateway> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn endereco_so_vai_completo_e_normalizado() {
+        let e = CoraAddress::do_cadastro(
+            Some("Rua A"),
+            Some("10"),
+            Some("Centro"),
+            Some("Recife"),
+            Some("pe"),
+            None,
+            Some("50000-123"),
+        )
+        .unwrap();
+        assert_eq!(e.zip_code, "50000123");
+        assert_eq!(e.state, "PE");
+        assert_eq!(e.complement, "N/A");
+        assert!(CoraAddress::do_cadastro(
+            Some("Rua A"),
+            None,
+            Some("Centro"),
+            Some("Recife"),
+            Some("PE"),
+            None,
+            Some("50000123")
+        )
+        .is_none());
+        assert!(CoraAddress::do_cadastro(
+            Some("Rua A"),
+            Some("1"),
+            Some("Centro"),
+            Some("Recife"),
+            Some("PE"),
+            None,
+            Some("5000")
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn consulta_paga_so_com_status_paid() {
+        let r: CoraInvoiceResponse = serde_json::from_str(
+            r#"{"id":"inv_1","status":"PAID","total_amount":3000,"total_paid":3000}"#,
+        )
+        .unwrap();
+        assert!(r.esta_paga());
+        assert_eq!(r.total_paid, Some(3000));
+        let r: CoraInvoiceResponse =
+            serde_json::from_str(r#"{"id":"inv_1","status":"IN_PAYMENT"}"#).unwrap();
+        assert!(!r.esta_paga());
+    }
+
     #[tokio::test]
     async fn test_gateway_for_mock() {
         let mut config = Config::default();
@@ -646,7 +754,8 @@ mod tests {
             code: "fat-1".to_string(),
             customer: CoraCustomer {
                 name: "Maria Silva".to_string(),
-                email: "maria@escola.test".to_string(),
+                email: Some("maria@escola.test".to_string()),
+                address: None,
                 document: CoraDocument {
                     identity: "12345678901".to_string(),
                     document_type: "CPF".to_string(),
@@ -675,7 +784,8 @@ mod tests {
             code: "code".to_string(),
             customer: CoraCustomer {
                 name: "Teste".to_string(),
-                email: "teste@teste.com".to_string(),
+                email: Some("teste@teste.com".to_string()),
+                address: None,
                 document: CoraDocument {
                     identity: "12345678901".to_string(),
                     document_type: "CPF".to_string(),
