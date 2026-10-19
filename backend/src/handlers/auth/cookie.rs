@@ -148,17 +148,15 @@ pub fn resposta_renovacao(
     Ok(resposta)
 }
 
-/// 401 que também apaga o cookie (refresh token inválido, revogado ou expirado).
-pub fn resposta_nao_autorizado_limpando(mensagem: &str, secure: bool) -> Response {
-    let mut resposta = (
+/// 401 de renovação. O cookie NÃO é apagado: se duas abas renovam ao mesmo tempo, a que perde a
+/// corrida levaria o cookie novo da que ganhou. Um cookie vencido ou revogado é inofensivo (só dá 401);
+/// quem apaga o cookie é o logout.
+pub fn resposta_nao_autorizado(mensagem: &str) -> Response {
+    (
         StatusCode::UNAUTHORIZED,
         Json(json!({ "error": mensagem, "status": 401 })),
     )
-        .into_response();
-    if let Ok(v) = set_cookie_limpar(secure) {
-        resposta.headers_mut().append(header::SET_COOKIE, v);
-    }
-    resposta
+        .into_response()
 }
 
 #[cfg(test)]

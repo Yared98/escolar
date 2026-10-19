@@ -215,18 +215,16 @@ pub async fn refresh_http(
         return Err(AppError::Forbidden("Origem não permitida.".into()));
     }
     let Some(atual) = cookie::refresh_do_cookie(&headers) else {
-        return Ok(cookie::resposta_nao_autorizado_limpando(
+        return Ok(cookie::resposta_nao_autorizado(
             "Sessão expirada. Entre novamente.",
-            secure,
         ));
     };
     match rotacionar_refresh(&state, &atual).await {
         Ok((token, refresh, expires_in)) => {
             cookie::resposta_renovacao(&token, &refresh, expires_in, secure)
         }
-        Err(AppError::InvalidToken(_)) => Ok(cookie::resposta_nao_autorizado_limpando(
+        Err(AppError::InvalidToken(_)) => Ok(cookie::resposta_nao_autorizado(
             "Sessão expirada. Entre novamente.",
-            secure,
         )),
         Err(outro) => Err(outro),
     }

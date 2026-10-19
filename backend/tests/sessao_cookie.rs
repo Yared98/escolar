@@ -292,12 +292,13 @@ async fn sessao_em_cookie_httponly_com_rotacao_e_protecao_de_origem() {
         "o refresh token deve girar"
     );
 
-    // 6. Reusar o refresh antigo (já rotacionado) falha e manda apagar o cookie.
+    // 6. Reusar o refresh antigo (já rotacionado) falha com 401, sem apagar o cookie (duas abas
+    //    renovando juntas não podem derrubar o cookie novo da que ganhou a corrida).
     let r = enviar(&app, renovar_com_cookie(&refresh1, &[])).await;
     assert_eq!(r.status, StatusCode::UNAUTHORIZED);
     assert!(
-        r.set_cookies.iter().any(|c| c.contains("Max-Age=0")),
-        "cookie deve ser apagado"
+        r.set_cookies.is_empty(),
+        "401 de renovação não mexe no cookie"
     );
 
     // 7. Sem cookie nenhum, em modo cookie: 401.
