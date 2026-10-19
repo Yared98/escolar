@@ -1,6 +1,13 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import {
+  encerrarSessao,
+  getAccessToken,
+  removerCredenciaisLegadas,
+  renovarSessao,
+  setAccessToken,
+} from '@/lib/session';
 
 interface User {
   id: string;
@@ -27,7 +34,7 @@ interface AuthContextType {
   user: User | null;
   tenant: Tenant | null;
   isOnline: boolean;
-  login: (token: string, tenant: Tenant, user: User, refreshToken?: string) => void;
+  login: (token: string, tenant: Tenant, user: User) => void;
   logout: () => void;
   setTenantId: (tenantId: string) => void;
   switchRole: (newRole: string) => void;
@@ -51,22 +58,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setToken(null);
       setUser(null);
       setTenant(null);
-      localStorage.removeItem('escolar_refresh_token');
     };
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     window.addEventListener('auth_error', handleAuthError);
 
-    const savedToken = localStorage.getItem('escolar_jwt_token');
+    // Versões antigas guardavam o token no navegador: apaga e pede novo login uma única vez.
+    removerCredenciaisLegadas();
+
     const savedUser = localStorage.getItem('escolar_user');
     const savedTenant = localStorage.getItem('escolar_tenant');
 
-    if (savedToken && savedUser && savedTenant) {
-      setToken(savedToken);
+    if (savedUser && savedTenant) {
+      // Dados de exibição aparecem na hora; o token de acesso (só em memória) vem do cookie.
       setUser(JSON.parse(savedUser));
       setTenant(JSON.parse(savedTenant));
-      void import('@/lib/push').then((m) => m.ensurePushReady()).catch(() => undefined);
+      void (async () => {
+        const resultado = getAccessToken() ? 'ok' : await renovarSessao();
+        if (resultado === 'ok') {
+          setToken(getAccessToken());
+          void import('@/lib/push').then((m) => m.ensurePushReady()).catch(() => undefined);
+        } else if (resultado === 'expirada') {
+          window.dispatchEvent(new Event('auth_error'));
+          ['escolar_user', 'escolar_tenant', 'escolar_tenant_id'].forEach((k) => localStorage.removeItem(k));
+        }
+        // 'rede': sem conexão. Mantém o usuário (o Diário offline continua) e renova ao voltar.
+      })();
     }
 
     return () => {
@@ -76,45 +94,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const login = (newToken: string, newTenant: Tenant, newUser: User, refreshToken?: string) => {
+  const login = (newToken: string, newTenant: Tenant, newUser: User) => {
+    setAccessToken(newToken);
     setToken(newToken);
     setTenant(newTenant);
     setUser(newUser);
 
-    localStorage.setItem('escolar_jwt_token', newToken);
     localStorage.setItem('escolar_tenant_id', newTenant.id);
     localStorage.setItem('escolar_tenant', JSON.stringify(newTenant));
     localStorage.setItem('escolar_user', JSON.stringify(newUser));
-    if (refreshToken) {
-      localStorage.setItem('escolar_refresh_token', refreshToken);
-    }
     void import('@/lib/push').then((m) => m.ensurePushReady()).catch(() => undefined);
   };
 
   const logout = () => {
-    const currentToken = localStorage.getItem('escolar_jwt_token');
-    const refreshToken = localStorage.getItem('escolar_refresh_token');
-    const tenantId = localStorage.getItem('escolar_tenant_id');
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-
-    if (currentToken && tenantId) {
-      void fetch(`${apiBase}/auth/logout`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${currentToken}`,
-          'X-Tenant-ID': tenantId,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ refresh_token: refreshToken }),
-      }).catch(() => undefined);
-    }
+    // Revoga a sessão no servidor e apaga o cookie; a aba é limpa sem esperar a resposta.
+    void encerrarSessao();
 
     setToken(null);
     setUser(null);
     setTenant(null);
 
-    localStorage.removeItem('escolar_jwt_token');
-    localStorage.removeItem('escolar_refresh_token');
     localStorage.removeItem('escolar_tenant_id');
     localStorage.removeItem('escolar_tenant');
     localStorage.removeItem('escolar_user');

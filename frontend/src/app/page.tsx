@@ -263,7 +263,6 @@ function DashboardContent() {
     try {
       const data = await apiFetch<{
         token: string;
-        refresh_token?: string;
         tenant: { id: string; name: string; slug: string; status: string };
         user: { id: string; tenant_id: string; name: string; email: string; role: string; deve_trocar_senha?: boolean };
       }>('/auth/login', {
@@ -275,7 +274,7 @@ function DashboardContent() {
         }),
       });
 
-      login(data.token, data.tenant, data.user, data.refresh_token);
+      login(data.token, data.tenant, data.user);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -295,7 +294,6 @@ function DashboardContent() {
     try {
       const data = await apiFetch<{
         token: string;
-        refresh_token?: string;
         tenant: { id: string; name: string; slug: string; status: string };
         user: { id: string; tenant_id: string; name: string; email: string; role: string };
       }>('/auth/register-tenant', {
@@ -309,7 +307,7 @@ function DashboardContent() {
         }),
       });
 
-      login(data.token, data.tenant, data.user, data.refresh_token);
+      login(data.token, data.tenant, data.user);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);

@@ -87,6 +87,7 @@
   "POST /auth/login": 1,
   "POST /auth/logout": 1,
   "POST /auth/redefinir-senha": 1,
+  "POST /auth/refresh": 1,
   "POST /auth/register-tenant": 1,
   "POST /avaliacoes": 1,
   "POST /crm/leads": 1,

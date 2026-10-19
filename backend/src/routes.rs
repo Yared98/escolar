@@ -36,7 +36,7 @@ use crate::{
         },
         auth::{
             alterar_senha, jwks, login, logout, me, oauth_authorize, oauth_token,
-            openid_configuration, refresh_session, register_tenant, userinfo,
+            openid_configuration, refresh_http, register_tenant, userinfo,
         },
         avaliacoes::{criar_avaliacao, deletar_avaliacao, listar_avaliacoes},
         crm_lms::{
@@ -553,7 +553,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/health", get(health_check))
         .route("/auth/register-tenant", post(register_tenant))
         .route("/auth/login", post(login))
-        .route("/auth/refresh", post(refresh_session))
+        .route("/auth/refresh", post(refresh_http))
         .route("/auth/esqueci-senha", post(esqueci_senha))
         .route("/auth/redefinir-senha", post(redefinir_senha_publico))
         .route("/auth/oauth/token", post(oauth_token))
@@ -601,6 +601,7 @@ pub fn create_router(state: AppState) -> Router {
             axum::http::header::AUTHORIZATION,
             axum::http::header::CONTENT_TYPE,
             axum::http::header::HeaderName::from_static("x-tenant-id"),
+            axum::http::header::HeaderName::from_static("x-auth-mode"),
         ])
         .allow_credentials(true);
 

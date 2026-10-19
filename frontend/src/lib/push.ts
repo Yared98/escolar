@@ -1,6 +1,6 @@
 'use client';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+import { API_BASE, garantirTokenDeAcesso } from './session';
 
 function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -28,7 +28,7 @@ export async function ensurePushReady(): Promise<boolean> {
     // Inscrição Web Push (quando suportado)
     if ('PushManager' in window) {
       try {
-        const token = localStorage.getItem('escolar_jwt_token');
+        const token = await garantirTokenDeAcesso();
         const tenantId = localStorage.getItem('escolar_tenant_id');
         if (token) {
           const vapidRes = await fetch(`${API_BASE}/notificacoes/push/vapid-public-key`, {

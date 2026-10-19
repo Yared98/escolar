@@ -2,7 +2,12 @@ use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
 };
-use axum::{extract::State, http::HeaderMap, Extension, Json};
+use axum::{
+    extract::State,
+    http::{header, HeaderMap},
+    response::{IntoResponse, Response},
+    Extension, Json,
+};
 use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -19,6 +24,7 @@ use crate::{
     services::audit::log_audit,
 };
 
+pub mod cookie;
 pub mod oidc;
 pub mod sessao;
 pub use oidc::*;
@@ -119,8 +125,9 @@ pub fn is_valid_email(email: &str) -> bool {
 
 pub async fn register_tenant(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(dto): Json<RegisterTenantDto>,
-) -> Result<Json<AuthResponseDto>, AppError> {
+) -> Result<Response, AppError> {
     let clean_slug = dto.school_slug.trim().to_lowercase();
     let clean_email = dto.admin_email.trim().to_lowercase();
 
@@ -240,20 +247,34 @@ pub async fn register_tenant(
     )
     .await?;
 
-    Ok(Json(AuthResponseDto {
-        token,
-        refresh_token,
-        expires_in,
-        tenant,
-        user: user.into(),
-    }))
+    if cookie::modo_cookie(&headers)
+        && !cookie::origem_permitida(&headers, &state.config.allowed_origins)
+    {
+        return Err(AppError::Forbidden("Origem não permitida.".into()));
+    }
+    cookie::resposta_sessao(
+        AuthResponseDto {
+            token,
+            refresh_token,
+            expires_in,
+            tenant,
+            user: user.into(),
+        },
+        cookie::modo_cookie(&headers),
+        cookie::cookie_secure(&state.config.environment),
+    )
 }
 
 pub async fn login(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(dto): Json<LoginDto>,
-) -> Result<Json<AuthResponseDto>, AppError> {
+) -> Result<Response, AppError> {
+    if cookie::modo_cookie(&headers)
+        && !cookie::origem_permitida(&headers, &state.config.allowed_origins)
+    {
+        return Err(AppError::Forbidden("Origem não permitida.".into()));
+    }
     let clean_slug = dto.tenant_slug.trim().to_lowercase();
     let clean_email = dto.email.trim().to_lowercase();
 
@@ -441,13 +462,17 @@ pub async fn login(
     )
     .await?;
 
-    Ok(Json(AuthResponseDto {
-        token,
-        refresh_token,
-        expires_in,
-        tenant,
-        user: user.into(),
-    }))
+    cookie::resposta_sessao(
+        AuthResponseDto {
+            token,
+            refresh_token,
+            expires_in,
+            tenant,
+            user: user.into(),
+        },
+        cookie::modo_cookie(&headers),
+        cookie::cookie_secure(&state.config.environment),
+    )
 }
 
 pub async fn me(
@@ -552,7 +577,7 @@ pub async fn logout(
     headers: HeaderMap,
     Extension(auth_user): Extension<AuthUser>,
     body: Option<Json<LogoutDto>>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Response, AppError> {
     let auth_header = headers.get("Authorization").and_then(|v| v.to_str().ok());
     let token = match auth_header {
         Some(h) if h.starts_with("Bearer ") => &h[7..],
@@ -629,10 +654,18 @@ pub async fn logout(
     )
     .await;
 
-    Ok(Json(serde_json::json!({
+    let mut resposta = Json(serde_json::json!({
         "status": "sucesso",
         "mensagem": "Sessão encerrada com sucesso e token revogado."
-    })))
+    }))
+    .into_response();
+    if cookie::modo_cookie(&headers) {
+        resposta.headers_mut().append(
+            header::SET_COOKIE,
+            cookie::set_cookie_limpar(cookie::cookie_secure(&state.config.environment))?,
+        );
+    }
+    Ok(resposta)
 }
 
 #[cfg(test)]

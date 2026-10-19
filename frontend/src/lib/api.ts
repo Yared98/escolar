@@ -1,6 +1,10 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-
-let refreshInFlight: Promise<boolean> | null = null;
+import {
+  API_BASE,
+  CABECALHO_MODO_COOKIE,
+  garantirTokenDeAcesso,
+  limparSessaoLocal,
+  renovarSessao,
+} from './session';
 
 function isSessionEndpoint(endpoint: string): boolean {
   return (
@@ -11,42 +15,16 @@ function isSessionEndpoint(endpoint: string): boolean {
   );
 }
 
-function clearSession(): void {
-  localStorage.removeItem('escolar_jwt_token');
-  localStorage.removeItem('escolar_refresh_token');
-  localStorage.removeItem('escolar_user');
-  localStorage.removeItem('escolar_tenant');
-  localStorage.removeItem('escolar_tenant_id');
-  window.dispatchEvent(new Event('auth_error'));
-}
-
-async function refreshAccessToken(): Promise<boolean> {
-  const refreshToken = localStorage.getItem('escolar_refresh_token');
-  if (!refreshToken) return false;
-
-  const res = await fetch(`${API_BASE}/auth/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refresh_token: refreshToken }),
-  });
-  if (!res.ok) return false;
-
-  const data = await res.json().catch(() => null) as { token?: string; refresh_token?: string } | null;
-  if (!data?.token) return false;
-  localStorage.setItem('escolar_jwt_token', data.token);
-  if (data.refresh_token) {
-    localStorage.setItem('escolar_refresh_token', data.refresh_token);
-  }
-  return true;
-}
-
 export async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {},
   retried = false
 ): Promise<T> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('escolar_jwt_token') : null;
-  const tenantId = typeof window !== 'undefined' ? localStorage.getItem('escolar_tenant_id') : null;
+  const sessionEndpoint = isSessionEndpoint(endpoint);
+  const browser = typeof window !== 'undefined';
+  // Token só em memória: depois de recarregar a página ele é pedido de novo pelo cookie.
+  const token = browser && !sessionEndpoint ? await garantirTokenDeAcesso() : null;
+  const tenantId = browser ? localStorage.getItem('escolar_tenant_id') : null;
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -61,35 +39,30 @@ export async function apiFetch<T>(
     headers['X-Tenant-ID'] = tenantId;
   }
 
+  // Rotas de sessão trocam o refresh token por um cookie HttpOnly (o JavaScript nunca o vê).
+  const sessionInit: RequestInit = sessionEndpoint ? { credentials: 'include' } : {};
+  if (sessionEndpoint) {
+    Object.assign(headers, CABECALHO_MODO_COOKIE);
+  }
+
   const res = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
+    ...sessionInit,
     headers,
   });
 
-  if (
-    res.status === 401 &&
-    typeof window !== 'undefined' &&
-    !retried &&
-    !isSessionEndpoint(endpoint) &&
-    localStorage.getItem('escolar_refresh_token')
-  ) {
-    if (!refreshInFlight) {
-      refreshInFlight = refreshAccessToken().finally(() => {
-        refreshInFlight = null;
-      });
+  if (res.status === 401 && browser && !sessionEndpoint) {
+    if (!retried) {
+      const renovada = await renovarSessao();
+      if (renovada === 'ok') {
+        return apiFetch<T>(endpoint, options, true);
+      }
+      if (renovada === 'rede') {
+        // sem conexão com o servidor de sessão: mantém a sessão e informa o erro
+        throw new Error('Não foi possível confirmar sua sessão. Verifique a conexão.');
+      }
     }
-    let renewed = false;
-    try {
-      renewed = await refreshInFlight;
-    } catch {
-      renewed = false;
-    }
-    if (renewed) {
-      return apiFetch<T>(endpoint, options, true);
-    }
-    clearSession();
-  } else if (res.status === 401 && typeof window !== 'undefined' && !isSessionEndpoint(endpoint)) {
-    clearSession();
+    limparSessaoLocal();
   }
 
   if (!res.ok) {

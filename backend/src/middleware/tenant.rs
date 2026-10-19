@@ -28,6 +28,18 @@ pub fn validate_tenant_match(
     }
 }
 
+/// A autenticação veio por `?access_token=` (ou `?token=`) na URL?
+fn token_na_query(query: Option<&str>) -> bool {
+    query
+        .map(|q| {
+            q.split('&').any(|par| {
+                par.split_once('=')
+                    .is_some_and(|(k, v)| (k == "access_token" || k == "token") && !v.is_empty())
+            })
+        })
+        .unwrap_or(false)
+}
+
 pub async fn tenant_middleware(mut req: Request, next: Next) -> Result<Response, AppError> {
     // 1. Tenta obter o AuthUser preenchido pelo auth_middleware
     let auth_user = req.extensions().get::<AuthUser>().cloned();
@@ -37,7 +49,13 @@ pub async fn tenant_middleware(mut req: Request, next: Next) -> Result<Response,
             .headers()
             .get("X-Tenant-ID")
             .and_then(|v| v.to_str().ok());
-        validate_tenant_match(user.tenant_id, header_val)?
+        if header_val.is_none() && token_na_query(req.uri().query()) {
+            // EventSource (tempo real dos Recados) não consegue enviar cabeçalhos: a escola é a
+            // do token assinado, o mesmo valor que o cabeçalho teria de repetir.
+            user.tenant_id
+        } else {
+            validate_tenant_match(user.tenant_id, header_val)?
+        }
     } else {
         // Para requisições não autenticadas que utilizem tenant_middleware, exige header válido
         let tenant_id_header = req
@@ -57,6 +75,15 @@ pub async fn tenant_middleware(mut req: Request, next: Next) -> Result<Response,
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn token_na_query_so_com_valor() {
+        assert!(token_na_query(Some("access_token=abc")));
+        assert!(token_na_query(Some("x=1&token=abc")));
+        assert!(!token_na_query(Some("access_token=")));
+        assert!(!token_na_query(Some("x=1&y=2")));
+        assert!(!token_na_query(None));
+    }
 
     #[test]
     fn test_validate_tenant_match_identical() {

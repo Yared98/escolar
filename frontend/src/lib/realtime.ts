@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+import { API_BASE, garantirTokenDeAcesso, renovarSessao } from './session';
 
 export type MensagemRealtimePayload = {
   tipo: string;
@@ -35,10 +35,11 @@ export function useMensagensRealtime(enabled: boolean, handlers: Handlers) {
     let closed = false;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const connect = () => {
+    const connect = async () => {
       if (closed) return;
-      const token = localStorage.getItem('escolar_jwt_token');
-      if (!token) return;
+      // O token fica só em memória: depois de recarregar a página ele vem do cookie de sessão.
+      const token = await garantirTokenDeAcesso();
+      if (!token || closed) return;
 
       es?.close();
       es = new EventSource(
@@ -62,12 +63,15 @@ export function useMensagensRealtime(enabled: boolean, handlers: Handlers) {
       es.onerror = () => {
         es?.close();
         if (!closed) {
-          retryTimer = setTimeout(connect, 4000);
+          // o token de acesso dura 15 min: renova antes de tentar de novo
+          retryTimer = setTimeout(() => {
+            void renovarSessao().finally(() => void connect());
+          }, 4000);
         }
       };
     };
 
-    connect();
+    void connect();
 
     return () => {
       closed = true;

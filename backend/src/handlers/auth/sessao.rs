@@ -5,6 +5,7 @@ use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
+use super::cookie;
 use super::oidc::base64_url_encode;
 use super::RefreshDto;
 use crate::{config::AppState, error::AppError, middleware::auth::Claims};
@@ -137,11 +138,12 @@ async fn issue_session(
     .await
 }
 
-pub async fn refresh_session(
-    State(state): State<AppState>,
-    Json(dto): Json<RefreshDto>,
-) -> Result<Json<serde_json::Value>, AppError> {
-    let hash = hash_refresh_token(&dto.refresh_token);
+/// Troca um refresh token válido por um par novo (o antigo é revogado: rotação).
+async fn rotacionar_refresh(
+    state: &AppState,
+    refresh_token_atual: &str,
+) -> Result<(String, String, usize), AppError> {
+    let hash = hash_refresh_token(refresh_token_atual);
     let row = sqlx::query_as::<_, (Uuid, Uuid, String, chrono::DateTime<Utc>, Option<chrono::DateTime<Utc>>)>(
         "SELECT user_id, tenant_id, role, expires_at, revoked_at FROM validar_refresh_token_publico($1)",
     )
@@ -166,18 +168,66 @@ pub async fn refresh_session(
     .execute(&mut *db)
     .await?;
 
-    let (token, refresh_token, expires_in) = issue_session_conn(
+    issue_session_conn(
         &mut db,
         user_id,
         tenant_id,
         &role,
         &state.config.jwt_private_pem,
     )
-    .await?;
+    .await
+}
+
+/// Renovação com o refresh token no corpo (clientes que não são navegador e testes).
+pub async fn refresh_session(
+    State(state): State<AppState>,
+    Json(dto): Json<RefreshDto>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let (token, refresh_token, expires_in) = rotacionar_refresh(&state, &dto.refresh_token).await?;
     Ok(Json(serde_json::json!({
         "token": token,
         "refresh_token": refresh_token,
         "expires_in": expires_in,
         "token_type": "Bearer"
     })))
+}
+
+/// Rota `/auth/refresh`. Modo cookie (navegador): exige `X-Auth-Mode: cookie` e origem permitida,
+/// lê o refresh token do cookie e devolve o novo no cookie. Sem o cabeçalho: modo antigo (corpo).
+pub async fn refresh_http(
+    State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
+    corpo: Option<Json<RefreshDto>>,
+) -> Result<axum::response::Response, AppError> {
+    use axum::response::IntoResponse;
+
+    if !cookie::modo_cookie(&headers) {
+        let Json(dto) = corpo.ok_or_else(|| {
+            AppError::BadRequest("Informe o refresh_token no corpo da requisição.".into())
+        })?;
+        return Ok(refresh_session(State(state), Json(dto))
+            .await?
+            .into_response());
+    }
+
+    let secure = cookie::cookie_secure(&state.config.environment);
+    if !cookie::origem_permitida(&headers, &state.config.allowed_origins) {
+        return Err(AppError::Forbidden("Origem não permitida.".into()));
+    }
+    let Some(atual) = cookie::refresh_do_cookie(&headers) else {
+        return Ok(cookie::resposta_nao_autorizado_limpando(
+            "Sessão expirada. Entre novamente.",
+            secure,
+        ));
+    };
+    match rotacionar_refresh(&state, &atual).await {
+        Ok((token, refresh, expires_in)) => {
+            cookie::resposta_renovacao(&token, &refresh, expires_in, secure)
+        }
+        Err(AppError::InvalidToken(_)) => Ok(cookie::resposta_nao_autorizado_limpando(
+            "Sessão expirada. Entre novamente.",
+            secure,
+        )),
+        Err(outro) => Err(outro),
+    }
 }

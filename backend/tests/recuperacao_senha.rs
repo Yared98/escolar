@@ -205,7 +205,12 @@ async fn email_existente_gera_email_e_link_funciona_uma_vez() {
     )
     .await
     .expect("login com nova senha deve funcionar");
-    assert!(!login_resp.token.is_empty());
+    assert_eq!(login_resp.status(), axum::http::StatusCode::OK);
+    let corpo = axum::body::to_bytes(login_resp.into_body(), usize::MAX)
+        .await
+        .expect("corpo do login");
+    let login_json: serde_json::Value = serde_json::from_slice(&corpo).expect("json do login");
+    assert!(!login_json["token"].as_str().unwrap_or("").is_empty());
 
     let resp = redefinir_senha_publico(
         State(state.clone()),

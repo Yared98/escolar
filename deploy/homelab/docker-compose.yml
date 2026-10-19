@@ -48,6 +48,7 @@ services:
       APP_PUBLIC_URL: ${APP_PUBLIC_URL:-https://${DOMINIO}}
       # simulado: e-mails ficam na caixa de saída visível para a gestão (envio real ainda não existe)
       EMAIL_MODE: ${EMAIL_MODE:-simulado}
+      COOKIE_SECURE: ${COOKIE_SECURE:-}
     volumes:
       # Coloque a chave gerada por gerar-chave-jwt.sh em ./segredos/jwt_private.pem
       - ./segredos:/run/segredos:ro

@@ -77,6 +77,7 @@ Edite o `.env` com seus valores reais. Pelo menos:
 
 - `DOMINIO`: domínio que aponta para o servidor.
 - `APP_PUBLIC_URL`: URL pública usada em links de recuperação de senha (padrão: `https://${DOMINIO}`).
+- `COOKIE_SECURE`: o login do navegador guarda a sessão num cookie protegido (`HttpOnly`, `SameSite=Strict`). Em produção ele só viaja por HTTPS (`Secure`). Deixe em branco com HTTPS; `false` apenas para testar em http, sem certificado. Quem tinha sessão aberta de uma versão anterior precisa entrar de novo uma única vez.
 - `POSTGRES_PASSWORD`: senha forte para o banco.
 - `APP_ENV`: `production` para uma escola real; `demo` para mostrar o sistema com a escola-modelo.
 - `JWT_ED25519_PRIVATE_PEM_FILE`: deixe o padrão (`/run/segredos/jwt_private.pem`) se gerou a chave em `segredos/`.
