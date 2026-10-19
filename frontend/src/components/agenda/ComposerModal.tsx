@@ -72,7 +72,12 @@ export function ComposerModal({
           <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
             {tipoEnvio === 'familia' ? 'Mensagem à escola' : 'Novo recado'}
           </h3>
-          <button type="button" onClick={() => setComposerAberto(false)} aria-label="Fechar">
+          <button
+            type="button"
+            onClick={() => setComposerAberto(false)}
+            aria-label="Fechar"
+            className="p-2 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 rounded-xl min-h-[44px] min-w-[44px] flex items-center justify-center"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>

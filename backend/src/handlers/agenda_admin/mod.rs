@@ -23,9 +23,9 @@ pub(crate) use crate::{
     },
     models::agenda_admin::{
         AuditLog, CreateFornecedorDto, CreateFuncionarioDto, CreateMensagemAgendaDto,
-        CreateOcorrenciaDto, CreateRotinaDiariaDto, DiarioInfantilQuery, Fornecedor, Funcionario,
-        MensagemAgenda, MensagemAgendaView, OcorrenciaAluno, RotinaDiariaInfantil,
-        UpdateFornecedorDto, UpdateFuncionarioDto,
+        CreateOcorrenciaDto, CreateRotinaDiariaDto, DestinatarioMensagem, DiarioInfantilQuery,
+        Fornecedor, Funcionario, MensagemAgenda, MensagemAgendaView, OcorrenciaAluno,
+        RotinaDiariaInfantil, UpdateFornecedorDto, UpdateFuncionarioDto,
     },
 };
 

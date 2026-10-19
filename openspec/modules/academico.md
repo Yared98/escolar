@@ -287,6 +287,7 @@ Organização após o refactor B12 (só moveu código, sem mudança de regra):
 - `MobileBottomNav.tsx` exibe a barra de navegação inferior no celular para todos os perfis.
 - O gate de spec (`scripts/check-agent-gates.mjs`) associa `pedagogico/**`, `portal_aluno/**`, `ProfessorSection.tsx`, `MobileBottomNav.tsx`, `academico/ChamadaPanel.tsx` e `academico/useTurmaAlunos.ts` a este módulo.
 - Observações do aluno: `AcademicoSection.tsx` orquestra a chamada de API e a contagem por aluno; `academico/OcorrenciaModal.tsx` e `academico/ChamadaPanel.tsx` só exibem (props e callbacks). Tipos amigáveis e o mapeamento de prioridade ficam em `frontend/src/lib/types/academico.ts`.
+- Recado à família a partir da chamada: `AcademicoSection.tsx` orquestra o envio via `POST /agenda/mensagens` (`aluno_id`), disparando mensagens privadas individuais para todos os responsáveis do estudante com acesso ao portal; `academico/RecadoFamiliaModal.tsx` exibe os destinatários que receberão a mensagem ("Destinatários: Marina e Paulo") e a notificação de confirmação lista os nomes com link para abrir a primeira conversa.
 
 ## 7. Limitações MVP
 

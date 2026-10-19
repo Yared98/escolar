@@ -25,6 +25,24 @@ describe('opcoesAlunoPrivado', () => {
     expect(opcoesAlunoPrivado(alunos, 'carla').map((o) => o.id)).toEqual(['2']);
     expect(opcoesAlunoPrivado(alunos, 'ana').map((o) => o.id)).toEqual(['1']);
   });
+
+  it('formata múltiplos responsáveis quando responsaveis_com_acesso está presente (C19)', () => {
+    const comDoisPais: AlunoResumo[] = [
+      {
+        id: '3',
+        nome: 'Enzo',
+        nome_responsavel: 'Marina',
+        responsavel_user_id: 'u1',
+        responsaveis_com_acesso: [
+          { id: 'u1', nome: 'Mãe' },
+          { id: 'u2', nome: 'Pai' },
+        ],
+      },
+    ];
+    expect(opcoesAlunoPrivado(comDoisPais)).toEqual([
+      { id: '3', rotulo: 'Enzo · Mãe e Pai', semAcesso: false },
+    ]);
+  });
 });
 
 const criarData = (ano: number, mes: number, dia: number, hora = 0, minuto = 0) =>

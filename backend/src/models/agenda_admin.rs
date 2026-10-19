@@ -81,6 +81,13 @@ pub struct AuditLog {
     pub created_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DestinatarioMensagem {
+    pub id: Uuid,
+    pub nome: String,
+    pub thread_id: Uuid,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct MensagemAgenda {
     pub id: Uuid,
@@ -96,6 +103,9 @@ pub struct MensagemAgenda {
     pub created_at: DateTime<Utc>,
     pub resposta_a_id: Option<Uuid>,
     pub thread_id: Option<Uuid>,
+    #[sqlx(default, skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub destinatarios: Option<Vec<DestinatarioMensagem>>,
 }
 
 #[derive(Debug, Serialize, sqlx::FromRow)]

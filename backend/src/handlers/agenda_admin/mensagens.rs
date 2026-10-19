@@ -1,8 +1,10 @@
+use sqlx::Acquire;
+
 use super::contatos::responsavel_pode_falar_com;
 use super::{
     check_roles, json, log_audit, ActiveTenant, AppError, AppState, AuthUser,
-    CreateMensagemAgendaDto, Extension, Json, MensagemAgenda, MensagemAgendaView, Path, Row, State,
-    TenantDb, Uuid, Value,
+    CreateMensagemAgendaDto, DestinatarioMensagem, Extension, Json, MensagemAgenda,
+    MensagemAgendaView, Path, Row, State, TenantDb, Uuid, Value,
 };
 
 pub async fn enviar_mensagem_agenda(
@@ -157,40 +159,38 @@ pub async fn enviar_mensagem_agenda(
         }
     }
 
-    if destinatario_id.is_none() {
+    if destinatario_id.is_none() && resposta_a_id.is_none() {
         if let Some(aluno_id) = dto.aluno_id {
             if is_responsavel {
                 return Err(AppError::BadRequest(
                     "Para falar com a escola, responda um comunicado recebido.".into(),
                 ));
             }
-            destinatario_id = sqlx::query_scalar::<_, Option<Uuid>>(
+
+            let responsaveis = sqlx::query_as::<_, (Uuid, String)>(
                 r#"
-                SELECT COALESCE(
-                    (
-                        SELECT u.id
-                        FROM users u
-                        WHERE u.id = a.responsavel_user_id AND u.tenant_id = a.tenant_id
-                    ),
-                    (
-                        SELECT ra.responsavel_user_id
-                        FROM responsaveis_alunos ra
-                        JOIN users u ON u.id = ra.responsavel_user_id AND u.tenant_id = ra.tenant_id
-                        WHERE ra.tenant_id = a.tenant_id AND ra.aluno_id = a.id
-                        ORDER BY ra.created_at NULLS LAST
-                        LIMIT 1
-                    )
-                )
-                FROM alunos a
-                WHERE a.id = $1 AND a.tenant_id = $2
+                SELECT u.id, u.name
+                FROM (
+                    SELECT a.responsavel_user_id AS user_id, 1 AS ordem, a.created_at AS created_at
+                    FROM alunos a
+                    WHERE a.id = $1 AND a.tenant_id = $2 AND a.responsavel_user_id IS NOT NULL
+                    UNION ALL
+                    SELECT ra.responsavel_user_id AS user_id, 2 AS ordem, ra.created_at AS created_at
+                    FROM responsaveis_alunos ra
+                    WHERE ra.aluno_id = $1 AND ra.tenant_id = $2
+                ) v
+                JOIN users u ON u.id = v.user_id AND u.tenant_id = $2
+                WHERE lower(replace(u.role, ' ', '')) = 'responsavel'
+                GROUP BY u.id, u.name
+                ORDER BY MIN(v.ordem) ASC, MIN(v.created_at) ASC NULLS LAST, u.name ASC
                 "#,
             )
             .bind(aluno_id)
             .bind(tenant_id)
-            .fetch_optional(&mut *db)
-            .await?
-            .flatten();
-            if destinatario_id.is_none() {
+            .fetch_all(&mut *db)
+            .await?;
+
+            if responsaveis.is_empty() {
                 return Err(AppError::BadRequest(
                     "Este aluno não possui responsável vinculado ao portal.".into(),
                 ));
@@ -212,6 +212,127 @@ pub async fn enviar_mensagem_agenda(
                 .await?
                 .flatten();
             }
+
+            let mut tx = (&mut *db).begin().await?;
+
+            let mut mensagens_criadas: Vec<MensagemAgenda> = Vec::new();
+            let mut destinatarios_info: Vec<DestinatarioMensagem> = Vec::new();
+
+            for (resp_user_id, resp_nome) in &responsaveis {
+                let mut msg = sqlx::query_as::<_, MensagemAgenda>(
+                    r#"
+                    INSERT INTO mensagens_agenda (
+                        tenant_id, remetente_id, destinatario_id, turma_id, canal, titulo, conteudo, anexo_url,
+                        resposta_a_id, thread_id
+                    )
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULL, NULL)
+                    RETURNING *
+                    "#,
+                )
+                .bind(tenant_id)
+                .bind(auth_user.id)
+                .bind(resp_user_id)
+                .bind(turma_id)
+                .bind(&canal)
+                .bind(dto.titulo.trim())
+                .bind(dto.conteudo.trim())
+                .bind(&dto.anexo_url)
+                .fetch_one(&mut *tx)
+                .await?;
+
+                sqlx::query(
+                    "UPDATE mensagens_agenda SET thread_id = id WHERE id = $1 AND tenant_id = $2",
+                )
+                .bind(msg.id)
+                .bind(tenant_id)
+                .execute(&mut *tx)
+                .await?;
+                msg.thread_id = Some(msg.id);
+
+                if *resp_user_id != auth_user.id {
+                    let notif_res = sqlx::query_as::<_, crate::models::notificacoes::NotificacaoSistema>(
+                        r#"
+                        INSERT INTO notificacoes_sistema (
+                            tenant_id, destinatario_id, modulo, titulo, mensagem, prioridade, canal_disparo, lida
+                        )
+                        VALUES ($1, $2, 'agenda', $3, $4, 'alta', 'push_pwa', false)
+                        RETURNING *
+                        "#,
+                    )
+                    .bind(tenant_id)
+                    .bind(resp_user_id)
+                    .bind(format!("Nova mensagem: {}", msg.titulo))
+                    .bind(&msg.conteudo)
+                    .fetch_one(&mut *tx)
+                    .await;
+
+                    if let Ok(notif) = notif_res {
+                        let _ = sqlx::query(
+                            r#"
+                            INSERT INTO notificacoes_disparos_logs (tenant_id, notificacao_id, canal, destino, status_envio)
+                            VALUES ($1, $2, 'web_push_pwa', $3, 'simulado')
+                            "#,
+                        )
+                        .bind(tenant_id)
+                        .bind(notif.id)
+                        .bind(resp_user_id.to_string())
+                        .execute(&mut *tx)
+                        .await;
+                    }
+                }
+
+                destinatarios_info.push(DestinatarioMensagem {
+                    id: *resp_user_id,
+                    nome: resp_nome.clone(),
+                    thread_id: msg.id,
+                });
+                mensagens_criadas.push(msg);
+            }
+
+            let dest_ids_json: Vec<String> = destinatarios_info
+                .iter()
+                .map(|d| d.id.to_string())
+                .collect();
+            let primeira_id = mensagens_criadas[0].id;
+
+            log_audit(
+                &mut *tx,
+                tenant_id,
+                Some(auth_user.id),
+                "ENVIAR_MENSAGEM_AGENDA",
+                "mensagens_agenda",
+                Some(primeira_id.to_string()),
+                Some(json!({
+                    "aluno_id": aluno_id,
+                    "destinatarios": dest_ids_json,
+                    "titulo": dto.titulo,
+                    "canal": canal,
+                    "total_enviados": destinatarios_info.len(),
+                })),
+            )
+            .await;
+
+            tx.commit().await?;
+
+            for msg in &mensagens_criadas {
+                state
+                    .message_hub
+                    .publish(crate::realtime::MensagemRealtimeEvent {
+                        tipo: "mensagem_nova".into(),
+                        tenant_id,
+                        mensagem_id: msg.id,
+                        thread_id: msg.thread_id,
+                        remetente_id: auth_user.id,
+                        destinatario_id: msg.destinatario_id,
+                        titulo: msg.titulo.clone(),
+                        conteudo: msg.conteudo.clone(),
+                        canal: msg.canal.clone(),
+                    });
+            }
+
+            let mut primeira = mensagens_criadas.remove(0);
+            primeira.destinatarios = Some(destinatarios_info);
+            return Ok(Json(primeira));
         }
     }
 
@@ -412,6 +533,23 @@ pub async fn enviar_mensagem_agenda(
             conteudo: mensagem.conteudo.clone(),
             canal: mensagem.canal.clone(),
         });
+
+    if let Some(dest_id) = mensagem.destinatario_id {
+        let dest_nome = sqlx::query_scalar::<_, String>(
+            "SELECT name FROM users WHERE id = $1 AND tenant_id = $2",
+        )
+        .bind(dest_id)
+        .bind(tenant_id)
+        .fetch_optional(&mut *db)
+        .await?
+        .unwrap_or_default();
+
+        mensagem.destinatarios = Some(vec![DestinatarioMensagem {
+            id: dest_id,
+            nome: dest_nome,
+            thread_id: mensagem.thread_id.unwrap_or(mensagem.id),
+        }]);
+    }
 
     Ok(Json(mensagem))
 }

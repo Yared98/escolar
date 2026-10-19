@@ -1,3 +1,4 @@
+import { formatarListaNomes } from '@/lib/types/academico';
 import { AlunoResumo, MensagemAgenda, ThreadAgenda } from './types';
 
 export interface OpcaoAlunoPrivado {
@@ -16,16 +17,34 @@ export const opcoesAlunoPrivado = (alunos: AlunoResumo[], busca = ''): OpcaoAlun
       (a) =>
         !termo ||
         a.nome.toLowerCase().includes(termo) ||
-        (a.nome_responsavel || '').toLowerCase().includes(termo),
+        (a.nome_responsavel || '').toLowerCase().includes(termo) ||
+        (a.responsaveis_com_acesso || []).some((r) => r.nome.toLowerCase().includes(termo)),
     )
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
-    .map((a) => ({
-      id: a.id,
-      rotulo: a.responsavel_user_id
-        ? `${a.nome} · ${a.nome_responsavel?.trim() || 'responsável'}`
-        : `${a.nome} · sem responsável com acesso`,
-      semAcesso: !a.responsavel_user_id,
-    }));
+    .map((a) => {
+      const respAcesso = a.responsaveis_com_acesso;
+      if (respAcesso && respAcesso.length > 0) {
+        return {
+          id: a.id,
+          rotulo: `${a.nome} · ${formatarListaNomes(respAcesso.map((r) => r.nome))}`,
+          semAcesso: false,
+        };
+      }
+      if (respAcesso && respAcesso.length === 0) {
+        return {
+          id: a.id,
+          rotulo: `${a.nome} · sem responsável com acesso`,
+          semAcesso: true,
+        };
+      }
+      return {
+        id: a.id,
+        rotulo: a.responsavel_user_id
+          ? `${a.nome} · ${a.nome_responsavel?.trim() || 'responsável'}`
+          : `${a.nome} · sem responsável com acesso`,
+        semAcesso: !a.responsavel_user_id,
+      };
+    });
 };
 
 export const rotuloCanal = (canal: string) => {
