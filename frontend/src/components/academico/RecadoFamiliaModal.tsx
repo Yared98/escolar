@@ -2,11 +2,13 @@
 
 import React, { useState } from 'react';
 import { MessageSquare, Send, X, AlertCircle } from 'lucide-react';
+import { formatarListaNomes } from '@/lib/types/academico';
 
 export interface RecadoFamiliaModalProps {
   open: boolean;
   alunoNome?: string;
   responsavelNome?: string;
+  responsaveisNomes?: string[];
   salvando?: boolean;
   erro?: string | null;
   onClose: () => void;
@@ -17,6 +19,7 @@ export function RecadoFamiliaModal({
   open,
   alunoNome,
   responsavelNome,
+  responsaveisNomes,
   salvando = false,
   erro = null,
   onClose,
@@ -74,12 +77,29 @@ export function RecadoFamiliaModal({
           </button>
         </div>
 
-        {responsavelNome && (
-          <div className="p-3 bg-salvia-50/70 dark:bg-salvia-950/60 border border-salvia-200 dark:border-salvia-800/80 rounded-xl text-xs">
-            <span className="text-salvia-600 dark:text-salvia-400 font-medium">Destinatário: </span>
-            <span className="font-bold text-salvia-900 dark:text-salvia-100">{responsavelNome}</span>
-          </div>
-        )}
+        {(() => {
+          const nomesLista =
+            responsaveisNomes && responsaveisNomes.length > 0
+              ? responsaveisNomes
+              : (responsavelNome || '').trim()
+                ? [(responsavelNome || '').trim()]
+                : [];
+          const textoDestinatarios =
+            nomesLista.length > 0
+              ? formatarListaNomes(nomesLista)
+              : (responsavelNome || '').trim();
+          if (!textoDestinatarios) return null;
+          const ehPlural = nomesLista.length > 1 || textoDestinatarios.includes(' e ');
+
+          return (
+            <div className="p-3 bg-salvia-50/70 dark:bg-salvia-950/60 border border-salvia-200 dark:border-salvia-800/80 rounded-xl text-xs">
+              <span className="text-salvia-600 dark:text-salvia-400 font-medium">
+                {ehPlural ? 'Destinatários: ' : 'Destinatário: '}
+              </span>
+              <span className="font-bold text-salvia-900 dark:text-salvia-100">{textoDestinatarios}</span>
+            </div>
+          );
+        })()}
 
         <div>
           <label

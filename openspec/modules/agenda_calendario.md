@@ -96,13 +96,16 @@ Registro de ocorrências individuais (tabela `ocorrencias_aluno`), usado pela ro
   - Família: aba "Observações" do Portal da família (`PortalAlunoSection.tsx` orquestra; `portal_aluno/OcorrenciasTab.tsx` exibe), disponível para **qualquer etapa** (não só Educação Infantil), em ordem do mais recente para o mais antigo, com tipo amigável, data/hora e descrição.
   - A rotina da Educação Infantil mantém o fluxo próprio de "Ocorrência urgente" (`academico/InfantilRotinaPanel.tsx`), agora com os mesmos tipos aceitos pelo backend.
 
-## 4.1. Recados Privados do Professor à Família na Chamada (C16)
+## 4.1. Recados Privados do Professor e da Gestão aos Responsáveis (C16 / C19)
 
-- **Envio de Recado Direto do Diário (`POST /api/v1/agenda/mensagens`)**:
-  - Parâmetros aceitos: `aluno_id`, `canal: "responsavel"`, `titulo: "Recado sobre <nome>"`, `conteudo`.
-  - Resolução automática do destinatário: o backend descobre o responsável através de `alunos.responsavel_user_id` ou, alternativamente, pela primeira entrada ativa em `responsaveis_alunos`. Se o aluno não possui responsável cadastrado no portal, retorna HTTP 400 Bad Request ("O aluno selecionado não possui responsável cadastrado no portal.").
-  - Validação estrita de atribuição docente: caso o remetente seja professor e inicie uma conversa, ele **obrigatoriamente** só pode falar com famílias de alunos matriculados em turmas onde ele leciona (`turma_professores` ou regência titular em `turmas.professor_regente_id`). Se tentar enviar para famílias de alunos fora de suas turmas (seja por `aluno_id` ou `destinatario_id`), a API recusa com HTTP 403 Forbidden.
-  - Retorno: devolve a mensagem com `destinatario_id` e `thread_id` para permitir que o frontend exiba aviso de confirmação e link "Abrir conversa" apontando para `/?route=agenda&tab=comunicacao&conversa=<thread_id>`.
+- **Envio de Mensagem Privada por Aluno (`POST /api/v1/agenda/mensagens`)**:
+  - Parâmetros aceitos: `aluno_id`, `canal: "responsavel"` (ou `"professor"`), `titulo`, `conteudo`.
+  - **Entrega a todos os responsáveis (C19)**: o backend resolve a união sem repetição de `alunos.responsavel_user_id` e `responsaveis_alunos.responsavel_user_id` (usuários ativos com papel de responsável no mesmo tenant). Para cada responsável cadastrado, cria uma mensagem independente com seu próprio `thread_id` em transação atômica, disparando evento em tempo real e notificação no sistema. Caso o aluno não possua nenhum responsável com acesso ao portal, retorna HTTP 400 Bad Request ("Este aluno não possui responsável vinculado ao portal.").
+  - **Validação estrita de atribuição docente**: caso o remetente seja professor e inicie uma conversa, ele **obrigatoriamente** só pode falar com famílias de alunos matriculados em turmas onde ele leciona (`turma_professores` ou regência titular em `turmas.professor_regente_id`). Se tentar enviar para famílias de alunos fora de suas turmas (seja por `aluno_id` ou `destinatario_id`), a API recusa com HTTP 403 Forbidden.
+  - **Retorno compatível**: devolve a primeira mensagem criada no formato atual e inclui o campo `destinatarios` (`[{ "id", "nome", "thread_id" }]`) com a lista de todos os responsáveis que receberam a mensagem.
+  - **Interface**:
+    - No Diário (`ChamadaPanel.tsx` / `RecadoFamiliaModal.tsx`): o modal mostra "Destinatários: Marina e Paulo" e o aviso de envio confirma "Recado enviado para Marina e Paulo", com link "Abrir conversa" apontando para a conversa da primeira.
+    - Na Agenda Digital (`ComposerModal.tsx`): o seletor de aluno exibe os responsáveis que receberão ("Aluno · Marina e Paulo", vindo de `responsaveis_com_acesso` em `GET /secretaria/turmas/:turma_id/alunos`), o texto de ajuda esclarece que cada responsável recebe uma conversa separada, e o aviso lista os nomes após o envio.
 
 ## 4.2. Notificações do sino: leitura por pessoa
 
@@ -124,9 +127,9 @@ Organização após o refactor B12 (só moveu código, sem mudança de regra) e 
   - `ConversaChat`: cabeçalho fixo, balões (`BolhaMensagem`), separadores de data, caixa de envio fixa com textarea que cresce e envio por Enter no desktop.
   - `BolhaMensagem`: mensagens do usuário à direita (verde-sálvia) e dos outros à esquerda (branco), com nome, perfil amigável e horário.
   - `WhatsappPanel`: fila de atendimento WhatsApp (sem alteração no C12).
-  - `ComposerModal`: criação de novo comunicado/mensagem privada. A mensagem privada (gestão, secretaria, professor) é escolhida em dois passos: **1. turma → 2. aluno · responsável** (C17). A lista de alunos vem de `GET /secretaria/turmas/:turma_id/alunos` só depois de escolher a turma (antes carregava os 200 primeiros alunos da escola, o que escondia famílias em escolas grandes). Cada linha mostra o aluno e o nome da conta do portal que vai receber (`responsavel_nome`); aluno sem responsável com acesso aparece desabilitado ("sem responsável com acesso"). Turma com mais de 12 alunos mostra busca por aluno ou responsável. O professor só vê as próprias turmas (`GET /professor/minhas-turmas`).
+  - `ComposerModal`: criação de novo comunicado/mensagem privada. A mensagem privada (gestão, secretaria, professor) é escolhida em dois passos: **1. turma → 2. aluno · responsável** (C17). A lista de alunos vem de `GET /secretaria/turmas/:turma_id/alunos` só depois de escolher a turma (antes carregava os 200 primeiros alunos da escola, o que escondia famílias em escolas grandes). Cada linha mostra o aluno e os nomes dos responsáveis com acesso ao portal (`responsaveis_com_acesso`, ex.: 'Aluno · Marina e Paulo'); aluno sem responsável com acesso aparece desabilitado ("sem responsável com acesso"). Turma com mais de 12 alunos mostra busca por aluno ou responsável. O professor só vê as próprias turmas (`GET /professor/minhas-turmas`).
   - Irmãos: a conversa é ligada ao aluno (`aluno_id`). Um responsável com dois filhos aparece uma vez em cada turma e recebe uma conversa por filho, o que mantém o assunto de cada criança separado.
-  - **Limitação MVP:** o backend entrega ao responsável principal do aluno (`alunos.responsavel_user_id` ou o primeiro de `responsaveis_alunos`); quando pai e mãe têm acesso, só um recebe a mensagem privada. Mandar para todos os responsáveis exige mudar o modelo de destinatário único de `mensagens_agenda`.
-  - `types.ts` e `utils.ts`: funções puras de formatação de horário, agrupamento por dia, detecção de mensagem própria e iniciais do nome (com testes Vitest).
+  - Mensagem privada para todos os responsáveis (C19): ao enviar mensagem privada para um aluno, cada responsável com conta no portal (mãe e pai) recebe sua própria mensagem com thread separado em transação atômica.
+  - `types.ts` e `utils.ts`: funções puras de formatação de horário, agrupamento por dia, detecção de mensagem própria, formatação de múltiplos responsáveis e iniciais do nome (com testes Vitest).
 - O gate de spec associa `agenda/**` a este módulo.
 - As avaliações usam código próprio: `backend/src/handlers/avaliacoes.rs` no backend e `frontend/src/components/professor/AvaliacoesPanel.tsx` (orquestrado por `ProfessorSection.tsx`). A aba da família fica em `portal_aluno/AvaliacoesTab.tsx` (ver `academico.md`).

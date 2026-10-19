@@ -17,7 +17,8 @@ use crate::{
         tenant::ActiveTenant,
     },
     models::secretaria::{
-        AlunoTurmaDetalhado, MatricularTurmaDto, TransferirAlunoTurmaDto, Turma, TurmaAluno,
+        AlunoTurmaDetalhado, MatricularTurmaDto, ResponsavelAcessoItem, TransferirAlunoTurmaDto,
+        Turma, TurmaAluno,
     },
 };
 
@@ -98,7 +99,30 @@ pub async fn listar_alunos_turma(
                 ),
                 NULLIF(TRIM(a.nome_responsavel), ''),
                 ''
-            ) AS responsavel_nome
+            ) AS responsavel_nome,
+            COALESCE(
+                (
+                    SELECT json_agg(
+                        json_build_object('id', sub.id, 'nome', sub.name)
+                        ORDER BY sub.min_ordem ASC, sub.min_created ASC NULLS LAST, sub.name ASC
+                    )
+                    FROM (
+                        SELECT u.id, u.name, MIN(v.ordem) AS min_ordem, MIN(v.created_at) AS min_created
+                        FROM (
+                            SELECT a.responsavel_user_id AS user_id, 1 AS ordem, a.created_at AS created_at
+                            WHERE a.responsavel_user_id IS NOT NULL
+                            UNION ALL
+                            SELECT ra.responsavel_user_id AS user_id, 2 AS ordem, ra.created_at AS created_at
+                            FROM responsaveis_alunos ra
+                            WHERE ra.aluno_id = a.id AND ra.tenant_id = a.tenant_id
+                        ) v
+                        JOIN users u ON u.id = v.user_id AND u.tenant_id = a.tenant_id
+                        WHERE lower(replace(u.role, ' ', '')) = 'responsavel'
+                        GROUP BY u.id, u.name
+                    ) sub
+                ),
+                '[]'::json
+            ) AS responsaveis_com_acesso
         FROM turma_alunos ta
         JOIN alunos a ON ta.aluno_id = a.id AND a.tenant_id = ta.tenant_id
         WHERE ta.turma_id = $1
@@ -117,6 +141,11 @@ pub async fn listar_alunos_turma(
         .into_iter()
         .map(|row| {
             use sqlx::Row;
+            let responsaveis_com_acesso: Option<Vec<ResponsavelAcessoItem>> = row
+                .try_get::<serde_json::Value, _>("responsaveis_com_acesso")
+                .ok()
+                .and_then(|val| serde_json::from_value(val).ok());
+
             AlunoTurmaDetalhado {
                 id: row.get("id"),
                 aluno_id: row.get("aluno_id"),
@@ -130,6 +159,7 @@ pub async fn listar_alunos_turma(
                 data_matricula: row.get("data_matricula"),
                 responsavel_user_id: row.try_get("responsavel_user_id").ok().flatten(),
                 responsavel_nome: row.try_get("responsavel_nome").ok(),
+                responsaveis_com_acesso,
             }
         })
         .collect();

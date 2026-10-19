@@ -6,6 +6,7 @@ import {
   alunoTemResponsavel,
   dicaRecadoFamilia,
   formatarAvisoRecadoEnviado,
+  formatarListaNomes,
   tipoOcorrenciaLabel,
   urlConversaAgenda,
 } from './academico';
@@ -78,6 +79,41 @@ describe('helpers de recado à família (C16)', () => {
     expect(formatarAvisoRecadoEnviado(undefined)).toBe(
       'Recado enviado para os responsáveis',
     );
+  });
+
+  it('formatarListaNomes formata 1, 2 ou mais nomes com pontuação correta', () => {
+    expect(formatarListaNomes([])).toBe('');
+    expect(formatarListaNomes(['Marina'])).toBe('Marina');
+    expect(formatarListaNomes(['Marina', 'Paulo'])).toBe('Marina e Paulo');
+    expect(formatarListaNomes(['Marina', 'Paulo', 'Carla'])).toBe('Marina, Paulo e Carla');
+    expect(formatarListaNomes(['  Marina  ', '', ' Paulo '])).toBe('Marina e Paulo');
+  });
+
+  it('formatarAvisoRecadoEnviado suporta múltiplos responsáveis (C19)', () => {
+    expect(formatarAvisoRecadoEnviado(['Marina', 'Paulo'])).toBe(
+      'Recado enviado para Marina e Paulo',
+    );
+    expect(formatarAvisoRecadoEnviado(['Marina'])).toBe(
+      'Recado enviado para Marina',
+    );
+    expect(formatarAvisoRecadoEnviado([])).toBe(
+      'Recado enviado para os responsáveis',
+    );
+  });
+
+  it('alunoTemResponsavel reconhece vínculo por responsaveis_com_acesso', () => {
+    expect(
+      alunoTemResponsavel({
+        responsavel_user_id: null,
+        responsaveis_com_acesso: [{ id: 'u1', nome: 'Marina' }],
+      }),
+    ).toBe(true);
+    expect(
+      alunoTemResponsavel({
+        responsavel_user_id: null,
+        responsaveis_com_acesso: [],
+      }),
+    ).toBe(false);
   });
 
   it('urlConversaAgenda monta a rota com parâmetros esperados', () => {

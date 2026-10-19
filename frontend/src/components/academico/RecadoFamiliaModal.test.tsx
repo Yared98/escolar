@@ -102,4 +102,19 @@ describe('RecadoFamiliaModal', () => {
 
     expect(screen.getByText('Falha ao conectar ao servidor.')).toBeDefined();
   });
+
+  it('exibe múltiplos responsáveis no formato Destinatários: Marina e Paulo (C19)', () => {
+    render(
+      <RecadoFamiliaModal
+        open={true}
+        alunoNome="Enzo Silva Santos"
+        responsaveisNomes={['Marina', 'Paulo']}
+        onClose={vi.fn()}
+        onSend={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Destinatários:')).toBeDefined();
+    expect(screen.getByText('Marina e Paulo')).toBeDefined();
+  });
 });

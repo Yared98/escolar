@@ -2,6 +2,11 @@ export type StatusPresenca = 'presente' | 'falta' | 'justificada';
 
 export const OBSERVACAO_DIARIO_MAX = 4000;
 
+export interface ResponsavelAcesso {
+  id: string;
+  nome: string;
+}
+
 export interface AlunoChamada {
   id: string;
   nome: string;
@@ -9,21 +14,47 @@ export interface AlunoChamada {
   justificativa?: string;
   responsavel_user_id?: string | null;
   responsavel_nome?: string;
+  responsaveis_com_acesso?: ResponsavelAcesso[];
 }
 
+export const formatarListaNomes = (nomes: (string | undefined | null)[]): string => {
+  const filtrados = nomes
+    .map((n) => (n || '').trim())
+    .filter(Boolean);
+  if (filtrados.length === 0) return '';
+  if (filtrados.length === 1) return filtrados[0];
+  if (filtrados.length === 2) return `${filtrados[0]} e ${filtrados[1]}`;
+  return `${filtrados.slice(0, -1).join(', ')} e ${filtrados[filtrados.length - 1]}`;
+};
+
 export const alunoTemResponsavel = (
-  aluno: Pick<AlunoChamada, 'responsavel_user_id'>,
-): boolean => Boolean(aluno.responsavel_user_id);
+  aluno: Pick<AlunoChamada, 'responsavel_user_id'> & {
+    responsaveis_com_acesso?: ResponsavelAcesso[];
+  },
+): boolean => {
+  if (aluno.responsaveis_com_acesso && aluno.responsaveis_com_acesso.length > 0) {
+    return true;
+  }
+  return Boolean(aluno.responsavel_user_id);
+};
 
 export const dicaRecadoFamilia = (
-  aluno: Pick<AlunoChamada, 'responsavel_user_id'>,
+  aluno: Pick<AlunoChamada, 'responsavel_user_id'> & {
+    responsaveis_com_acesso?: ResponsavelAcesso[];
+  },
 ): string =>
   alunoTemResponsavel(aluno)
     ? 'Enviar recado à família'
     : 'Aluno sem responsável cadastrado';
 
-export const formatarAvisoRecadoEnviado = (responsavelNome?: string): string => {
-  const nome = (responsavelNome || '').trim();
+export const formatarAvisoRecadoEnviado = (
+  destinatarios?: string | (string | undefined | null)[],
+): string => {
+  if (Array.isArray(destinatarios)) {
+    const formatado = formatarListaNomes(destinatarios);
+    return formatado ? `Recado enviado para ${formatado}` : 'Recado enviado para os responsáveis';
+  }
+  const nome = (destinatarios || '').trim();
   return nome ? `Recado enviado para ${nome}` : 'Recado enviado para os responsáveis';
 };
 

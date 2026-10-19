@@ -12,6 +12,7 @@ import {
   Plus,
 } from 'lucide-react';
 
+import { formatarListaNomes } from '@/lib/types/academico';
 import { MensagemAgenda, ThreadAgenda, AtendimentoProtocolo, AlunoResumo, TurmaOpcao, FiltroCanal, TipoEnvio, ContatoEscola, tituloTema, agruparThreads, opcoesAlunoPrivado, WhatsappPanel, ComunicacaoPanel, ComposerModal } from './agenda';
 
 const campo =
@@ -116,7 +117,7 @@ export function AgendaDigitalSection() {
     }
     let ativo = true;
     setCarregandoAlunos(true);
-    // Lista da turma traz o responsável que tem acesso ao portal (quem recebe de fato a mensagem).
+    // Lista da turma traz os responsáveis com acesso ao portal (quem recebe de fato a mensagem).
     apiFetch<
       {
         aluno_id: string;
@@ -124,6 +125,7 @@ export function AgendaDigitalSection() {
         nome_responsavel: string;
         responsavel_user_id?: string | null;
         responsavel_nome?: string | null;
+        responsaveis_com_acesso?: { id: string; nome: string }[];
       }[]
     >(`/secretaria/turmas/${encodeURIComponent(turmaPrivadoId)}/alunos`)
       .then((lista) => {
@@ -134,6 +136,7 @@ export function AgendaDigitalSection() {
             nome: a.nome,
             nome_responsavel: a.responsavel_nome || a.nome_responsavel,
             responsavel_user_id: a.responsavel_user_id ?? null,
+            responsaveis_com_acesso: a.responsaveis_com_acesso,
           })),
         );
       })
@@ -322,13 +325,21 @@ export function AgendaDigitalSection() {
           anexo_url: null,
         }),
       });
-      setAviso(
-        tipoEnvio === 'mural'
-          ? 'Comunicado publicado no mural da turma.'
-          : tipoEnvio === 'familia'
-            ? 'Mensagem enviada à escola.'
-            : 'Mensagem privada enviada ao responsável.',
-      );
+      let avisoTexto: string;
+      if (tipoEnvio === 'mural') {
+        avisoTexto = 'Comunicado publicado no mural da turma.';
+      } else if (tipoEnvio === 'familia') {
+        avisoTexto = 'Mensagem enviada à escola.';
+      } else {
+        const nomes =
+          created?.destinatarios && created.destinatarios.length > 0
+            ? formatarListaNomes(created.destinatarios.map((d) => d.nome))
+            : '';
+        avisoTexto = nomes
+          ? `Mensagem privada enviada para ${nomes}.`
+          : 'Mensagem privada enviada aos responsáveis.';
+      }
+      setAviso(avisoTexto);
       setComposerAberto(false);
       setTitulo('');
       setConteudo('');

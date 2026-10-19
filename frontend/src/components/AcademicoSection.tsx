@@ -17,6 +17,7 @@ import {
   PRIORIDADE_OCORRENCIA,
   isTurmaInfantil,
   formatarAvisoRecadoEnviado,
+  formatarListaNomes,
   urlConversaAgenda,
   type AlunoChamada,
   type NovaOcorrenciaPayload,
@@ -275,21 +276,26 @@ export function AcademicoSection() {
     setErroRecado(null);
     setSalvandoRecado(true);
     try {
-      const res = await apiFetch<{ id: string; thread_id?: string | null }>(
-        '/agenda/mensagens',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            aluno_id: aluno.id,
-            turma_id: turmaId || undefined,
-            canal: 'responsavel',
-            titulo: `Recado sobre ${aluno.nome}`,
-            conteudo,
-          }),
-        }
-      );
-      const conversaId = res.thread_id || res.id;
-      const responsavel = aluno.responsavel_nome?.trim() || 'o responsável';
+      const res = await apiFetch<{
+        id: string;
+        thread_id?: string | null;
+        destinatarios?: { id: string; nome: string; thread_id: string }[];
+      }>('/agenda/mensagens', {
+        method: 'POST',
+        body: JSON.stringify({
+          aluno_id: aluno.id,
+          turma_id: turmaId || undefined,
+          canal: 'responsavel',
+          titulo: `Recado sobre ${aluno.nome}`,
+          conteudo,
+        }),
+      });
+      const conversaId = res.destinatarios?.[0]?.thread_id || res.thread_id || res.id;
+      const nomes =
+        res.destinatarios && res.destinatarios.length > 0
+          ? res.destinatarios.map((d) => d.nome)
+          : (aluno.responsavel_nome?.trim() ? [aluno.responsavel_nome.trim()] : []);
+      const responsavel = nomes.length > 0 ? formatarListaNomes(nomes) : 'os responsáveis';
       setAvisoRecado({
         responsavel,
         conversaId,
@@ -499,6 +505,7 @@ export function AcademicoSection() {
             open={!!recadoAluno}
             alunoNome={recadoAluno?.nome}
             responsavelNome={recadoAluno?.responsavel_nome}
+            responsaveisNomes={recadoAluno?.responsaveis_com_acesso?.map((r) => r.nome)}
             salvando={salvandoRecado}
             erro={erroRecado}
             onClose={fecharRecadoFamilia}

@@ -416,6 +416,12 @@ pub struct TurmaAluno {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResponsavelAcessoItem {
+    pub id: Uuid,
+    pub nome: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AlunoTurmaDetalhado {
     pub id: Uuid,
     pub aluno_id: Uuid,
@@ -429,6 +435,8 @@ pub struct AlunoTurmaDetalhado {
     pub data_matricula: NaiveDate,
     pub responsavel_user_id: Option<Uuid>,
     pub responsavel_nome: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub responsaveis_com_acesso: Option<Vec<ResponsavelAcessoItem>>,
 }
 
 #[derive(Debug, Deserialize)]

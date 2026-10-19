@@ -87,6 +87,7 @@ export function useTurmaAlunos(preferredRole?: string) {
             responsavel_user_id?: string | null;
             responsavel_nome?: string | null;
             nome_responsavel?: string;
+            responsaveis_com_acesso?: { id: string; nome: string }[];
           }[]
         >(`/secretaria/turmas/${turmaId}/alunos`);
         if (!ativo) return;
@@ -99,6 +100,7 @@ export function useTurmaAlunos(preferredRole?: string) {
             status: 'presente' as const,
             responsavel_user_id: aluno.responsavel_user_id ?? null,
             responsavel_nome: aluno.responsavel_nome || aluno.nome_responsavel || '',
+            responsaveis_com_acesso: aluno.responsaveis_com_acesso || [],
           }));
         setAlunos(mapped);
         setListaErro(null);

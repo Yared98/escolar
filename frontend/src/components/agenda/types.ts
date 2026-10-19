@@ -1,3 +1,9 @@
+export interface DestinatarioMensagemInfo {
+  id: string;
+  nome: string;
+  thread_id: string;
+}
+
 export interface MensagemAgenda {
   id: string;
   canal: string;
@@ -12,6 +18,7 @@ export interface MensagemAgenda {
   remetente_role?: string | null;
   resposta_a_id?: string | null;
   thread_id?: string | null;
+  destinatarios?: DestinatarioMensagemInfo[];
 }
 
 export interface ThreadAgenda {
@@ -35,11 +42,17 @@ export interface AtendimentoProtocolo {
   created_at: string;
 }
 
+export interface ResponsavelResumo {
+  id: string;
+  nome: string;
+}
+
 export interface AlunoResumo {
   id: string;
   nome: string;
   nome_responsavel: string;
   responsavel_user_id?: string | null;
+  responsaveis_com_acesso?: ResponsavelResumo[];
 }
 
 export interface TurmaOpcao {
