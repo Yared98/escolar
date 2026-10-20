@@ -1,0 +1,3690 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "API Boletos",
+    "description": "API responsável pelo ciclo de vida de boletos. Podendo emitir novos boletos, fazer instruções em boletos existentes, consultar o detalhe do boleto, e também consultar a lista de boletos da cartira de cobrança de um beneficiário.",
+    "version": "1.16.0",
+    "contact": {
+      "name": "RECEBIMENTOS NEGOCIACAO DE BOLETO (S010774)",
+      "email": "CI_Cash_Squad_Receb_Instrucoes_Alteracoes@correio.itau.com.br"
+    },
+    "sandbox-url": "https://devportal.itau.com.br/sandboxapi/itau-ep9-api-boleto-v1-externo/v1"
+  },
+  "servers": [
+    {
+      "url": "https://boleto.${iupipes_env_dns}/boleto/v1"
+    }
+  ],
+  "tags": [
+    {
+      "name": "boletos"
+    }
+  ],
+  "paths": {
+    "/boletos": {
+      "get": {
+        "tags": [
+          "boletos"
+        ],
+        "summary": "Retorna boletos que respeitam os filtros informados.",
+        "description": "Endpoint responsável por listar boletos baseado em alguns parâmetros, como data de pagamento ou emissão (entre outros) e id do beneficiário.",
+        "operationId": "get/boletos",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/x-itau-correlationid"
+          },
+          {
+            "$ref": "#/components/parameters/x-itau-apikey"
+          },
+          {
+            "$ref": "#/components/parameters/x-itau-flowid"
+          },
+          {
+            "$ref": "#/components/parameters/authorization"
+          },
+          {
+            "$ref": "#/components/parameters/content-type"
+          },
+          {
+            "$ref": "#/components/parameters/idBeneficiario"
+          },
+          {
+            "$ref": "#/components/parameters/nomePagador"
+          },
+          {
+            "$ref": "#/components/parameters/cpfPagador"
+          },
+          {
+            "$ref": "#/components/parameters/cnpjPagador"
+          },
+          {
+            "$ref": "#/components/parameters/seuNumero"
+          },
+          {
+            "$ref": "#/components/parameters/nossoNumero"
+          },
+          {
+            "$ref": "#/components/parameters/codigoCarteira"
+          },
+          {
+            "$ref": "#/components/parameters/codigoBarra"
+          },
+          {
+            "$ref": "#/components/parameters/situacao"
+          },
+          {
+            "$ref": "#/components/parameters/instrumentoCobranca"
+          },
+          {
+            "$ref": "#/components/parameters/situacaoProtesto"
+          },
+          {
+            "$ref": "#/components/parameters/situacaoVencimento"
+          },
+          {
+            "$ref": "#/components/parameters/situacaoNegativacao"
+          },
+          {
+            "$ref": "#/components/parameters/motivoCancelamento"
+          },
+          {
+            "$ref": "#/components/parameters/dataEntrada"
+          },
+          {
+            "$ref": "#/components/parameters/dataEmissao"
+          },
+          {
+            "$ref": "#/components/parameters/dataCancelamento"
+          },
+          {
+            "$ref": "#/components/parameters/dataVencimento"
+          },
+          {
+            "$ref": "#/components/parameters/dataPagamento"
+          },
+          {
+            "$ref": "#/components/parameters/orderBy"
+          },
+          {
+            "$ref": "#/components/parameters/order"
+          },
+          {
+            "$ref": "#/components/parameters/view"
+          },
+          {
+            "$ref": "#/components/parameters/indicadorDescontado"
+          },
+          {
+            "$ref": "#/components/parameters/page"
+          },
+          {
+            "$ref": "#/components/parameters/pageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retorna lista com os dados pertinentes aos boletos filtrados.",
+            "headers": {
+              "Content-Location": {
+                "description": "URI correspondente a pesquisa corrente",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "page"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/boleto"
+                      }
+                    },
+                    "page": {
+                      "$ref": "#/components/schemas/page"
+                    }
+                  }
+                },
+                "examples": {
+                  "200GetBoletos": {
+                    "$ref": "#/components/examples/200GetBoletos"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "401": {
+            "$ref": "#/components/responses/401"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "404": {
+            "$ref": "#/components/responses/404"
+          },
+          "422": {
+            "$ref": "#/components/responses/422"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        },
+        "security": [
+          {
+            "APIGatewaySTSAuthorizer": [
+              "boletoscash-boleto.read"
+            ]
+          }
+        ],
+        "x-amazon-apigateway-request-validator": "all",
+        "x-amazon-apigateway-integration": {
+          "uri": "http://${iupipes_nlbUri}:8088/boletos_ext/v1/boletos",
+          "connectionType": "VPC_LINK",
+          "connectionId": "${iupipes_deploy_aws_env_vpcLink}",
+          "passthroughBehavior": "when_no_match",
+          "timeoutInMillis": 14000,
+          "type": "http_proxy",
+          "httpMethod": "GET",
+          "responses": {
+            "default": {
+              "statusCode": "200",
+              "responseTemplates": {
+                "application/json": "{\"data\" : []}"
+              }
+            }
+          },
+          "requestTemplates": {
+            "application/json": "{\"statusCode\" : 200}"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "boletos"
+        ],
+        "summary": "Cria um novo boleto",
+        "description": "Endpoint responsável por criar um novo boleto.",
+        "operationId": "post/boletos",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/x-itau-correlationid"
+          },
+          {
+            "$ref": "#/components/parameters/x-itau-apikey"
+          },
+          {
+            "$ref": "#/components/parameters/x-itau-flowid"
+          },
+          {
+            "$ref": "#/components/parameters/authorization"
+          },
+          {
+            "$ref": "#/components/parameters/content-type"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/boletoRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Boleto criado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/boletoResponse"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "401": {
+            "$ref": "#/components/responses/401"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "404": {
+            "$ref": "#/components/responses/404"
+          },
+          "422": {
+            "$ref": "#/components/responses/422"
+          },
+          "428": {
+            "$ref": "#/components/responses/428"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        },
+        "security": [
+          {
+            "APIGatewaySTSAuthorizer": [
+              "boletoscash-boleto.write"
+            ]
+          }
+        ],
+        "x-amazon-apigateway-request-validator": "all",
+        "x-amazon-apigateway-integration": {
+          "uri": "http://${iupipes_nlbUri}:8443/boleto-emissao-api/v1/boletos",
+          "connectionType": "VPC_LINK",
+          "connectionId": "${iupipes_deploy_aws_env_vpcLink}",
+          "passthroughBehavior": "when_no_match",
+          "timeoutInMillis": 14000,
+          "type": "http_proxy",
+          "httpMethod": "POST",
+          "responses": {
+            "default": {
+              "statusCode": "200"
+            }
+          },
+          "requestTemplates": {
+            "application/json": "{\"statusCode\" : 200}"
+          }
+        }
+      }
+    },
+    "/requisicoes-boletos-negociados/{requisicaoBoletoNegociadoId}": {
+      "get": {
+        "tags": [
+          "requisicoes"
+        ],
+        "summary": "Retorna detalhes de uma requisição de boleto específica.",
+        "description": "Endpoint responsável por retornar os detalhes de uma requisição com base no ID fornecido.",
+        "operationId": "get/requisicaoBoletoNegociado",
+        "parameters": [
+          {
+            "name": "requisicaoBoletoNegociadoId",
+            "in": "path",
+            "required": true,
+            "description": "O ID da requisição a ser consultada.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/x-itau-correlationid"
+          },
+          {
+            "$ref": "#/components/parameters/x-itau-apikey"
+          },
+          {
+            "$ref": "#/components/parameters/x-itau-flowid"
+          },
+          {
+            "$ref": "#/components/parameters/authorization"
+          },
+          {
+            "$ref": "#/components/parameters/content-type"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retorna os dados de um boleto solicitado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/requisicaoBoletoNegociado"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "200BoletoNegociado": {
+                    "$ref": "#/components/examples/200BoletoNegociado"
+                  },
+                  "200BoletoValidacaoAtivos": {
+                    "$ref": "#/components/examples/200BoletoValidacaoAtivos"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "401": {
+            "$ref": "#/components/responses/401"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "404": {
+            "$ref": "#/components/responses/404"
+          },
+          "405": {
+            "$ref": "#/components/responses/405"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        },
+        "security": [
+          {
+            "APIGatewaySTSAuthorizer": [
+              "boletoscash-boleto.read"
+            ]
+          }
+        ],
+        "x-amazon-apigateway-integration": {
+          "passthroughBehavior": "when_no_match",
+          "connectionId": "${iupipes_deploy_aws_env_vpcLink}",
+          "connectionType": "VPC_LINK",
+          "timeoutInMillis": 14000,
+          "uri": "http://${iupipes_nlbUri}:8443/cash_management_ext/v2/requisicoes-boletos-negociados/{requisicaoBoletoNegociadoId}",
+          "type": "http_proxy",
+          "httpMethod": "GET",
+          "responses": {
+            "default": {
+              "statusCode": "200"
+            }
+          },
+          "requestParameters": {
+            "integration.request.path.requisicaoBoletoNegociadoId": "method.request.path.requisicaoBoletoNegociadoId"
+          }
+        },
+        "x-amazon-apigateway-request-validator": "all"
+      }
+    },
+    "/ativos-financeiros": {
+      "get": {
+        "summary": "Consulta ativos financeiros vinculados a boletos.",
+        "description": "Consulta ativos financeiros vinculados a boletos com base em filtros opcionais.",
+        "operationId": "get/ativos-financeiros",
+        "tags": [
+          "ativos-financeiros"
+        ],
+        "parameters": [
+          {
+            "name": "numeroIdentificacaoBoleto",
+            "in": "query",
+            "required": false,
+            "description": "Identificador único do boleto",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "codigoIdentificacaoBoletoMercado",
+            "in": "query",
+            "required": false,
+            "description": "Identificação do boleto no mercado (Nuclea)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "numeroIdentificacaoClienteCobranca",
+            "in": "query",
+            "required": true,
+            "description": "Número de identificação do cliente de cobrança (Beneficiário)",
+            "example": "6de1b913-431c-40aa-a68d-b3ab527511d5",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tipoAtivoFinanceiro",
+            "in": "query",
+            "required": false,
+            "description": "Tipo do ativo financeiro",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ativoFinanceiroId",
+            "in": "query",
+            "required": false,
+            "description": "Identificador único do ativo financeiro",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Número da página que está sendo requisitada (o valor da primeira página é 1)",
+            "example": 1,
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page-size",
+            "in": "query",
+            "required": false,
+            "description": "Quantidade total de registros por página.",
+            "example": 25,
+            "schema": {
+              "type": "integer",
+              "default": 25,
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "$ref": "#/components/parameters/x-itau-correlationid"
+          },
+          {
+            "$ref": "#/components/parameters/x-itau-apikey"
+          },
+          {
+            "$ref": "#/components/parameters/x-itau-flowid"
+          },
+          {
+            "$ref": "#/components/parameters/authorization"
+          },
+          {
+            "$ref": "#/components/parameters/content-type"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retorna a coleção completa de ativos financeiros vinculados a boletos, quando ela cabe em uma única resposta. Não acompanha metadados de paginação.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ativoFinanceiro"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "200boletoAtivosFinanceiros": {
+                    "$ref": "#/components/examples/200boletoAtivosFinanceiros"
+                  }
+                }
+              }
+            }
+          },
+          "206": {
+            "description": "Retorna parte da coleção de ativos financeiros vinculados a boletos, com os metadados de paginação da Governança de APIs 2.1.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ativoFinanceiro"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/paginacao"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "pagination"
+                  ]
+                },
+                "examples": {
+                  "206boletoAtivosFinanceiros": {
+                    "$ref": "#/components/examples/206boletoAtivosFinanceiros"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ativosFinanceiros400"
+          },
+          "401": {
+            "$ref": "#/components/responses/ativosFinanceiros401"
+          },
+          "403": {
+            "$ref": "#/components/responses/ativosFinanceiros403"
+          },
+          "404": {
+            "$ref": "#/components/responses/ativosFinanceiros404"
+          },
+          "405": {
+            "$ref": "#/components/responses/ativosFinanceiros405"
+          },
+          "500": {
+            "$ref": "#/components/responses/ativosFinanceiros500"
+          }
+        },
+        "security": [
+          {
+            "APIGatewaySTSAuthorizer": [
+              "boletoscash-boleto.read"
+            ]
+          }
+        ],
+        "x-amazon-apigateway-integration": {
+          "connectionType": "VPC_LINK",
+          "connectionId": "${iupipes_deploy_aws_env_vpcLink}",
+          "passthroughBehavior": "when_no_match",
+          "uri": "http://${iupipes_nlbUri}:8443/boleto-recebimento-ext/v1/ativos-financeiros",
+          "timeoutInMillis": 14000,
+          "type": "http_proxy",
+          "httpMethod": "GET",
+          "responses": {
+            "default": {
+              "statusCode": "200"
+            }
+          }
+        },
+        "x-amazon-apigateway-request-validator": "all"
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "idBeneficiario": {
+        "name": "idBeneficiario",
+        "in": "query",
+        "description": "Id do beneficiário, composto de \"${agencia}${conta}${dac}\", sem traços ou pontos.",
+        "required": true,
+        "example": 0,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "nomePagador": {
+        "name": "nomePagador",
+        "in": "query",
+        "description": "Nome do pagador do boleto.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "cpfPagador": {
+        "name": "cpfPagador",
+        "in": "query",
+        "description": "Cpf do pagador do boleto.",
+        "schema": {
+          "type": "string",
+          "pattern": "^(\\d{11})$"
+        }
+      },
+      "cnpjPagador": {
+        "name": "cnpjPagador",
+        "in": "query",
+        "description": "Cnpj do pagador do boleto.",
+        "schema": {
+          "type": "string",
+          "pattern": "^(\\d{14})$"
+        }
+      },
+      "seuNumero": {
+        "name": "seuNumero",
+        "in": "query",
+        "description": "Seu número, identificador do boleto",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "nossoNumero": {
+        "name": "nossoNumero",
+        "in": "query",
+        "description": "Nosso número, identificador do boleto",
+        "schema": {
+          "type": "string",
+          "maxLength": 8
+        }
+      },
+      "codigoCarteira": {
+        "name": "codigoCarteira",
+        "in": "query",
+        "description": "Codigo da carteira",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "maxLength": 3,
+          "minLength": 3
+        }
+      },
+      "codigoBarra": {
+        "name": "codigoBarra",
+        "in": "query",
+        "description": "Codigo de barras do boleto",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "maxLength": 44,
+          "minLength": 44
+        }
+      },
+      "situacao": {
+        "name": "situacao",
+        "in": "query",
+        "description": "Status do boleto: aberto, emPagamento, pago ou cancelado",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "instrumentoCobranca": {
+        "name": "instrumentoCobranca",
+        "in": "query",
+        "description": "Instrumento de cobrança: boleto ou bolecode",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "situacaoProtesto": {
+        "name": "situacaoProtesto",
+        "in": "query",
+        "description": "Situação de protesto: emProtesto, protestado, protestoCancelado ou protestoAgendado",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "situacaoVencimento": {
+        "name": "situacaoVencimento",
+        "in": "query",
+        "description": "Status vencimento: aVencer ou vencido",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "situacaoNegativacao": {
+        "name": "situacaoNegativacao",
+        "in": "query",
+        "description": "Filtro por situação da negativação: emNegativacao, negativado, negativacaoCancelada ou negativacaoAgendada",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "motivoCancelamento": {
+        "name": "motivoCancelamento",
+        "in": "query",
+        "description": "baixaSimples, baixaPorTerSidoLiquidado ou baixaPorTerSidoProtestado",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "dataEntrada": {
+        "name": "dataEntrada",
+        "in": "query",
+        "description": "Período desejado para filtro de boletos pela data de entrada",
+        "schema": {
+          "type": "string",
+          "example": "2024-02-15,2024-02-16"
+        }
+      },
+      "dataEmissao": {
+        "name": "dataEmissao",
+        "in": "query",
+        "description": "Período desejado para filtro de boletos pela data de emissão",
+        "schema": {
+          "type": "string",
+          "example": "2024-02-15,2024-02-16"
+        }
+      },
+      "dataCancelamento": {
+        "name": "dataCancelamento",
+        "in": "query",
+        "description": "Período desejado para filtro de boletos pela data de cancelamento",
+        "schema": {
+          "type": "string",
+          "example": "2024-02-15,2024-02-16"
+        }
+      },
+      "dataVencimento": {
+        "name": "dataVencimento",
+        "in": "query",
+        "description": "Período desejado para filtro de boletos pela data de vencimento",
+        "schema": {
+          "type": "string",
+          "example": "2024-02-15,2024-02-16"
+        }
+      },
+      "dataPagamento": {
+        "name": "dataPagamento",
+        "in": "query",
+        "description": "Período desejado para filtro de boletos pela data de pagamento",
+        "schema": {
+          "type": "string",
+          "example": "2024-02-15,2024-02-16"
+        }
+      },
+      "orderBy": {
+        "name": "orderBy",
+        "in": "query",
+        "description": "Os campos permitidos para ordenação são: nomePagador, nossoNumero, seuNumero, dataEmissao, dataVencimento, dataCancelamento, dataPagamento e valorBoleto.",
+        "required": false,
+        "example": "nossonumero",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "nomePagador",
+            "nossoNumero",
+            "seuNumero",
+            "dataEmissao",
+            "dataVencimento",
+            "dataCancelamento",
+            "dataPagamento",
+            "valorBoleto"
+          ]
+        }
+      },
+      "order": {
+        "name": "order",
+        "in": "query",
+        "description": "A ordem de classificação dos resultados. Os valores permitidos são: asc ou desc.",
+        "required": false,
+        "example": "asc",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "asc",
+            "desc"
+          ]
+        }
+      },
+      "view": {
+        "name": "view",
+        "in": "query",
+        "description": "Tipo de visão que deseja-se ter ao ler os dados",
+        "required": false,
+        "example": "BASIC",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "BASIC"
+          ],
+          "default": "BASIC"
+        }
+      },
+      "indicadorDescontado": {
+        "name": "indicadorDescontado",
+        "in": "query",
+        "description": "Indicador de desconto (true - descontado, false - não descontado)",
+        "required": false,
+        "example": "true",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "page": {
+        "name": "page",
+        "in": "query",
+        "description": "Número da página que está sendo requisitada (o valor da primeira página é 0)",
+        "required": false,
+        "example": 3,
+        "schema": {
+          "type": "integer",
+          "default": 0
+        }
+      },
+      "pageSize": {
+        "name": "pageSize",
+        "in": "query",
+        "description": "Quantidade total de registros por páginas.",
+        "required": false,
+        "example": 15,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "x-itau-correlationid": {
+        "name": "x-itau-correlationID",
+        "in": "header",
+        "description": "UUID que identifica a transação.",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "x-itau-apikey": {
+        "name": "x-itau-apikey",
+        "in": "header",
+        "description": "Chave que identifica o chamador.",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "x-itau-flowid": {
+        "name": "x-itau-flowid",
+        "in": "header",
+        "description": "Chave que identifica o fluxo de negócio. Deve ser diferente do __x-itau-correlationid__.",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "authorization": {
+        "in": "header",
+        "name": "Authorization",
+        "description": "Bearer token para autorização do cliente na api",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "content-type": {
+        "name": "Content-type",
+        "in": "header",
+        "description": "Content type da aplicação (application/json)",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "schemas": {
+      "beneficiario": {
+        "type": "object",
+        "description": "Beneficiario",
+        "properties": {
+          "idBeneficiario": {
+            "type": "string"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "tipoPessoa": {
+            "type": "string"
+          },
+          "numeroDocumento": {
+            "type": "string"
+          },
+          "endereco": {
+            "$ref": "#/components/schemas/endereco"
+          }
+        }
+      },
+      "boleto": {
+        "type": "object",
+        "description": "Boleto",
+        "required": [
+          "idBoleto"
+        ],
+        "properties": {
+          "idBoleto": {
+            "type": "string",
+            "description": "Identificador do boleto"
+          },
+          "identificadorBoletoMercado": {
+            "type": "string",
+            "description": "Identificador do boleto no mercado"
+          },
+          "beneficiario": {
+            "$ref": "#/components/schemas/beneficiario"
+          },
+          "tipoBoleto": {
+            "type": "string",
+            "description": "Tipo do boleto"
+          },
+          "etapaProcessoBoleto": {
+            "type": "string",
+            "description": "Etapa do processo do boleto"
+          },
+          "codigoOperador": {
+            "type": "string",
+            "description": "Código do operador"
+          },
+          "codigoCanalOperacao": {
+            "type": "string",
+            "description": "Código do canal de operação"
+          },
+          "instrumentoCobranca": {
+            "type": "string",
+            "description": "Descrição do instrumento de cobrança"
+          },
+          "formaEnvio": {
+            "type": "string",
+            "description": "Forma de envio"
+          },
+          "indicadorDescontado": {
+            "type": "boolean"
+          },
+          "protesto": {
+            "$ref": "#/components/schemas/protesto"
+          },
+          "negativacao": {
+            "$ref": "#/components/schemas/negativacao"
+          },
+          "pagador": {
+            "$ref": "#/components/schemas/pagador"
+          },
+          "email": {
+            "$ref": "#/components/schemas/email"
+          },
+          "beneficiarioFinal": {
+            "$ref": "#/components/schemas/beneficiarioFinal"
+          },
+          "instrucoesCobranca": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/instrucoesCobranca"
+            }
+          },
+          "tipoVencimento": {
+            "$ref": "#/components/schemas/tipoVencimento"
+          },
+          "situacaoVencimento": {
+            "type": "string"
+          },
+          "codigoBarras": {
+            "type": "string",
+            "description": "Código de barras"
+          },
+          "linhaDigitavel": {
+            "type": "string",
+            "description": "Linha digitável"
+          },
+          "mensagensBoleto": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/mensagensBoleto"
+            }
+          },
+          "especie": {
+            "$ref": "#/components/schemas/especie"
+          },
+          "isPagamentoParcial": {
+            "type": "boolean",
+            "description": "Indica se permite pagamento parcial"
+          },
+          "quantidadeMaximaPagamentoParcial": {
+            "type": "string",
+            "description": "Quantidade máxima de pagamento parcial"
+          },
+          "valorAbatimento": {
+            "type": "string",
+            "description": "Valor do abatimento"
+          },
+          "juros": {
+            "$ref": "#/components/schemas/juros"
+          },
+          "multa": {
+            "$ref": "#/components/schemas/multa"
+          },
+          "desconto": {
+            "$ref": "#/components/schemas/desconto"
+          },
+          "recebimentoDivergente": {
+            "$ref": "#/components/schemas/recebimentoDivergente"
+          },
+          "codigoMoeda": {
+            "type": "string"
+          },
+          "usoEmpresa": {
+            "type": "string",
+            "description": "Texto de uso do beneficiário"
+          },
+          "indicadorRateioCredito": {
+            "type": "string"
+          },
+          "rateioCredito": {
+            "$ref": "#/components/schemas/rateioCredito"
+          },
+          "indicadorDiaUtilInstrucao": {
+            "type": "string"
+          },
+          "indicadorBloqueio": {
+            "type": "string"
+          },
+          "seuNumero": {
+            "type": "string",
+            "description": "Seu número"
+          },
+          "dataEntrada": {
+            "type": "string",
+            "format": "date"
+          },
+          "dataEmissao": {
+            "type": "string",
+            "format": "date",
+            "description": "Data de emissão"
+          },
+          "dataVencimento": {
+            "type": "string",
+            "format": "date",
+            "description": "Data de vencimento"
+          },
+          "dataPagamento": {
+            "type": "string",
+            "format": "date"
+          },
+          "valor": {
+            "type": "number",
+            "description": "Valor do título"
+          },
+          "codigoCarteira": {
+            "type": "string",
+            "description": "Código da carteira",
+            "minLength": 3,
+            "maxLength": 3
+          },
+          "situacao": {
+            "type": "string"
+          },
+          "nossoNumero": {
+            "type": "string",
+            "description": "Nosso número"
+          },
+          "dataLimitePagamento": {
+            "type": "string",
+            "format": "date"
+          },
+          "valorPagoTotal": {
+            "type": "number"
+          },
+          "cancelamento": {
+            "$ref": "#/components/schemas/cancelamento"
+          },
+          "dadosQrcode": {
+            "$ref": "#/components/schemas/qrCode"
+          },
+          "emv": {
+            "type": "string",
+            "description": "EMV do boleto"
+          },
+          "base64": {
+            "type": "string",
+            "description": "Boleto em Base64 (PDF ou HTML)"
+          },
+          "txid": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "isDescontoExpresso": {
+            "type": "boolean"
+          }
+        }
+      },
+      "qrCode": {
+        "type": "object",
+        "description": "Dados do QR Code para cobrança",
+        "properties": {
+          "chave": {
+            "type": "string",
+            "description": "Chave do QR Code",
+            "example": "string"
+          },
+          "idLocation": {
+            "type": "string",
+            "description": "Identificador de localização",
+            "example": "string"
+          },
+          "tipoCobranca": {
+            "type": "string",
+            "description": "Tipo de cobrança",
+            "example": "string"
+          }
+        }
+      },
+      "cancelamento": {
+        "type": "object",
+        "description": "Motivo do cancelamento",
+        "properties": {
+          "motivoCancelamento": {
+            "type": "string"
+          }
+        }
+      },
+      "desconto": {
+        "type": "object",
+        "properties": {
+          "descricaoDesconto": {
+            "type": "string",
+            "description": "Descrição do desconto"
+          },
+          "codigoTipoDesconto": {
+            "type": "string",
+            "description": "Código do tipo de desconto"
+          },
+          "detalhes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/descontoDetalhes"
+            }
+          }
+        }
+      },
+      "descontoDetalhes": {
+        "type": "object",
+        "properties": {
+          "dataDesconto": {
+            "type": "string",
+            "format": "date",
+            "description": "Data do desconto",
+            "example": "2024-12-31"
+          },
+          "valorDesconto": {
+            "type": "string",
+            "description": "Valor do desconto",
+            "example": "15.00"
+          },
+          "percentualDesconto": {
+            "type": "string",
+            "description": "Percentual do desconto",
+            "example": "000005"
+          }
+        }
+      },
+      "email": {
+        "type": "object",
+        "description": "Informações de email do pagador do boleto",
+        "properties": {
+          "endereco": {
+            "type": "string"
+          },
+          "assunto": {
+            "type": "string"
+          },
+          "mensagem": {
+            "type": "string"
+          }
+        }
+      },
+      "endereco": {
+        "type": "object",
+        "description": "Informações do endereço",
+        "properties": {
+          "logradouro": {
+            "type": "string"
+          },
+          "numero": {
+            "type": "string"
+          },
+          "complemento": {
+            "type": "string"
+          },
+          "bairro": {
+            "type": "string"
+          },
+          "cidade": {
+            "type": "string"
+          },
+          "uf": {
+            "type": "string"
+          },
+          "cep": {
+            "type": "string"
+          }
+        }
+      },
+      "especie": {
+        "type": "object",
+        "properties": {
+          "codigoEspecie": {
+            "type": "string"
+          },
+          "descricaoEspecie": {
+            "type": "string"
+          }
+        }
+      },
+      "instrucoesCobranca": {
+        "type": "object",
+        "description": "Instruções de cobrança",
+        "properties": {
+          "codigoInstrucaoCobranca": {
+            "type": "number"
+          },
+          "descricaoInstrucaoCobranca": {
+            "type": "string"
+          },
+          "quantidadeDiasInstrucaoCobranca": {
+            "type": "number"
+          },
+          "isDiaUtil": {
+            "type": "boolean"
+          }
+        }
+      },
+      "juros": {
+        "type": "object",
+        "properties": {
+          "codigoTipoJuros": {
+            "type": "string"
+          },
+          "quantidadeDiasJuros": {
+            "type": "number"
+          },
+          "valorJuros": {
+            "type": "string"
+          },
+          "percentualJuros": {
+            "type": "string"
+          },
+          "dataJuros": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "links": {
+        "type": "object",
+        "properties": {
+          "first": {
+            "type": "string",
+            "description": "Link para a primeira página de boletos. Não informado se página atual é a primeira.",
+            "example": "/boletos/v1?page=1&pageSize=25"
+          },
+          "last": {
+            "type": "string",
+            "description": "Link para a última página de boletos. Não informado se página atual é a última.",
+            "example": "/boletos/v1?page=10&pageSize=25"
+          },
+          "previous": {
+            "type": "string",
+            "description": "Link para a página anterior de boletos. Não informado se não há página anterior.",
+            "example": "/boletos/v1?page=2&pageSize=25"
+          },
+          "next": {
+            "type": "string",
+            "description": "Link para a próxima página de boletos. Não informado se não há próxima página.",
+            "example": "/boletos/v1?page=4&pageSize=25"
+          }
+        }
+      },
+      "mensagensBoleto": {
+        "type": "object",
+        "properties": {
+          "mensagem": {
+            "type": "string"
+          }
+        }
+      },
+      "multa": {
+        "type": "object",
+        "properties": {
+          "codigoTipoMulta": {
+            "type": "string"
+          },
+          "quantidadeDiasMulta": {
+            "type": "number"
+          },
+          "valorMulta": {
+            "type": "string"
+          },
+          "percentualMulta": {
+            "type": "string"
+          },
+          "dataMulta": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "negativacao": {
+        "type": "object",
+        "description": "Negativação",
+        "properties": {
+          "isNegativacao": {
+            "type": "boolean",
+            "description": "Indica se há negativação"
+          },
+          "codigoSituacaoNegativacao": {
+            "type": "number",
+            "description": "Código da situação de negativação"
+          },
+          "quantidadeDiasNegativacao": {
+            "type": "number",
+            "description": "Quantidade de dias para negativação"
+          },
+          "codigoTipoNegativacao": {
+            "type": "number",
+            "description": "Código do tipo de negativação"
+          },
+          "descricao": {
+            "type": "string",
+            "description": "Descrição da negativação"
+          }
+        }
+      },
+      "pagador": {
+        "type": "object",
+        "properties": {
+          "nomePagador": {
+            "type": "string",
+            "description": "Nome do pagador"
+          },
+          "tipoPessoa": {
+            "type": "string",
+            "description": "Tipo de pessoa (F-Física, J-Jurídica)"
+          },
+          "numeroDocumento": {
+            "type": "string",
+            "description": "Número do documento (CPF/CNPJ)"
+          },
+          "pagadorEletronicoDda": {
+            "type": "boolean",
+            "description": "Pagador eletrônico DDA"
+          },
+          "endereco": {
+            "$ref": "#/components/schemas/endereco"
+          },
+          "telefone": {
+            "$ref": "#/components/schemas/telefone"
+          }
+        }
+      },
+      "telefone": {
+        "type": "object",
+        "description": "Telefone",
+        "properties": {
+          "ddd": {
+            "type": "string",
+            "description": "DDD do telefone",
+            "example": "11"
+          },
+          "numero": {
+            "type": "string",
+            "description": "Número do telefone",
+            "example": "987654321"
+          }
+        }
+      },
+      "beneficiarioFinal": {
+        "type": "object",
+        "description": "Sacador Avalista",
+        "properties": {
+          "nomeBeneficiario": {
+            "type": "string",
+            "description": "Nome do sacador avalista"
+          },
+          "tipoPessoa": {
+            "type": "string",
+            "description": "Tipo de pessoa (F-Física, J-Jurídica)"
+          },
+          "numeroDocumento": {
+            "type": "string",
+            "description": "Número do documento (CPF/CNPJ)"
+          },
+          "endereco": {
+            "$ref": "#/components/schemas/endereco"
+          }
+        }
+      },
+      "page": {
+        "type": "object",
+        "properties": {
+          "links": {
+            "$ref": "#/components/schemas/links"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Página atual",
+            "example": 2
+          },
+          "totalPages": {
+            "type": "integer",
+            "description": "O número total de páginas da requisição.",
+            "example": 10
+          },
+          "totalElements": {
+            "type": "integer",
+            "description": "O número total de registros da requisição.",
+            "example": 250
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Quantidade de registros por página"
+          }
+        }
+      },
+      "protesto": {
+        "type": "object",
+        "description": "Protesto",
+        "properties": {
+          "isProtesto": {
+            "type": "boolean",
+            "description": "Indica se há protesto"
+          },
+          "quantidadeDiasProtesto": {
+            "type": "string",
+            "description": "Quantidade de dias para protesto",
+            "example": "30"
+          },
+          "nomePraca": {
+            "type": "string",
+            "description": "Nome da praça de protesto"
+          },
+          "numeroCartorio": {
+            "type": "string",
+            "description": "Número do cartório"
+          },
+          "anuencia": {
+            "type": "string",
+            "description": "Anuência"
+          },
+          "protestoFalimentar": {
+            "type": "string",
+            "description": "Protesto falimentar"
+          }
+        }
+      },
+      "rateioCredito": {
+        "type": "object",
+        "properties": {
+          "agencia": {
+            "type": "string"
+          },
+          "contaCorrente": {
+            "type": "string"
+          },
+          "digitoContaCorrente": {
+            "type": "string"
+          },
+          "valorRateio": {
+            "type": "string"
+          },
+          "percentualRateio": {
+            "type": "string"
+          },
+          "rateioCreditoPercentual": {
+            "type": "string"
+          },
+          "rateioCreditoValorLiquido": {
+            "type": "string"
+          }
+        }
+      },
+      "recebimentoDivergente": {
+        "type": "object",
+        "properties": {
+          "codigoTipoAutorizacao": {
+            "type": "string"
+          },
+          "codigoTipoRecebimento": {
+            "type": "string"
+          },
+          "valorMinimo": {
+            "type": "string"
+          },
+          "percentualMinimo": {
+            "type": "string"
+          },
+          "valorMaximo": {
+            "type": "string"
+          },
+          "percentualMaximo": {
+            "type": "string"
+          }
+        }
+      },
+      "tipoVencimento": {
+        "type": "object",
+        "properties": {
+          "codigoTipoVencimento": {
+            "type": "string"
+          },
+          "descricaoTipoVencimento": {
+            "type": "string"
+          }
+        }
+      },
+      "unauthorizedResponse": {
+        "type": "object",
+        "properties": {
+          "mensagem": {
+            "type": "string",
+            "description": "Informação sobre o erro encontrado",
+            "example": "Unauthorized"
+          }
+        }
+      },
+      "unprocessableEntityResponse": {
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "description": "Código de Erro HTTP",
+            "example": 422
+          },
+          "mensagem": {
+            "type": "string",
+            "description": "Detalhamento do erro ocorrido",
+            "example": "Erros de validação ou os campos informados. Verifique na resposta da API os campos informados."
+          },
+          "campos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/campo"
+            }
+          }
+        }
+      },
+      "validationErrorResponse": {
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "description": "Código de Erro HTTP",
+            "example": 400
+          },
+          "mensagem": {
+            "type": "string",
+            "description": "Detalhamento do erro ocorrido",
+            "example": "Erros de validação ou os campos informados. Verifique na resposta da API os campos informados."
+          },
+          "campos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/campo"
+            }
+          }
+        }
+      },
+      "forbiddenResponse": {
+        "type": "object",
+        "properties": {
+          "mensagem": {
+            "type": "string",
+            "description": "Informação sobre o erro encontrado",
+            "example": "Não foi possível processar essa requisição. Por favor, procure a documentação da API."
+          }
+        }
+      },
+      "internalErrorResponse": {
+        "type": "object",
+        "properties": {
+          "mensagem": {
+            "type": "string",
+            "description": "Informação sobre o erro encontrado",
+            "example": {
+              "mensagem": "Erro Inesperado. Entre em contato com o suporte Itaú."
+            }
+          }
+        }
+      },
+      "requisicaoBoletoNegociado": {
+        "type": "object",
+        "description": "Requisicao solicitada de boleto negociado",
+        "properties": {
+          "requisicaoBoletoNegociadoId": {
+            "type": "string"
+          },
+          "situacaoRequisicao": {
+            "type": "string"
+          },
+          "valorNominal": {
+            "type": "number"
+          },
+          "dataVencimento": {
+            "type": "string",
+            "format": "date"
+          },
+          "valorAbatimento": {
+            "type": "number"
+          },
+          "codigoInstrucao": {
+            "type": "string"
+          },
+          "idBoleto": {
+            "type": "string"
+          },
+          "erros": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/message"
+            }
+          }
+        }
+      },
+      "campo": {
+        "type": "object",
+        "properties": {
+          "mensagem": {
+            "type": "string",
+            "description": "Informação sobre o erro encontrado"
+          },
+          "campo": {
+            "type": "string",
+            "description": "O campo que foi encontrado um erro"
+          },
+          "valor": {
+            "type": "string",
+            "description": "Valor colocado no campo para referência"
+          }
+        }
+      },
+      "message": {
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "description": "Código a ser exibido",
+            "type": "string"
+          },
+          "mensagem": {
+            "description": "Mensagem a ser exibida",
+            "type": "string"
+          },
+          "campos": {
+            "description": "Parâmetros a serem validados",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/campo"
+            }
+          }
+        }
+      },
+      "ativoFinanceiro": {
+        "type": "object",
+        "properties": {
+          "numeroIdentificacaoAtivoFinanceiro": {
+            "description": "Identificador do ativo financeiro",
+            "type": "string"
+          },
+          "tipoAtivoFinanceiro": {
+            "description": "Tipo do ativo financeiro",
+            "type": "string"
+          },
+          "tipoNegociacao": {
+            "description": "Tipo de negociação do ativo financeiro",
+            "type": "string"
+          },
+          "codigoEscrituradora": {
+            "description": "Código da escrituradora responsável pelo ativo financeiro",
+            "type": "string"
+          },
+          "dataHoraSituacao": {
+            "description": "Data e hora da situação do ativo financeiro",
+            "type": "string"
+          },
+          "pessoaTitular": {
+            "description": "Pessoa titular do ativo financeiro",
+            "$ref": "#/components/schemas/pessoaTitularAtivoFinanceiro"
+          },
+          "boleto": {
+            "description": "Boleto vinculado ao ativo financeiro",
+            "type": "object",
+            "properties": {
+              "numeroIdentificacaoBoleto": {
+                "description": "Identificador Unico do boleto",
+                "type": "string"
+              },
+              "codigoIdentificacaoBoletoMercado": {
+                "description": "Identificação do boleto no mercado (Nuclea)",
+                "type": "string"
+              },
+              "indicadorBoletoDinamico": {
+                "description": "Indica se o boleto é dinâmico",
+                "type": "boolean"
+              },
+              "beneficiarioOriginal": {
+                "description": "Dados do beneficiário original do título",
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "tipoPessoa": {
+                    "description": "Tipo de pessoa do beneficiário original (F=Física, J=Jurídica)",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "cpfCnpj": {
+                    "description": "CPF ou CNPJ do beneficiário original",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "razaoSocial": {
+                    "description": "Razão social ou nome do beneficiário original",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "nomeFantasia": {
+                    "description": "Nome fantasia do beneficiário original",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "logradouro": {
+                    "description": "Logradouro do endereço do beneficiário original",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "cidade": {
+                    "description": "Cidade do endereço do beneficiário original",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "uf": {
+                    "description": "UF do endereço do beneficiário original",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "cep": {
+                    "description": "CEP do endereço do beneficiário original",
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              },
+              "beneficiarioFinal": {
+                "description": "Dados do beneficiário final do título",
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "tipoPessoa": {
+                    "description": "Tipo de pessoa do beneficiário final (F=Física, J=Jurídica)",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "cpfCnpj": {
+                    "description": "CPF ou CNPJ do beneficiário final",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "razaoSocial": {
+                    "description": "Razão social ou nome do beneficiário final",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "nomeFantasia": {
+                    "description": "Nome fantasia do beneficiário final",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "logradouro": {
+                    "description": "Logradouro do endereço do beneficiário final",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "cidade": {
+                    "description": "Cidade do endereço do beneficiário final",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "uf": {
+                    "description": "UF do endereço do beneficiário final",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "cep": {
+                    "description": "CEP do endereço do beneficiário final",
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              },
+              "pagador": {
+                "description": "Dados do pagador do título",
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "tipoPessoa": {
+                    "description": "Tipo de pessoa do pagador (F=Física, J=Jurídica)",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "cpfCnpj": {
+                    "description": "CPF ou CNPJ do pagador",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "razaoSocial": {
+                    "description": "Razão social ou nome do pagador",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "nomeFantasia": {
+                    "description": "Nome fantasia do pagador",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "logradouro": {
+                    "description": "Logradouro do endereço do pagador",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "cidade": {
+                    "description": "Cidade do endereço do pagador",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "uf": {
+                    "description": "UF do endereço do pagador",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "cep": {
+                    "description": "CEP do endereço do pagador",
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              },
+              "sacadorAvalista": {
+                "description": "Dados do sacador avalista do título",
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "tipoIdentificacao": {
+                    "description": "Tipo de documento de identificação do sacador avalista",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "identificacao": {
+                    "description": "Número do documento de identificação do sacador avalista",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "razaoSocial": {
+                    "description": "Razão social ou nome do sacador avalista",
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              },
+              "dadosTitulo": {
+                "description": "Dados do título no mercado bancário",
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "codigoCarteira": {
+                    "description": "Código da carteira de cobrança do banco emissor",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "codigoMoedaCnab": {
+                    "description": "Código da moeda do título no padrão CNAB",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "nossoNumero": {
+                    "description": "Identificador único do título dentro do banco emissor",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "linhaDigitavel": {
+                    "description": "Linha digitável do boleto (47 posições)",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "codigoBarras": {
+                    "description": "Número do código de barras do boleto",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "numeroDocumento": {
+                    "description": "Número do documento que originou o título",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "codigoEspecie": {
+                    "description": "Código da espécie do título conforme domínio CNAB",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "dataEmissao": {
+                    "description": "Data de emissão do título",
+                    "type": "string",
+                    "format": "date",
+                    "nullable": true
+                  },
+                  "dataVencimento": {
+                    "description": "Data de vencimento do título",
+                    "type": "string",
+                    "format": "date",
+                    "nullable": true
+                  },
+                  "valorTitulo": {
+                    "description": "Valor nominal do título",
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "quantidadeDiasProtesto": {
+                    "description": "Quantidade de dias para protesto após vencimento",
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "dataLimitePagamento": {
+                    "description": "Data limite para pagamento do título",
+                    "type": "string",
+                    "format": "date",
+                    "nullable": true
+                  },
+                  "tipoPagamento": {
+                    "description": "Tipo de pagamento aceito",
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              },
+              "indicadores": {
+                "description": "Indicadores e controles do título",
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "indicadorBloqueio": {
+                    "description": "Indicador de bloqueio de pagamento (S/N)",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "indicadorPagamentoParcial": {
+                    "description": "Indicador de pagamento parcial autorizado (S/N)",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "quantidadePagamentosParciais": {
+                    "description": "Quantidade máxima de pagamentos parciais",
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "valorAbatimento": {
+                    "description": "Valor de abatimento concedido no título",
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "tipoValorMinimo": {
+                    "description": "Tipo do valor mínimo aceito (fixo ou percentual)",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "valorPercentualMinimo": {
+                    "description": "Valor ou percentual mínimo aceito",
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "tipoValorMaximo": {
+                    "description": "Tipo do valor máximo aceito (fixo ou percentual)",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "valorPercentualMaximo": {
+                    "description": "Valor ou percentual máximo aceito",
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "tipoModeloCalculo": {
+                    "description": "Código do modelo de cálculo aplicado ao título",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "tipoAutorizacaoValorDivergente": {
+                    "description": "Tipo de autorização para recebimento de valor divergente",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "indicadorAceiteTitulo": {
+                    "description": "Indicador de aceite do título (S/N)",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "quantidadePagamentosRegistrados": {
+                    "description": "Quantidade de pagamentos já registrados",
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "valorTotalPago": {
+                    "description": "Valor total já pago no título",
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "situacaoTituloPagamento": {
+                    "description": "Código da situação do título quanto ao pagamento",
+                    "type": "integer",
+                    "nullable": true
+                  }
+                }
+              },
+              "situacaoTitulo": {
+                "description": "Código da situação do título",
+                "type": "integer",
+                "nullable": true
+              },
+              "dataHoraSituacaoTitulo": {
+                "description": "Data e hora da situação do título",
+                "type": "string",
+                "nullable": true
+              },
+              "juros": {
+                "description": "Dados de juros do título",
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "dataJuros": {
+                    "description": "Data a partir da qual incidem juros de mora",
+                    "type": "string",
+                    "format": "date",
+                    "nullable": true
+                  },
+                  "codigoJuros": {
+                    "description": "Código do tipo de juros conforme domínio CNAB",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "valorPercentualJuros": {
+                    "description": "Valor ou percentual de juros aplicado",
+                    "type": "number",
+                    "nullable": true
+                  }
+                }
+              },
+              "multa": {
+                "description": "Dados de multa do título",
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "dataMulta": {
+                    "description": "Data a partir da qual incide multa por atraso",
+                    "type": "string",
+                    "format": "date",
+                    "nullable": true
+                  },
+                  "codigoMulta": {
+                    "description": "Código do tipo de multa conforme domínio CNAB",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "valorPercentualMulta": {
+                    "description": "Valor ou percentual de multa aplicado",
+                    "type": "number",
+                    "nullable": true
+                  }
+                }
+              },
+              "descontos": {
+                "description": "Lista de condições de desconto do título",
+                "type": "array",
+                "nullable": true,
+                "maxItems": 3,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "dataDesconto": {
+                      "description": "Data limite para o desconto",
+                      "type": "string",
+                      "format": "date",
+                      "nullable": true
+                    },
+                    "codigoDesconto": {
+                      "description": "Código do tipo de desconto conforme domínio CNAB",
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "valorPercentualDesconto": {
+                      "description": "Valor ou percentual do desconto",
+                      "type": "number",
+                      "nullable": true
+                    }
+                  }
+                }
+              },
+              "notasFiscais": {
+                "description": "Lista de notas fiscais vinculadas ao título",
+                "type": "array",
+                "nullable": true,
+                "maxItems": 30,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "numeroNotaFiscal": {
+                      "description": "Número da nota fiscal",
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "dataEmissaoNotaFiscal": {
+                      "description": "Data de emissão da nota fiscal",
+                      "type": "string",
+                      "format": "date",
+                      "nullable": true
+                    },
+                    "valorNotaFiscal": {
+                      "description": "Valor total da nota fiscal",
+                      "type": "number",
+                      "nullable": true
+                    }
+                  }
+                }
+              },
+              "calculos": {
+                "description": "Histórico de cálculos de valores do título",
+                "type": "array",
+                "nullable": true,
+                "maxItems": 10,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "valorCalculadoJuros": {
+                      "description": "Valor calculado de juros",
+                      "type": "number",
+                      "nullable": true
+                    },
+                    "valorCalculadoMulta": {
+                      "description": "Valor calculado de multa",
+                      "type": "number",
+                      "nullable": true
+                    },
+                    "valorCalculadoDesconto": {
+                      "description": "Valor calculado de desconto",
+                      "type": "number",
+                      "nullable": true
+                    },
+                    "valorTotalCobrar": {
+                      "description": "Valor total a cobrar",
+                      "type": "number",
+                      "nullable": true
+                    },
+                    "dataValidadeCalculo": {
+                      "description": "Data de validade do cálculo",
+                      "type": "string",
+                      "format": "date",
+                      "nullable": true
+                    }
+                  }
+                }
+              },
+              "informacoesBeneficiario": {
+                "description": "Mensagens/instruções do beneficiário ao pagador",
+                "type": "array",
+                "nullable": true,
+                "maxItems": 100,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "textoInformacao": {
+                      "description": "Texto informativo do beneficiário",
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              },
+              "controleAceiteTitulo": {
+                "description": "Dados de controle ACTE (Atualização Cadastral do Título Externo)",
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "numeroReferenciaAtualizacao": {
+                    "description": "Número de referência da atualização ACTE",
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "numeroSequencialAtualizacao": {
+                    "description": "Número sequencial da atualização ACTE",
+                    "type": "integer",
+                    "format": "int64",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          "indicadorVinculacao": {
+            "description": "Indicador de vinculação do ativo financeiro ao boleto",
+            "type": "string",
+            "nullable": true
+          },
+          "tipoAtualizacaoAtivoFinanceiro": {
+            "description": "Tipo de atualização do ativo financeiro",
+            "type": "string",
+            "nullable": true
+          },
+          "numeroDocumentoAtivoFinanceiro": {
+            "description": "Número do documento do ativo financeiro",
+            "type": "string",
+            "nullable": true
+          },
+          "codigoInfraestruturaMercado": {
+            "description": "Código da infraestrutura de mercado",
+            "type": "string",
+            "nullable": true
+          },
+          "nomeInfraestruturaMercado": {
+            "description": "Nome da infraestrutura de mercado",
+            "type": "string",
+            "nullable": true
+          },
+          "numeroParcela": {
+            "description": "Número da parcela da duplicata",
+            "type": "string",
+            "nullable": true
+          },
+          "numeroTotalParcela": {
+            "description": "Número total de parcelas da duplicata",
+            "type": "string",
+            "nullable": true
+          },
+          "dataHoraSituacaoVinculacao": {
+            "description": "Data e hora da situação da vinculação",
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ativo": {
+        "type": "object",
+        "properties": {
+          "numeroIdentificacaoAtivoFinanceiro": {
+            "description": "Identificador do ativo financeiro",
+            "type": "string"
+          },
+          "tipoAtivoFinanceiro": {
+            "description": "Tipo do ativo financeiro",
+            "type": "string"
+          },
+          "tipoNegociacao": {
+            "description": "Tipo de negociação do ativo financeiro",
+            "type": "string"
+          },
+          "codigoEscrituradora": {
+            "description": "Código da escrituradora responsável pelo ativo financeiro",
+            "type": "string"
+          },
+          "dataHoraSituacao": {
+            "description": "Data e hora da situação do ativo financeiro",
+            "type": "string"
+          },
+          "pessoaTitular": {
+            "description": "Pessoa titular do ativo financeiro",
+            "$ref": "#/components/schemas/pessoaTitularAtivoFinanceiro"
+          }
+        }
+      },
+      "pessoaTitularAtivoFinanceiro": {
+        "type": "object",
+        "properties": {
+          "codigoIspb": {
+            "description": "Código Ispb do banco",
+            "type": "string"
+          },
+          "tipo": {
+            "description": "Tipo da pessoa",
+            "type": "string"
+          },
+          "cpfCnpj": {
+            "description": "CPF ou CNPJ da pessoa",
+            "type": "string"
+          },
+          "razaoSocial": {
+            "description": "Razão social da pessoa",
+            "type": "string"
+          },
+          "nomeFantasia": {
+            "description": "Nome fantasia da pessoa",
+            "type": "string"
+          },
+          "agencia": {
+            "description": "Agencia bancária da pessoa",
+            "type": "string"
+          },
+          "conta": {
+            "description": "Conta bancária da pessoa",
+            "type": "string"
+          },
+          "enderecoTitular": {
+            "description": "Endereço do titular do ativo financeiro",
+            "$ref": "#/components/schemas/enderecoTitularAtivoFinanceiro"
+          },
+          "tipoContaTitularDireito": {
+            "description": "Tipo de conta do participante destinatário titular de direito",
+            "type": "string",
+            "nullable": true
+          },
+          "digitoContaTitularDireito": {
+            "description": "Dígito da conta do participante destinatário titular de direito",
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "enderecoTitularAtivoFinanceiro": {
+        "type": "object",
+        "properties": {
+          "logradouro": {
+            "description": "Logradouro do endereço",
+            "type": "string"
+          },
+          "cidade": {
+            "description": "Cidade do endereço",
+            "type": "string"
+          },
+          "uf": {
+            "description": "UF do endereço",
+            "type": "string"
+          },
+          "cep": {
+            "description": "Cep do endereço",
+            "type": "string"
+          }
+        }
+      },
+      "boletoRequest": {
+        "type": "object",
+        "description": "Request para emissão do boleto",
+        "required": [
+          "beneficiario"
+        ],
+        "properties": {
+          "beneficiario": {
+            "$ref": "#/components/schemas/beneficiario"
+          },
+          "tipoBoleto": {
+            "type": "string",
+            "description": "Tipo do boleto"
+          },
+          "etapaProcessoBoleto": {
+            "type": "string",
+            "description": "Etapa do processo do boleto"
+          },
+          "codigoOperador": {
+            "type": "string",
+            "description": "Código do operador"
+          },
+          "codigoCanalOperacao": {
+            "type": "string",
+            "description": "Código do canal de operação"
+          },
+          "instrumentoCobranca": {
+            "type": "string",
+            "description": "Descrição do instrumento de cobrança"
+          },
+          "formaEnvio": {
+            "type": "string",
+            "description": "Forma de envio"
+          },
+          "protesto": {
+            "$ref": "#/components/schemas/protesto"
+          },
+          "negativacao": {
+            "$ref": "#/components/schemas/negativacao"
+          },
+          "pagador": {
+            "$ref": "#/components/schemas/pagador"
+          },
+          "email": {
+            "$ref": "#/components/schemas/email"
+          },
+          "beneficiarioFinal": {
+            "$ref": "#/components/schemas/beneficiarioFinal"
+          },
+          "instrucoesCobranca": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/instrucoesCobranca"
+            }
+          },
+          "tipoVencimento": {
+            "$ref": "#/components/schemas/tipoVencimento"
+          },
+          "mensagensBoleto": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/mensagensBoleto"
+            }
+          },
+          "especie": {
+            "$ref": "#/components/schemas/especie"
+          },
+          "isPagamentoParcial": {
+            "type": "boolean",
+            "description": "Indica se permite pagamento parcial"
+          },
+          "quantidadeMaximaPagamentoParcial": {
+            "type": "string",
+            "description": "Quantidade máxima de pagamento parcial"
+          },
+          "valorAbatimento": {
+            "type": "string",
+            "description": "Valor do abatimento"
+          },
+          "juros": {
+            "$ref": "#/components/schemas/juros"
+          },
+          "multa": {
+            "$ref": "#/components/schemas/multa"
+          },
+          "desconto": {
+            "$ref": "#/components/schemas/desconto"
+          },
+          "isDescontoExpresso": {
+            "type": "boolean"
+          },
+          "recebimentoDivergente": {
+            "$ref": "#/components/schemas/recebimentoDivergente"
+          },
+          "codigoMoeda": {
+            "type": "string"
+          },
+          "usoEmpresa": {
+            "type": "string",
+            "description": "Texto de uso do beneficiário"
+          },
+          "seuNumero": {
+            "type": "string",
+            "description": "Seu número"
+          },
+          "dataEmissao": {
+            "type": "string",
+            "format": "date",
+            "description": "Data de emissão"
+          },
+          "dataVencimento": {
+            "type": "string",
+            "format": "date",
+            "description": "Data de vencimento"
+          },
+          "valor": {
+            "type": "number",
+            "description": "Valor do título"
+          },
+          "codigoCarteira": {
+            "type": "string",
+            "description": "Código da carteira",
+            "minLength": 3,
+            "maxLength": 3
+          },
+          "nossoNumero": {
+            "type": "string",
+            "description": "Nosso número"
+          },
+          "dataLimitePagamento": {
+            "type": "string",
+            "format": "date"
+          },
+          "valorPagoTotal": {
+            "type": "number"
+          },
+          "cancelamento": {
+            "$ref": "#/components/schemas/cancelamento"
+          },
+          "dadosQrcode": {
+            "$ref": "#/components/schemas/qrCode"
+          }
+        }
+      },
+      "paginacao": {
+        "type": "object",
+        "description": "Metadados de paginação conforme o padrão de paginação da Governança de APIs 2.1 (regra api-design-guide-033). É retornado somente nas respostas 206 Partial Content, quando a coleção não cabe em uma única resposta.\nExclusivo do recurso /ativos-financeiros: os demais recursos desta API continuam utilizando o schema page.",
+        "required": [
+          "currentPage",
+          "totalPages",
+          "totalRecords",
+          "pageSize",
+          "hasNext",
+          "hasPrevious"
+        ],
+        "properties": {
+          "currentPage": {
+            "type": "integer",
+            "description": "Número da página atual. O valor da primeira página é 1.",
+            "example": 1
+          },
+          "totalPages": {
+            "type": "integer",
+            "description": "Número total de páginas da requisição. Quando não há registros o valor é 0.",
+            "example": 3
+          },
+          "totalRecords": {
+            "type": "integer",
+            "description": "Número total de registros encontrados nas bases interna e externa.",
+            "example": 60
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Quantidade de registros por página. Coincide com o parâmetro page-size enviado na requisição ou, quando não informado, com o valor padrão.",
+            "example": 25
+          },
+          "hasNext": {
+            "type": "boolean",
+            "description": "Indica se existe uma próxima página disponível.",
+            "example": true
+          },
+          "hasPrevious": {
+            "type": "boolean",
+            "description": "Indica se existe uma página anterior disponível.",
+            "example": false
+          },
+          "links": {
+            "type": "object",
+            "description": "Hypermedia (HATEOAS) de paginação, preservando os filtros informados. O link previous não é enviado quando a resposta é a primeira página e o link next não é enviado quando a resposta é a última página.",
+            "properties": {
+              "self": {
+                "type": "string",
+                "description": "URI da página atual.",
+                "example": "/boleto/v1/ativos-financeiros?numeroIdentificacaoClienteCobranca=6de1b913-431c-40aa-a68d-b3ab527511d5&page=1&page-size=25"
+              },
+              "first": {
+                "type": "string",
+                "description": "URI para requisitar a primeira página.",
+                "example": "/boleto/v1/ativos-financeiros?numeroIdentificacaoClienteCobranca=6de1b913-431c-40aa-a68d-b3ab527511d5&page=1&page-size=25"
+              },
+              "last": {
+                "type": "string",
+                "description": "URI para requisitar a última página.",
+                "example": "/boleto/v1/ativos-financeiros?numeroIdentificacaoClienteCobranca=6de1b913-431c-40aa-a68d-b3ab527511d5&page=3&page-size=25"
+              },
+              "previous": {
+                "type": "string",
+                "description": "URI para requisitar a página anterior. Não é enviado na primeira página.",
+                "example": "/boleto/v1/ativos-financeiros?numeroIdentificacaoClienteCobranca=6de1b913-431c-40aa-a68d-b3ab527511d5&page=1&page-size=25"
+              },
+              "next": {
+                "type": "string",
+                "description": "URI para requisitar a próxima página. Não é enviado na última página.",
+                "example": "/boleto/v1/ativos-financeiros?numeroIdentificacaoClienteCobranca=6de1b913-431c-40aa-a68d-b3ab527511d5&page=2&page-size=25"
+              }
+            }
+          }
+        }
+      },
+      "problemDetails": {
+        "type": "object",
+        "description": "Representação de erro no formato Problem Details (RFC 9457), conforme exigido pela Governança de APIs 2.1. É retornado com Content-Type application/problem+json e o campo detail sempre explica o motivo real do erro de forma amigável ao cliente.",
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "format": "uri",
+            "description": "URI que identifica o tipo do problema.",
+            "example": "https://developer.itau.com.br/docs/errors/BAD_REQUEST"
+          },
+          "title": {
+            "type": "string",
+            "description": "Resumo legível do tipo do problema.",
+            "example": "Requisição inválida"
+          },
+          "status": {
+            "type": "integer",
+            "description": "Código de status HTTP da resposta.",
+            "example": 400
+          },
+          "detail": {
+            "type": "string",
+            "description": "Explicação legível e específica desta ocorrência do problema.",
+            "example": "O parâmetro obrigatório 'numeroIdentificacaoClienteCobranca' não foi informado na requisição."
+          },
+          "instance": {
+            "type": "string",
+            "format": "uri",
+            "description": "URI que identifica a ocorrência específica do problema.",
+            "example": "/boleto/v1/ativos-financeiros"
+          },
+          "traceId": {
+            "type": "string",
+            "description": "Identificador de rastreamento da requisição, obtido do header traceparent ou, na ausência dele, do header x-itau-correlationID.",
+            "example": "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+          },
+          "errors": {
+            "type": "array",
+            "description": "Lista de campos com erro. Presente quando o problema decorre da validação de parâmetros da requisição.",
+            "items": {
+              "type": "object",
+              "required": [
+                "field",
+                "message"
+              ],
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "description": "Nome do parâmetro que originou o erro.",
+                  "example": "numeroIdentificacaoClienteCobranca"
+                },
+                "message": {
+                  "type": "string",
+                  "description": "Motivo do erro no parâmetro, em linguagem amigável ao cliente.",
+                  "example": "O parâmetro 'numeroIdentificacaoClienteCobranca' é obrigatório."
+                },
+                "value": {
+                  "type": "string",
+                  "description": "Valor recebido no parâmetro. Omitido quando o valor não foi informado.",
+                  "example": "0"
+                }
+              }
+            }
+          }
+        }
+      },
+      "boletoResponse": {
+        "type": "object",
+        "description": "Boleto - Response",
+        "required": [
+          "idBoleto"
+        ],
+        "properties": {
+          "idBoleto": {
+            "type": "string",
+            "description": "Identificador do boleto"
+          },
+          "beneficiario": {
+            "$ref": "#/components/schemas/beneficiario"
+          },
+          "tipoBoleto": {
+            "type": "string",
+            "description": "Tipo do boleto"
+          },
+          "etapaProcessoBoleto": {
+            "type": "string",
+            "description": "Etapa do processo do boleto"
+          },
+          "codigoOperador": {
+            "type": "string",
+            "description": "Código do operador"
+          },
+          "codigoCanalOperacao": {
+            "type": "string",
+            "description": "Código do canal de operação"
+          },
+          "instrumentoCobranca": {
+            "type": "string",
+            "description": "Descrição do instrumento de cobrança"
+          },
+          "formaEnvio": {
+            "type": "string",
+            "description": "Forma de envio"
+          },
+          "indicadorDescontado": {
+            "type": "boolean"
+          },
+          "protesto": {
+            "$ref": "#/components/schemas/protesto"
+          },
+          "negativacao": {
+            "$ref": "#/components/schemas/negativacao"
+          },
+          "pagador": {
+            "$ref": "#/components/schemas/pagador"
+          },
+          "email": {
+            "$ref": "#/components/schemas/email"
+          },
+          "beneficiarioFinal": {
+            "$ref": "#/components/schemas/beneficiarioFinal"
+          },
+          "instrucoesCobranca": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/instrucoesCobranca"
+            }
+          },
+          "tipoVencimento": {
+            "$ref": "#/components/schemas/tipoVencimento"
+          },
+          "situacaoVencimento": {
+            "type": "string"
+          },
+          "codigoBarras": {
+            "type": "string",
+            "description": "Código de barras"
+          },
+          "linhaDigitavel": {
+            "type": "string",
+            "description": "Linha digitável"
+          },
+          "mensagensBoleto": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/mensagensBoleto"
+            }
+          },
+          "especie": {
+            "$ref": "#/components/schemas/especie"
+          },
+          "isPagamentoParcial": {
+            "type": "boolean",
+            "description": "Indica se permite pagamento parcial"
+          },
+          "quantidadeMaximaPagamentoParcial": {
+            "type": "string",
+            "description": "Quantidade máxima de pagamento parcial"
+          },
+          "valorAbatimento": {
+            "type": "string",
+            "description": "Valor do abatimento"
+          },
+          "juros": {
+            "$ref": "#/components/schemas/juros"
+          },
+          "multa": {
+            "$ref": "#/components/schemas/multa"
+          },
+          "desconto": {
+            "$ref": "#/components/schemas/desconto"
+          },
+          "isDescontoExpresso": {
+            "type": "boolean"
+          },
+          "recebimentoDivergente": {
+            "$ref": "#/components/schemas/recebimentoDivergente"
+          },
+          "usoEmpresa": {
+            "type": "string",
+            "description": "Texto de uso do beneficiário"
+          },
+          "seuNumero": {
+            "type": "string",
+            "description": "Seu número"
+          },
+          "dataEntrada": {
+            "type": "string",
+            "format": "date"
+          },
+          "dataEmissao": {
+            "type": "string",
+            "format": "date",
+            "description": "Data de emissão"
+          },
+          "dataVencimento": {
+            "type": "string",
+            "format": "date",
+            "description": "Data de vencimento"
+          },
+          "valor": {
+            "type": "number",
+            "description": "Valor do título"
+          },
+          "codigoCarteira": {
+            "type": "string",
+            "description": "Código da carteira",
+            "minLength": 3,
+            "maxLength": 3
+          },
+          "nossoNumero": {
+            "type": "string",
+            "description": "Nosso número"
+          },
+          "dataLimitePagamento": {
+            "type": "string",
+            "format": "date"
+          },
+          "emv": {
+            "type": "string",
+            "description": "EMV do boleto"
+          },
+          "base64": {
+            "type": "string",
+            "description": "Boleto em Base64 (PDF ou HTML)"
+          },
+          "txid": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "responses": {
+      "400": {
+        "description": "A requisição foi malformada.",
+        "content": {
+          "application/json; charset=utf-8": {
+            "schema": {
+              "$ref": "#/components/schemas/validationErrorResponse"
+            },
+            "examples": {
+              "400": {
+                "value": {
+                  "codigo": "400",
+                  "mensagem": "Erros de validação ou os campos informados. Verifique na resposta da API os campos informados.",
+                  "campos": [
+                    {
+                      "campo": "idBeneficiario",
+                      "mensagem": "Id do beneficiário inválido.",
+                      "valor": ""
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "401": {
+        "description": "Cabeçalho de autenticação ausente/inválido ou token inválido",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/unauthorizedResponse"
+            },
+            "examples": {
+              "401": {
+                "value": {
+                  "codigo": "401",
+                  "message": "Unauthorized"
+                }
+              }
+            }
+          }
+        }
+      },
+      "403": {
+        "description": "O token tem escopo incorreto ou uma política de segurança foi violada",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/forbiddenResponse"
+            },
+            "examples": {
+              "403": {
+                "value": {
+                  "codigo": "403",
+                  "message": "Forbidden"
+                }
+              }
+            }
+          }
+        }
+      },
+      "404": {
+        "description": "Recurso Inexistente",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/message"
+            },
+            "examples": {
+              "404": {
+                "value": {
+                  "codigo": "404",
+                  "mensagem": "Recurso não encontrado. Verifique na resposta da API os campos informados.",
+                  "campos": [
+                    {
+                      "campo": "codigoBarra",
+                      "valor": "01234567890123456789012345678901234567890123",
+                      "mensagem": "Boleto não encontrado para esse 'codigoBarra'"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "405": {
+        "description": "Método não permitido",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/message"
+            },
+            "examples": {
+              "405": {
+                "value": {
+                  "codigo": "405",
+                  "mensagem": "Método não permitido"
+                }
+              }
+            }
+          }
+        }
+      },
+      "422": {
+        "description": "A requisição foi malformada.",
+        "content": {
+          "application/json; charset=utf-8": {
+            "schema": {
+              "$ref": "#/components/schemas/unprocessableEntityResponse"
+            },
+            "examples": {
+              "400": {
+                "value": {
+                  "codigo": "422",
+                  "mensagem": "Consulta não realizada por alguma regra de negócio não atendida.",
+                  "campos": [
+                    {
+                      "campo": "",
+                      "mensagem": "Nenhum registro foi encontrado. Tente mudar os filtros para nova pesquisa.",
+                      "valor": ""
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "428": {
+        "description": "Pré requisito necessário",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/message"
+            },
+            "examples": {
+              "428": {
+                "value": {
+                  "codigo": "428",
+                  "mensagem": "Pré requisito necessário"
+                }
+              }
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "Erro Inesperado.",
+        "content": {
+          "application/json; charset=utf-8": {
+            "schema": {
+              "$ref": "#/components/schemas/internalErrorResponse"
+            },
+            "examples": {
+              "500": {
+                "value": {
+                  "codigo": "500",
+                  "mensagem": "Erro Inesperado. Entre em contato com o suporte Itaú."
+                }
+              }
+            }
+          }
+        }
+      },
+      "ativosFinanceiros400": {
+        "description": "Requisição inválida. O corpo indica em detail e errors qual parâmetro causou o erro.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/problemDetails"
+            },
+            "examples": {
+              "400": {
+                "summary": "Requisição inválida",
+                "value": {
+                  "type": "https://developer.itau.com.br/docs/errors/BAD_REQUEST",
+                  "title": "Requisição inválida",
+                  "status": 400,
+                  "detail": "O parâmetro obrigatório 'numeroIdentificacaoClienteCobranca' não foi informado na requisição.",
+                  "instance": "/boleto/v1/ativos-financeiros",
+                  "traceId": "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01",
+                  "errors": [
+                    {
+                      "field": "numeroIdentificacaoClienteCobranca",
+                      "message": "O parâmetro 'numeroIdentificacaoClienteCobranca' é obrigatório."
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "ativosFinanceiros401": {
+        "description": "Não autenticado. Token ausente, inválido ou expirado.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/problemDetails"
+            },
+            "examples": {
+              "401": {
+                "summary": "Não autenticado",
+                "value": {
+                  "type": "https://developer.itau.com.br/docs/errors/UNAUTHORIZED",
+                  "title": "Não autenticado",
+                  "status": 401,
+                  "detail": "Token de autenticação ausente ou inválido. Forneça um token válido no header Authorization.",
+                  "instance": "/boleto/v1/ativos-financeiros",
+                  "traceId": "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+                }
+              }
+            }
+          }
+        }
+      },
+      "ativosFinanceiros403": {
+        "description": "Permissões insuficientes para o cliente de cobrança informado.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/problemDetails"
+            },
+            "examples": {
+              "403": {
+                "summary": "Permissões insuficientes",
+                "value": {
+                  "type": "https://developer.itau.com.br/docs/errors/INSUFFICIENT_PERMISSIONS",
+                  "title": "Permissões insuficientes",
+                  "status": 403,
+                  "detail": "A credencial utilizada não tem permissão sobre o cliente de cobrança informado: os parâmetros enviados não condizem com os registrados na credencial.",
+                  "instance": "/boleto/v1/ativos-financeiros",
+                  "traceId": "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+                }
+              }
+            }
+          }
+        }
+      },
+      "ativosFinanceiros404": {
+        "description": "Recurso não encontrado. Retornado quando o cliente de cobrança (beneficiário) informado não existe.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/problemDetails"
+            },
+            "examples": {
+              "404": {
+                "summary": "Recurso não encontrado",
+                "value": {
+                  "type": "https://developer.itau.com.br/docs/errors/RESOURCE_NOT_FOUND",
+                  "title": "Recurso não encontrado",
+                  "status": 404,
+                  "detail": "Não foi encontrado cliente de cobrança (beneficiário) para o numeroIdentificacaoClienteCobranca informado.",
+                  "instance": "/boleto/v1/ativos-financeiros",
+                  "traceId": "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01",
+                  "errors": [
+                    {
+                      "field": "numeroIdentificacaoClienteCobranca",
+                      "message": "Não foi encontrado cliente de cobrança (beneficiário) para o numeroIdentificacaoClienteCobranca informado.",
+                      "value": "6de1b913-431c-40aa-a68d-b3ab527511d5"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "ativosFinanceiros405": {
+        "description": "Método HTTP não permitido para o recurso.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/problemDetails"
+            },
+            "examples": {
+              "405": {
+                "summary": "Método não permitido",
+                "value": {
+                  "type": "https://developer.itau.com.br/docs/errors/METHOD_NOT_ALLOWED",
+                  "title": "Método não permitido",
+                  "status": 405,
+                  "detail": "O método HTTP utilizado não é permitido para este recurso.",
+                  "instance": "/boleto/v1/ativos-financeiros",
+                  "traceId": "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+                }
+              }
+            }
+          }
+        }
+      },
+      "ativosFinanceiros500": {
+        "description": "Erro interno. Nenhum detalhe interno é exposto ao cliente.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/problemDetails"
+            },
+            "examples": {
+              "500": {
+                "summary": "Erro interno",
+                "value": {
+                  "type": "https://developer.itau.com.br/docs/errors/INTERNAL_ERROR",
+                  "title": "Erro interno",
+                  "status": 500,
+                  "detail": "Não foi possível concluir a requisição por um erro interno. Tente novamente mais tarde.",
+                  "instance": "/boleto/v1/ativos-financeiros",
+                  "traceId": "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "examples": {
+      "200GetBoletos": {
+        "summary": "Exemplo de retorno de uma lista de boletos",
+        "value": {
+          "data": [
+            {
+              "idBoleto": "37393662-6632-3261-2d30-6662632d3464",
+              "identificadorBoletoMercado": "00001234567890123456789012345678",
+              "instrumentoCobranca": "boleto",
+              "pagador": {
+                "nomePagador": "Maria Oliveira",
+                "tipoPessoa": "Física",
+                "numeroDocumento": "33378996846"
+              },
+              "situacaoVencimento": "aVencer",
+              "indicadorDescontado": true,
+              "seuNumero": "1231109",
+              "dataEntrada": "2021-06-28",
+              "dataEmissao": "2021-06-28",
+              "dataVencimento": "2021-07-28",
+              "valor": "200.00",
+              "codigoCarteira": "109",
+              "situacao": "aberto",
+              "nossoNumero": "00017244"
+            },
+            {
+              "idBoleto": "e8c10ba1-5d8b-465d-a4d7-b88e771266fd",
+              "identificadorBoletoMercado": "00009876543210987654321098765432",
+              "pagador": {
+                "nomePagador": "Kleber costa",
+                "tipoPessoa": "Física",
+                "numeroDocumento": "33378996846"
+              },
+              "situacaoVencimento": "vencido",
+              "indicadorDescontado": false,
+              "dataEntrada": "2021-06-22",
+              "dataEmissao": "2021-06-28",
+              "dataVencimento": "2021-06-29",
+              "valor": "115.65",
+              "codigoCarteira": "157",
+              "situacao": "aberto",
+              "nossoNumero": "00005078",
+              "dataLimitePagamento": "2021-06-29"
+            },
+            {
+              "idBoleto": "e8c10ba1-5d8b-465d-a4d7-b88e771266fd",
+              "identificadorBoletoMercado": "00005555666677778888999900001111",
+              "pagador": {
+                "nomePagador": "João Silva",
+                "tipoPessoa": "Física",
+                "numeroDocumento": "33378996846"
+              },
+              "situacaoVencimento": "aVencer",
+              "indicadorDescontado": false,
+              "dataEntrada": "2021-06-22",
+              "dataEmissao": "2021-06-22",
+              "dataVencimento": "2021-07-22",
+              "valor": "115.65",
+              "codigoCarteira": "157",
+              "situacao": "em aberto",
+              "nossoNumero": "00005078",
+              "dataLimitePagamento": "2031-04-23",
+              "cancelamento": {
+                "motivoCancelamento": "baixaPorTerSidoLiquidado"
+              }
+            }
+          ],
+          "page": {
+            "links": {
+              "first": "/boleto/v1/boletos?dataEntrada=2021-06-02,2021-06-28&dataEmissao=2024-11-09,2024-11-15&idBeneficiario=150000011091&view=BASIC&pageSize=20&page=0",
+              "last": "/boleto/v1/boletos?dataEntrada=2021-06-02,2021-06-28&dataEmissao=2024-11-09,2024-11-15&idBeneficiario=150000011091&view=BASIC&pageSize=20&page=1",
+              "previous": "/boleto/v1/boletos?dataEntrada=2021-06-02,2021-06-28&dataEmissao=2024-11-09,2024-11-15&idBeneficiario=150000011091&view=BASIC&pageSize=20&page=0",
+              "next": "/boleto/v1/boletos?dataEntrada=2021-06-02,2021-06-28&dataEmissao=2024-11-09,2024-11-15&idBeneficiario=150000011091&view=BASIC&pageSize=20&page=1"
+            },
+            "page": 0,
+            "totalPages": 1,
+            "totalElements": 5,
+            "pageSize": 20
+          }
+        }
+      },
+      "200BoletoNegociado": {
+        "summary": "Exemplo de retorno de sucesso baixa",
+        "value": {
+          "data": {
+            "requisicaoBoletoNegociadoId": "123e4567-e89b-12d3-a456-426614174000",
+            "situacaoRequisicao": "PROCESSAMENTO_FINALIZADO",
+            "valorNominal": 10,
+            "dataVencimento": "2025-09-13",
+            "valorAbatimento": 10,
+            "codigoInstrucao": "BAIXA",
+            "idBoleto": "354b4acc-d350-4d60-a10e-a85f42070be6",
+            "erros": []
+          }
+        }
+      },
+      "200BoletoValidacaoAtivos": {
+        "summary": "Exemplo de retorno de sucesso baixa",
+        "value": {
+          "data": {
+            "requisicaoBoletoNegociadoId": "123e4567-e89b-12d3-a456-426614174000",
+            "situacaoRequisicao": "VALIDACAO_POR_ATIVOS",
+            "valorNominal": 10,
+            "dataVencimento": "2025-09-13",
+            "valorAbatimento": 10,
+            "codigoInstrucao": "BAIXA",
+            "idBoleto": "354b4acc-d350-4d60-a10e-a85f42070be6",
+            "erros": [
+              {
+                "campo": "abatimento.valorAbatimento",
+                "mensagem": "O campo deve estar em um formato válido.",
+                "valor": "12,90"
+              }
+            ]
+          }
+        }
+      },
+      "200boletoAtivoFinanceiro": {
+        "summary": "Exemplo de retorno de ativo financeiro vinculado a boleto",
+        "value": {
+          "data": {
+            "numeroIdentificacaoAtivoFinanceiro": "ATIV001",
+            "tipoAtivoFinanceiro": "DUPLICATA",
+            "tipoNegociacao": "CESSAO",
+            "codigoEscrituradora": "EC01",
+            "dataHoraSituacao": "2024-06-01T10:00:00",
+            "pessoaTitular": {
+              "codigoIspb": "12345678",
+              "tipo": "F",
+              "cpfCnpj": "12345678901",
+              "razaoSocial": "Empresa A",
+              "nomeFantasia": "Fantasia A",
+              "enderecoTitular": {
+                "logradouro": "Rua A",
+                "cidade": "Cidade A",
+                "uf": "SP",
+                "cep": "87654321"
+              },
+              "agencia": "101",
+              "conta": "10001",
+              "tipoContaTitularDireito": "CC",
+              "digitoContaTitularDireito": "5"
+            },
+            "boleto": {
+              "numeroIdentificacaoBoleto": "ff74625f-9630-4035-9db6-db8e58de0631",
+              "codigoIdentificacaoBoletoMercado": "BOLC003",
+              "indicadorBoletoDinamico": true,
+              "beneficiarioOriginal": {
+                "tipoPessoa": "J",
+                "cpfCnpj": "12345678000199",
+                "razaoSocial": "Empresa Beneficiaria Original LTDA",
+                "nomeFantasia": "Beneficiaria Original",
+                "logradouro": "Rua das Flores, 100",
+                "cidade": "Sao Paulo",
+                "uf": "SP",
+                "cep": "01001000"
+              },
+              "beneficiarioFinal": {
+                "tipoPessoa": "J",
+                "cpfCnpj": "98765432000111",
+                "razaoSocial": "Empresa Beneficiaria Final LTDA",
+                "nomeFantasia": "Beneficiaria Final",
+                "logradouro": "Av. Paulista, 1000",
+                "cidade": "Sao Paulo",
+                "uf": "SP",
+                "cep": "01310100"
+              },
+              "pagador": {
+                "tipoPessoa": "F",
+                "cpfCnpj": "12345678901",
+                "razaoSocial": "Joao da Silva",
+                "nomeFantasia": null,
+                "logradouro": "Rua Augusta, 500",
+                "cidade": "Sao Paulo",
+                "uf": "SP",
+                "cep": "01304000"
+              },
+              "sacadorAvalista": {
+                "tipoIdentificacao": "02",
+                "identificacao": "11222333000144",
+                "razaoSocial": "Avalista Comercial LTDA"
+              },
+              "dadosTitulo": {
+                "codigoCarteira": "09",
+                "codigoMoedaCnab": "09",
+                "nossoNumero": "00012345678901234",
+                "linhaDigitavel": "23793.38128 60000.000003 00000.000400 1 84340000010000",
+                "codigoBarras": "23791843400000100003381260000000000000000040",
+                "numeroDocumento": "DOC-2026-001",
+                "codigoEspecie": "02",
+                "dataEmissao": "2026-06-01",
+                "dataVencimento": "2026-07-15",
+                "valorTitulo": 1500,
+                "quantidadeDiasProtesto": 30,
+                "dataLimitePagamento": "2026-08-15",
+                "tipoPagamento": "01",
+                "numeroParcela": 1,
+                "quantidadeTotalParcelas": 12
+              },
+              "indicadores": {
+                "indicadorBloqueio": "N",
+                "indicadorPagamentoParcial": "N",
+                "quantidadePagamentosParciais": 0,
+                "valorAbatimento": 0,
+                "tipoValorMinimo": "01",
+                "valorPercentualMinimo": 1400,
+                "tipoValorMaximo": "01",
+                "valorPercentualMaximo": 1600,
+                "tipoModeloCalculo": "01",
+                "tipoAutorizacaoValorDivergente": "01",
+                "indicadorAceiteTitulo": "S",
+                "quantidadePagamentosRegistrados": 0,
+                "valorTotalPago": 0,
+                "situacaoTituloPagamento": 1
+              },
+              "situacaoTitulo": 1,
+              "dataHoraSituacaoTitulo": "2026-06-01T10:00:00",
+              "juros": {
+                "dataJuros": "2026-07-16",
+                "codigoJuros": "01",
+                "valorPercentualJuros": 1
+              },
+              "multa": {
+                "dataMulta": "2026-07-16",
+                "codigoMulta": "01",
+                "valorPercentualMulta": 2
+              },
+              "descontos": [
+                {
+                  "dataDesconto": "2026-07-10",
+                  "codigoDesconto": "01",
+                  "valorPercentualDesconto": 5
+                }
+              ],
+              "notasFiscais": [
+                {
+                  "numeroNotaFiscal": "NF-001234",
+                  "dataEmissaoNotaFiscal": "2026-05-30",
+                  "valorNotaFiscal": 1500
+                }
+              ],
+              "calculos": [
+                {
+                  "valorCalculadoJuros": 15,
+                  "valorCalculadoMulta": 30,
+                  "valorCalculadoDesconto": 0,
+                  "valorTotalCobrar": 1545,
+                  "dataValidadeCalculo": "2026-07-20"
+                }
+              ],
+              "informacoesBeneficiario": [
+                {
+                  "textoInformacao": "Apos o vencimento cobrar multa de 2%"
+                },
+                {
+                  "textoInformacao": "Juros de 1% ao mes"
+                }
+              ],
+              "controleAceiteTitulo": {
+                "numeroReferenciaAtualizacao": "REF20260601001",
+                "numeroSequencialAtualizacao": 1
+              }
+            },
+            "indicadorVinculacao": "S",
+            "tipoAtualizacaoAtivoFinanceiro": "I",
+            "numeroDocumentoAtivoFinanceiro": "DOC123456",
+            "codigoInfraestruturaMercado": "BVMF",
+            "nomeInfraestruturaMercado": "B3",
+            "numeroParcela": "1",
+            "numeroTotalParcela": "12",
+            "dataHoraSituacaoVinculacao": "2024-06-01T10:30:00"
+          }
+        }
+      },
+      "200boletoAtivosFinanceiros": {
+        "summary": "Exemplo de retorno da listagem de ativos financeiros vinculados a boletos quando a coleção completa cabe em uma única resposta (sem paginação)",
+        "value": {
+          "data": [
+            {
+              "numeroIdentificacaoAtivoFinanceiro": "ATIV001",
+              "tipoAtivoFinanceiro": "DUPLICATA",
+              "tipoNegociacao": "CESSAO",
+              "codigoEscrituradora": "EC01",
+              "dataHoraSituacao": "2024-06-01T10:00:00",
+              "pessoaTitular": {
+                "codigoIspb": "12345678",
+                "tipo": "F",
+                "cpfCnpj": "12345678901",
+                "razaoSocial": "Empresa A",
+                "nomeFantasia": "Fantasia A",
+                "enderecoTitular": {
+                  "logradouro": "Rua A",
+                  "cidade": "Cidade A",
+                  "uf": "SP",
+                  "cep": "87654321"
+                },
+                "agencia": "101",
+                "conta": "10001",
+                "tipoContaTitularDireito": "CC",
+                "digitoContaTitularDireito": "5"
+              },
+              "boleto": {
+                "numeroIdentificacaoBoleto": "ff74625f-9630-4035-9db6-db8e58de0631",
+                "codigoIdentificacaoBoletoMercado": "BOLC003",
+                "indicadorBoletoDinamico": true,
+                "beneficiarioOriginal": {
+                  "tipoPessoa": "J",
+                  "cpfCnpj": "12345678000199",
+                  "razaoSocial": "Empresa Beneficiaria Original LTDA",
+                  "nomeFantasia": "Beneficiaria Original",
+                  "logradouro": "Rua das Flores, 100",
+                  "cidade": "Sao Paulo",
+                  "uf": "SP",
+                  "cep": "01001000"
+                },
+                "beneficiarioFinal": {
+                  "tipoPessoa": "J",
+                  "cpfCnpj": "98765432000111",
+                  "razaoSocial": "Empresa Beneficiaria Final LTDA",
+                  "nomeFantasia": "Beneficiaria Final",
+                  "logradouro": "Av. Paulista, 1000",
+                  "cidade": "Sao Paulo",
+                  "uf": "SP",
+                  "cep": "01310100"
+                },
+                "pagador": {
+                  "tipoPessoa": "F",
+                  "cpfCnpj": "12345678901",
+                  "razaoSocial": "Joao da Silva",
+                  "nomeFantasia": null,
+                  "logradouro": "Rua Augusta, 500",
+                  "cidade": "Sao Paulo",
+                  "uf": "SP",
+                  "cep": "01304000"
+                },
+                "sacadorAvalista": {
+                  "tipoIdentificacao": "02",
+                  "identificacao": "11222333000144",
+                  "razaoSocial": "Avalista Comercial LTDA"
+                },
+                "dadosTitulo": {
+                  "codigoCarteira": "09",
+                  "codigoMoedaCnab": "09",
+                  "nossoNumero": "00012345678901234",
+                  "linhaDigitavel": "23793.38128 60000.000003 00000.000400 1 84340000010000",
+                  "codigoBarras": "23791843400000100003381260000000000000000040",
+                  "numeroDocumento": "DOC-2026-001",
+                  "codigoEspecie": "02",
+                  "dataEmissao": "2026-06-01",
+                  "dataVencimento": "2026-07-15",
+                  "valorTitulo": 1500,
+                  "quantidadeDiasProtesto": 30,
+                  "dataLimitePagamento": "2026-08-15",
+                  "tipoPagamento": "01",
+                  "numeroParcela": 1,
+                  "quantidadeTotalParcelas": 12
+                },
+                "indicadores": {
+                  "indicadorBloqueio": "N",
+                  "indicadorPagamentoParcial": "N",
+                  "quantidadePagamentosParciais": 0,
+                  "valorAbatimento": 0,
+                  "tipoValorMinimo": "01",
+                  "valorPercentualMinimo": 1400,
+                  "tipoValorMaximo": "01",
+                  "valorPercentualMaximo": 1600,
+                  "tipoModeloCalculo": "01",
+                  "tipoAutorizacaoValorDivergente": "01",
+                  "indicadorAceiteTitulo": "S",
+                  "quantidadePagamentosRegistrados": 0,
+                  "valorTotalPago": 0,
+                  "situacaoTituloPagamento": 1
+                },
+                "situacaoTitulo": 1,
+                "dataHoraSituacaoTitulo": "2026-06-01T10:00:00",
+                "juros": {
+                  "dataJuros": "2026-07-16",
+                  "codigoJuros": "01",
+                  "valorPercentualJuros": 1
+                },
+                "multa": {
+                  "dataMulta": "2026-07-16",
+                  "codigoMulta": "01",
+                  "valorPercentualMulta": 2
+                },
+                "descontos": [
+                  {
+                    "dataDesconto": "2026-07-10",
+                    "codigoDesconto": "01",
+                    "valorPercentualDesconto": 5
+                  }
+                ],
+                "notasFiscais": [
+                  {
+                    "numeroNotaFiscal": "NF-001234",
+                    "dataEmissaoNotaFiscal": "2026-05-30",
+                    "valorNotaFiscal": 1500
+                  }
+                ],
+                "calculos": [
+                  {
+                    "valorCalculadoJuros": 15,
+                    "valorCalculadoMulta": 30,
+                    "valorCalculadoDesconto": 0,
+                    "valorTotalCobrar": 1545,
+                    "dataValidadeCalculo": "2026-07-20"
+                  }
+                ],
+                "informacoesBeneficiario": [
+                  {
+                    "textoInformacao": "Apos o vencimento cobrar multa de 2%"
+                  },
+                  {
+                    "textoInformacao": "Juros de 1% ao mes"
+                  }
+                ],
+                "controleAceiteTitulo": {
+                  "numeroReferenciaAtualizacao": "REF20260601001",
+                  "numeroSequencialAtualizacao": 1
+                }
+              },
+              "indicadorVinculacao": "S",
+              "tipoAtualizacaoAtivoFinanceiro": "I",
+              "numeroDocumentoAtivoFinanceiro": "DOC123456",
+              "codigoInfraestruturaMercado": "BVMF",
+              "nomeInfraestruturaMercado": "B3",
+              "numeroParcela": "1",
+              "numeroTotalParcela": "12",
+              "dataHoraSituacaoVinculacao": "2024-06-01T10:30:00"
+            }
+          ]
+        }
+      },
+      "206boletoAtivosFinanceiros": {
+        "summary": "Exemplo de retorno paginado (206 Partial Content) da listagem de ativos financeiros, quando a coleção não cabe em uma única resposta. Primeira página de 3.",
+        "value": {
+          "data": [
+            {
+              "numeroIdentificacaoAtivoFinanceiro": "ATIV001",
+              "tipoAtivoFinanceiro": "DUPLICATA",
+              "tipoNegociacao": "CESSAO",
+              "codigoEscrituradora": "EC01",
+              "dataHoraSituacao": "2024-06-01T10:00:00",
+              "pessoaTitular": {
+                "codigoIspb": "12345678",
+                "tipo": "F",
+                "cpfCnpj": "12345678901",
+                "razaoSocial": "Empresa A",
+                "nomeFantasia": "Fantasia A",
+                "enderecoTitular": {
+                  "logradouro": "Rua A",
+                  "cidade": "Cidade A",
+                  "uf": "SP",
+                  "cep": "87654321"
+                },
+                "agencia": "101",
+                "conta": "10001",
+                "tipoContaTitularDireito": "CC",
+                "digitoContaTitularDireito": "5"
+              },
+              "boleto": {
+                "numeroIdentificacaoBoleto": "ff74625f-9630-4035-9db6-db8e58de0631",
+                "codigoIdentificacaoBoletoMercado": "BOLC003",
+                "indicadorBoletoDinamico": true
+              },
+              "indicadorVinculacao": "S",
+              "tipoAtualizacaoAtivoFinanceiro": "I",
+              "numeroDocumentoAtivoFinanceiro": "DOC123456",
+              "codigoInfraestruturaMercado": "BVMF",
+              "nomeInfraestruturaMercado": "B3",
+              "numeroParcela": "1",
+              "numeroTotalParcela": "12",
+              "dataHoraSituacaoVinculacao": "2024-06-01T10:30:00"
+            }
+          ],
+          "pagination": {
+            "currentPage": 1,
+            "totalPages": 3,
+            "totalRecords": 60,
+            "pageSize": 25,
+            "hasNext": true,
+            "hasPrevious": false,
+            "links": {
+              "self": "/boleto/v1/ativos-financeiros?numeroIdentificacaoClienteCobranca=6de1b913-431c-40aa-a68d-b3ab527511d5&page=1&page-size=25",
+              "first": "/boleto/v1/ativos-financeiros?numeroIdentificacaoClienteCobranca=6de1b913-431c-40aa-a68d-b3ab527511d5&page=1&page-size=25",
+              "last": "/boleto/v1/ativos-financeiros?numeroIdentificacaoClienteCobranca=6de1b913-431c-40aa-a68d-b3ab527511d5&page=3&page-size=25",
+              "next": "/boleto/v1/ativos-financeiros?numeroIdentificacaoClienteCobranca=6de1b913-431c-40aa-a68d-b3ab527511d5&page=2&page-size=25"
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "APIGatewaySTSAuthorizer": {
+        "x-amazon-apigateway-authtype": "custom",
+        "in": "header",
+        "name": "auth",
+        "type": "apiKey",
+        "x-amazon-apigateway-authorizer": {
+          "identitySource": "method.request.header.authorization",
+          "authorizerUri": "arn:aws:apigateway:${iupipes_aws_region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${iupipes_aws_region}:${iupipes_deploy_aws_env_account}:function:valida-token-boleto-v1-externo/invocations",
+          "authorizerCredentials": "arn:aws:iam::${iupipes_deploy_aws_env_account}:role/custom-gateway-invoke-authorizer-role",
+          "authorizerResultTtlInSeconds": 0,
+          "type": "request"
+        }
+      }
+    }
+  },
+  "x-amazon-apigateway-request-validators": {
+    "all": {
+      "validateRequestBody": true,
+      "validateRequestParameters": true
+    }
+  },
+  "x-amazon-apigateway-policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Principal": "*",
+        "Action": "execute-api:Invoke",
+        "Resource": "*"
+      }
+    ]
+  }
+}

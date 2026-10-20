@@ -1,0 +1,2643 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Recebimentos Pix- API's Exclusivas",
+    "description": "Esta API permite realizar consultas de lançamentos PIX, incluindo pagamentos e devoluções, com suporte para clientes diretos e indiretos. Ela fornece informações detalhadas sobre cada transação realizada.",
+    "version": "1.20.7",
+    "contact": {
+      "name": "RECEBIMENTOS - GESTAO E CONSULTA (S002521)",
+      "email": "ci_cash_squad_receb_gestao_conci_pix@correio.itau.com.br"
+    },
+    "sandbox-url": "https://devportal.itau.com.br/sandboxapi/itau-ep9-api-conciliacao-v1-externo/v1"
+  },
+  "tags": [
+    {
+      "name": "Consultas",
+      "description": "Operações relacionadas a consultas de lançamentos PIX."
+    }
+  ],
+  "servers": [
+    {
+      "url": "https://pix-pj.api.dev.itau.com/conciliacao/v1",
+      "description": "Desenvolvimento",
+      "x-internal": false
+    },
+    {
+      "url": "https://pix-pj.api.hom.itau.com/conciliacao/v1",
+      "description": "Homologação",
+      "x-internal": false
+    },
+    {
+      "url": "https://pix-pj.api.itau.com/conciliacao/v1",
+      "description": "Produção",
+      "x-internal": false
+    }
+  ],
+  "paths": {
+    "/lancamentos-pix": {
+      "get": {
+        "tags": [
+          "Consultas (Clientes diretos e indiretos)"
+        ],
+        "operationId": "get/lancamentos-pix",
+        "description": "Operação responsável por resgatar os lançamentos de Pix na visão pagadora/emissora, contemplando tanto pagamentos quanto devoluções Pix.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/idConta"
+          },
+          {
+            "$ref": "#/components/parameters/dataCriacaoLancamento"
+          },
+          {
+            "$ref": "#/components/parameters/dataLancamento"
+          },
+          {
+            "$ref": "#/components/parameters/txid"
+          },
+          {
+            "$ref": "#/components/parameters/e2eid"
+          },
+          {
+            "$ref": "#/components/parameters/visao"
+          },
+          {
+            "$ref": "#/components/parameters/tipoLancamento"
+          },
+          {
+            "$ref": "#/components/parameters/tipoOperacao"
+          },
+          {
+            "$ref": "#/components/parameters/tipo"
+          },
+          {
+            "$ref": "#/components/parameters/idDocumento"
+          },
+          {
+            "$ref": "#/components/parameters/valorDocumentoPagadorEfetivo"
+          },
+          {
+            "$ref": "#/components/parameters/documento"
+          },
+          {
+            "$ref": "#/components/parameters/chaves"
+          },
+          {
+            "$ref": "#/components/parameters/devolvido"
+          },
+          {
+            "$ref": "#/components/parameters/view"
+          },
+          {
+            "$ref": "#/components/parameters/subTipoPix"
+          },
+          {
+            "$ref": "#/components/parameters/subCategoria"
+          },
+          {
+            "$ref": "#/components/parameters/canalOperacao"
+          },
+          {
+            "$ref": "#/components/parameters/operacaoCredito"
+          },
+          {
+            "$ref": "#/components/parameters/orderBy"
+          },
+          {
+            "$ref": "#/components/parameters/order"
+          },
+          {
+            "$ref": "#/components/parameters/page"
+          },
+          {
+            "$ref": "#/components/parameters/pageSize"
+          },
+          {
+            "$ref": "#/components/parameters/x-itau-correlationID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/lancamentoPixs"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            },
+            "description": "Ok",
+            "headers": {
+              "Content-Location": {
+                "description": "URI correspondente a pesquisa corrente",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "401": {
+            "$ref": "#/components/responses/401"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "410": {
+            "$ref": "#/components/responses/410"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          },
+          "504": {
+            "$ref": "#/components/responses/504"
+          }
+        },
+        "security": [
+          {
+            "APIGatewaySTSAuthorizer": [
+              "pix.read",
+              "payments/pix.read",
+              "cash-management/receipts/pix.read"
+            ]
+          }
+        ],
+        "x-amazon-apigateway-integration": {
+          "passthroughBehavior": "when_no_match",
+          "connectionId": "${iupipes_deploy_aws_env_pixCentralExtrato_vpcLink}",
+          "connectionType": "VPC_LINK",
+          "timeoutInMillis": 29000,
+          "uri": "http://${iupipes_deploy_aws_env_pixCentralExtrato_nlb}:8082/cash_management/v2/lancamentos_pix",
+          "type": "http_proxy",
+          "httpMethod": "GET",
+          "responses": {
+            "default": {
+              "statusCode": "200"
+            }
+          }
+        },
+        "x-amazon-apigateway-request-validator": "params-only"
+      }
+    },
+    "/lancamentos-pix/{lancamentoPixId}": {
+      "get": {
+        "tags": [
+          "Consultas (Clientes diretos e indiretos)"
+        ],
+        "operationId": "get/lancamentos-pix/{lancamentoPixId}",
+        "description": "**Descrição:** Operação responsável por recuperar um lançamento PIX específico\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/lancamentoPixId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/lancamentoPixs"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "200_lancamento_pix": {
+                    "$ref": "#/components/examples/200LancamentosPixDetalhe"
+                  }
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "Content-Location": {
+                "description": "URI correspondente a pesquisa corrente",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "204": {
+            "$ref": "#/components/responses/204"
+          },
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "401": {
+            "$ref": "#/components/responses/401"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "404": {
+            "$ref": "#/components/responses/404"
+          },
+          "410": {
+            "$ref": "#/components/responses/410"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          },
+          "504": {
+            "$ref": "#/components/responses/504"
+          }
+        },
+        "security": [
+          {
+            "APIGatewaySTSAuthorizer": [
+              "pix.read",
+              "payments/pix.read",
+              "cash-management/receipts/pix.read"
+            ]
+          }
+        ],
+        "x-amazon-apigateway-integration": {
+          "passthroughBehavior": "when_no_match",
+          "connectionId": "${iupipes_deploy_aws_env_pixCentralExtrato_vpcLink}",
+          "connectionType": "VPC_LINK",
+          "timeoutInMillis": 29000,
+          "uri": "http://${iupipes_deploy_aws_env_pixCentralExtrato_nlb}:8082/cash_management/v2/lancamentos_pix/{lancamentoPixId}",
+          "type": "http_proxy",
+          "httpMethod": "GET",
+          "responses": {
+            "default": {
+              "statusCode": "200"
+            }
+          },
+          "requestParameters": {
+            "integration.request.path.lancamentoPixId": "method.request.path.lancamentoPixId"
+          }
+        },
+        "x-amazon-apigateway-request-validator": "none"
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "summary": {
+        "type": "object",
+        "description": "Resumo de campos submetidos à sumarização.",
+        "properties": {
+          "field": {
+            "description": "Campos que sofrerão a sumarização.\n",
+            "type": "string",
+            "example": "transactionType"
+          },
+          "value": {
+            "description": "Agrupamento onde conterá o valor da sumarização.\n",
+            "type": "object",
+            "properties": {
+              "amount": {
+                "description": "Valor da sumarização.\n",
+                "type": "number",
+                "example": 1234.56
+              },
+              "unity": {
+                "description": "Tipo de unidade calculada.\n",
+                "type": "string",
+                "example": "BRL"
+              }
+            }
+          }
+        }
+      },
+      "problema": {
+        "type": "object",
+        "required": [
+          "type",
+          "title",
+          "status"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "format": "uri",
+            "description": "URI de referência que identifica o tipo de problema.",
+            "example": "https://api.empresa.com.br/errors/not-found"
+          },
+          "title": {
+            "type": "string",
+            "description": "Descrição resumida do problema.",
+            "example": "Not found"
+          },
+          "status": {
+            "type": "integer",
+            "description": "Código HTTP do status retornado.",
+            "example": 404
+          },
+          "detail": {
+            "type": "string",
+            "description": "Descrição completa do problema.",
+            "example": "O recurso /transacoes/12345 não foi encontrado para o cliente informado."
+          },
+          "correlationId": {
+            "type": "string",
+            "description": "Identificador de correlação do problema para fins de suporte.",
+            "example": "f2c8d9e1-7a3b-4e1c-9d52-2a9d0b4e7c11"
+          }
+        }
+      },
+      "lancamentoPix": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "id_lancamento": {
+            "description": "UUID que identifica o lançamento de transferência pix",
+            "type": "string",
+            "example": "b1ff5cc0-8a9c-497e-b983-738904c23389"
+          },
+          "tipo_lancamento": {
+            "description": "Tipo do lançamento. Pode ser uma devolução ou um pagamento.",
+            "type": "string",
+            "example": "pagamento"
+          },
+          "visao": {
+            "description": "Tipo da visão do lançamento. Se ele é o emissor ou o pagador do pix deste lançamento.",
+            "type": "string",
+            "example": "emissor"
+          },
+          "tipo_operacao": {
+            "description": "Tipo da operação transacional que está sendo realizada.",
+            "type": "string",
+            "example": "credito"
+          },
+          "literal_lancamento": {
+            "description": "Literal de lançamento.",
+            "type": "string",
+            "example": "PIX QRS PMD Bashar 05/12"
+          },
+          "tipo_pix": {
+            "description": "Tipo do pix realizado, pode ser dinamico, estatico ou transferencia",
+            "type": "string",
+            "example": "dinamico"
+          },
+          "recorrencia": {
+            "$ref": "#/components/schemas/recorrencia"
+          },
+          "detalhe_pagamento": {
+            "$ref": "#/components/schemas/pagamento"
+          },
+          "operacao_credito": {
+            "description": "Indica se determinado QR CODE foi utilizado como garantia de uma operação de crédito ou antecipado.",
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "lancamentoPixs": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "id_lancamento": {
+            "description": "UUID que identifica o lançamento de transferência pix",
+            "type": "string",
+            "example": "b1ff5cc0-8a9c-497e-b983-738904c23389"
+          },
+          "tipo_lancamento": {
+            "description": "Tipo do lançamento. Pode ser uma devolução ou um pagamento.",
+            "type": "string",
+            "example": "pagamento"
+          },
+          "visao": {
+            "description": "Tipo da visão do lançamento. Se ele é o emissor ou o pagador do pix deste lançamento.",
+            "type": "string",
+            "example": "emissor"
+          },
+          "tipo_operacao": {
+            "description": "Tipo da operação transacional que está sendo realizada.",
+            "type": "string",
+            "example": "credito"
+          },
+          "tipo_pix": {
+            "description": "Tipo do pix realizado, pode ser dinamico, estatico ou transferencia",
+            "type": "string",
+            "example": "dinamico"
+          },
+          "literal_lancamento": {
+            "description": "Literal de lançamento.",
+            "type": "string",
+            "example": "PIX QRS PMD Bashar 05/12"
+          },
+          "canal_operacao": {
+            "description": "Canal operação usado para o pagamento.",
+            "type": "string",
+            "example": "API"
+          },
+          "recorrencia": {
+            "$ref": "#/components/schemas/recorrencia"
+          },
+          "detalhe_pagamento": {
+            "$ref": "#/components/schemas/pagamento"
+          },
+          "detalhe_devolucao": {
+            "$ref": "#/components/schemas/detalheDevolucoes"
+          }
+        }
+      },
+      "debitado": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "numero_documento": {
+            "description": "Número documento do pagador final do PIX",
+            "type": "string",
+            "example": "00336708429"
+          },
+          "nome": {
+            "description": "Nome do pagador final do PIX",
+            "type": "string",
+            "example": "João da Silva"
+          },
+          "codigo_ispb": {
+            "description": "Código ISPB da instituição fincanceira da conta de pagamento do PIX",
+            "type": "string",
+            "example": "60701190"
+          },
+          "nome_instituicao_financeira": {
+            "description": "Nome da instituição fincanceira da conta de pagamento do PIX",
+            "type": "string",
+            "example": "Banco Itaú Unibanco S.A"
+          },
+          "tipo_conta": {
+            "description": "Tipo da conta. Pode ser conta corrente, poupança ou salário.",
+            "type": "string",
+            "example": "corrente"
+          },
+          "agencia": {
+            "description": "Agência utilizada para pagamento de PIX",
+            "type": "string",
+            "example": "3200"
+          },
+          "conta": {
+            "description": "Conta utilizada para pagamento de PIX",
+            "type": "string",
+            "example": "0000000675432"
+          },
+          "digito_verificador": {
+            "description": "Dígito verificador da conta utilizada para pagamento de PIX",
+            "type": "string",
+            "example": "4"
+          }
+        }
+      },
+      "creditado": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "numero_documento": {
+            "description": "Número documento do pagador final do PIX",
+            "type": "string",
+            "example": "00336708429"
+          },
+          "nome": {
+            "description": "Nome do pagador final do PIX",
+            "type": "string",
+            "example": "João da Silva"
+          },
+          "codigo_ispb": {
+            "description": "Código ISPB da instituição financeira da conta de pagamento do PIX",
+            "type": "string",
+            "example": "60701190"
+          },
+          "nome_instituicao_financeira": {
+            "description": "Nome da instituição financeira da conta de pagamento do PIX",
+            "type": "string",
+            "example": "Banco Itaú Unibanco S.A"
+          },
+          "tipo_conta": {
+            "description": "Tipo da conta. Pode ser conta corrente, poupança ou salário.",
+            "type": "string",
+            "example": "corrente"
+          },
+          "agencia": {
+            "description": "Agência utilizada para pagamento de PIX",
+            "type": "string",
+            "example": "3200"
+          },
+          "conta": {
+            "description": "Conta utilizada para pagamento de PIX",
+            "type": "string",
+            "example": "0000000675432"
+          },
+          "digito_verificador": {
+            "description": "Dígito verificador da conta utilizada para pagamento de PIX",
+            "type": "string",
+            "example": "4"
+          },
+          "chave_enderecamento": {
+            "description": "Chave de endereçamento da conta",
+            "type": "string",
+            "example": "itau@itau-unibanco.com.br"
+          }
+        }
+      },
+      "participanteIndireto": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "id": {
+            "description": "UUID que identifica o participante indireto do PIX.",
+            "type": "string",
+            "example": "9876bcca-321c-123e-b123-12345abc3389"
+          },
+          "nome_instituicao_financeira": {
+            "description": "Nome da Instituição do participante indireto do PIX.",
+            "type": "string",
+            "example": "Nome do banco do PSP Indireto"
+          },
+          "nome_tipo_conta_participante_indireto": {
+            "description": "Nome do Tipo de conta do recebedor do PIX.",
+            "type": "string",
+            "example": "Nome do banco do PSP Indireto"
+          },
+          "codigo_ispb_pagamento_instantaneo": {
+            "description": "Identificador do Sistema de Pagamentos Brasileiros do participante indireto do PIX.",
+            "type": "string",
+            "example": "10701190"
+          },
+          "numero_agencia_participante_indireto": {
+            "description": "Agência do participante indireto do PIX.",
+            "type": "string",
+            "example": "6988"
+          },
+          "numero_conta_participante_indireto": {
+            "description": "Conta do participante indireto do PIX.",
+            "type": "string",
+            "example": "60701190"
+          },
+          "numero_digito_verificador_participante_indireto": {
+            "description": "Conta do participante indireto do PIX.",
+            "type": "string",
+            "example": "60701190"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "aviso": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "tipo": {
+            "description": "Tipo do aviso.",
+            "type": "string",
+            "example": "geral"
+          },
+          "conteudo": {
+            "description": "Contudo do aviso.",
+            "type": "string",
+            "example": "Aviso de geral"
+          }
+        }
+      },
+      "detalheValor": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "valor": {
+            "description": "Valor total do pagamento  PIX. Inserir em formato 99999999999999900, sendo 9 os dígitos inteiros e 0 as casas decimais.",
+            "type": "number",
+            "example": 99
+          },
+          "troco": {
+            "description": "Valor do troco PIX que o pagador decidiu receber em especie ao fazer uma compra. Inserir em formato 99999999999999900, sendo 9 os dígitos inteiros e 0 as casas decimais.",
+            "type": "number",
+            "example": 99
+          },
+          "saque": {
+            "description": "Valor do saque realizado por PIX. Inserir em formato 99999999999999900, sendo 9 os dígitos inteiros e 0 as casas decimais.",
+            "type": "number",
+            "example": 99
+          },
+          "compra": {
+            "description": "Valor da compra realizada por PIX através da modalidade troco. Inserir em formato 99999999999999900, sendo 9 os dígitos inteiros e 0 as casas decimais.",
+            "type": "number",
+            "example": 99
+          }
+        }
+      },
+      "documento": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "tipo_cobranca": {
+            "description": "Define se o tipo cobranca é imediata ou vencimento. (cob/cobv)",
+            "type": "string",
+            "example": "cob"
+          },
+          "id_documento": {
+            "description": "UUID que identifica o Documento",
+            "type": "string",
+            "example": "c3d189b4-c859-4218-b9de-b44594755a2e"
+          },
+          "versao": {
+            "description": "Versão da entidade documento em uso definida pelo BACEN",
+            "type": "string",
+            "example": "1.0.0"
+          },
+          "chave": {
+            "description": "Chave de endereçamento do Sistema DICT - BACEN",
+            "type": "string",
+            "example": "a1f4102e-a446-4a57-bcce-6fa48899c1d1"
+          },
+          "txid": {
+            "description": "ID de identificação do documento entre os bancos e o cliente emissor.",
+            "type": "string",
+            "example": "7978c0c97ea847e78e88496344"
+          },
+          "revisao": {
+            "description": "Número da revisão do documento",
+            "type": "number",
+            "example": 1
+          },
+          "status": {
+            "description": "Status do Pix",
+            "type": "string",
+            "example": "ATIVA"
+          },
+          "pagador": {
+            "$ref": "#/components/schemas/pagador"
+          },
+          "recebedor": {
+            "$ref": "#/components/schemas/recebedor"
+          },
+          "valor": {
+            "$ref": "#/components/schemas/valorBase"
+          },
+          "calendario": {
+            "$ref": "#/components/schemas/calendario"
+          },
+          "info_adicionais": {
+            "description": "Informacoes Adicionais do Documento. (Apenas para QR Code dinâmico)",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/informacaoAdicional"
+            }
+          },
+          "solicitacao_pagador": {
+            "description": "Mensagem de solicitacao do pagador do documento ao emissor.",
+            "type": "string",
+            "example": "Texto personalizado a ser apresentado ao pagador"
+          },
+          "mensagem": {
+            "description": "Mensagem de descritiva usada na emissao do tipo estático. (Apenas para QR Code estático)",
+            "type": "string",
+            "example": "Texto personalizado para estático"
+          },
+          "url": {
+            "description": "URL do PIX para consulta do payload criptografado - Pix Link BACEN. (Apenas para QR Code dinâmico)",
+            "type": "string",
+            "example": "spi-h.itau.com.br/pix/qr/v1/c3d189b4-c859-4218-b9de-b44594755a2e"
+          },
+          "loc": {
+            "$ref": "#/components/schemas/location"
+          },
+          "lote": {
+            "$ref": "#/components/schemas/lote"
+          },
+          "versao_documento_bacen": {
+            "description": "Versão da entidade documento em uso definida pelo BACEN",
+            "type": "string",
+            "example": "1.0.0"
+          },
+          "qrcode_pix": {
+            "$ref": "#/components/schemas/qrcodePix"
+          },
+          "quantidade_pagamentos": {
+            "description": "Indicador se o documento já foi pago ao menos uma vez",
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "tipo_cobranca",
+          "id_documento",
+          "versao",
+          "chave",
+          "txid",
+          "revisao",
+          "status",
+          "calendario",
+          "url",
+          "versao_documento_bacen",
+          "qrcode_pix"
+        ]
+      },
+      "recebedor": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "cpf": {
+            "description": "Número do Documento Cadastro de Pessoa Física. (Utilizar CPF ou CNPJ, não enviar ambos)",
+            "type": "string",
+            "example": "12345678910"
+          },
+          "cnpj": {
+            "description": "Número do Cadastro Nacional da Pessoa Jurídica. (Utilizar CPF ou CNPJ, não enviar ambos)",
+            "type": "string",
+            "example": "11111111111111"
+          },
+          "nome": {
+            "description": "Nome/Nome fantasia do recebedor do PIX.",
+            "type": "string",
+            "example": "Francisco da Silva"
+          },
+          "email": {
+            "description": "Email do recebedor do PIX.",
+            "type": "string",
+            "example": "pagador@email.com.br"
+          },
+          "telefone": {
+            "description": "Telefone do recebedor do PIX.",
+            "type": "string",
+            "example": "11647560000"
+          },
+          "tipo_chave": {
+            "description": "Tipo de Chave de endereçamento do recebedor.",
+            "type": "string",
+            "example": "EVP"
+          },
+          "chave_enderecamento": {
+            "description": "Chave de endereçamento do recebedor",
+            "type": "string",
+            "example": "a1f4102e-a446-4a57-bcce-6fa48899c1d1"
+          },
+          "logradouro": {
+            "description": "Logradouro do endereco do recebedor do PIX",
+            "type": "string",
+            "example": "Alameda Souza, Numero 80, Bairro Braz"
+          },
+          "cidade": {
+            "description": "Cidade do endereco do recebedor do PIX",
+            "type": "string",
+            "example": "Recife"
+          },
+          "uf": {
+            "description": "Estado do endereco do recebedor do PIX",
+            "type": "string",
+            "example": "PE"
+          },
+          "cep": {
+            "description": "CEP do endereco do recebedor do PIX",
+            "type": "string",
+            "example": "70011750"
+          },
+          "dados_conta": {
+            "$ref": "#/components/schemas/dadosContaRecebedor"
+          }
+        },
+        "required": [
+          "cpf",
+          "cnpj",
+          "nome",
+          "tipo_chave",
+          "chave_enderecamento",
+          "logradouro",
+          "cidade",
+          "uf",
+          "cep",
+          "dados_conta"
+        ]
+      },
+      "devolucoes": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "id_devolucao": {
+            "description": "UUID que identifica a devolução",
+            "type": "string",
+            "example": "9876bcca-321c-123e-b123-12345abc3389"
+          },
+          "id": {
+            "description": "Id que identifica a devolução",
+            "type": "string",
+            "example": "9876bcca-321c-123e-b123-12345abc3389"
+          },
+          "data": {
+            "description": "Data da devolução do PIX",
+            "type": "string",
+            "example": "2020-09-09T20:15:00.358Z"
+          },
+          "valor": {
+            "description": "Valor da devolução.",
+            "type": "number",
+            "example": 79
+          },
+          "motivo_devolucao": {
+            "description": "Motivo da devolução.",
+            "type": "string",
+            "example": "PIX nao aceito pelo recebedor"
+          },
+          "codigo_motivo_devolucao": {
+            "description": "Código do motivo da devolução.",
+            "type": "string",
+            "example": "11221"
+          },
+          "outro_motivo_devolucao": {
+            "description": "Motivo personalizado pela qual foi solicitada a devolução da transferência.",
+            "type": "string",
+            "example": "Outros"
+          },
+          "creditado": {
+            "$ref": "#/components/schemas/devolucoesCreditado"
+          },
+          "debitado": {
+            "$ref": "#/components/schemas/devolucoesDebitado"
+          },
+          "canal_operacao": {
+            "description": "Canal que foi realizada a devolução.",
+            "type": "string",
+            "example": "Outros"
+          },
+          "operador": {
+            "description": "operador que efetuou a operação.",
+            "type": "string",
+            "example": "Outros"
+          },
+          "participante_indireto": {
+            "$ref": "#/components/schemas/participanteIndireto"
+          },
+          "aviso": {
+            "$ref": "#/components/schemas/aviso"
+          }
+        },
+        "required": [
+          "data",
+          "valor"
+        ]
+      },
+      "pagamento": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "id_pagamento": {
+            "description": "Identificador do Pagamento",
+            "type": "string",
+            "example": "E60701190202205301441DY50YKTJG8A"
+          },
+          "id_transferencia": {
+            "description": "UUID que identifica a transfencia PIX",
+            "type": "string",
+            "example": "4098ddb2-5b05-3c90-8105-1e2d976b7f13"
+          },
+          "id_pagamento_plataforma": {
+            "description": "UUID que identifica a plataforma de pagamento",
+            "type": "string",
+            "example": "c3df5cc0-2a0c-381e-b207-738904c23555"
+          },
+          "id_lancamento": {
+            "description": "UUID que identifica a transferencia de pagamento",
+            "type": "string",
+            "example": "c3df5cc0-2a0c-381e-b207-738904c23555"
+          },
+          "txid": {
+            "description": "ID de identificação do documento entre os bancos e o cliente emissor.",
+            "type": "string",
+            "example": "c3df5cc0-2a0c-381e-b207-738904c23555"
+          },
+          "valor": {
+            "description": "Valor do pagamento do PIX. Inserir em formato 99999999999999900, sendo 9 os dígitos inteiros e 0 as casas decimais.",
+            "type": "number",
+            "example": 99
+          },
+          "valor_tarifa": {
+            "description": "Valor da tarifa aplicada do PIX. Inserir em formato 99999999999999900, sendo 9 os dígitos inteiros e 0 as casas decimais.",
+            "type": "number",
+            "example": 99
+          },
+          "modalidade_tarifa": {
+            "description": "Identificacao do tipo de modalidade tarifa",
+            "type": "string",
+            "example": "estatico"
+          },
+          "valor_desconto_aplicado": {
+            "description": "Valor do desconto aplicado do PIX. Inserir em formato 99999999999999900, sendo 9 os dígitos inteiros e 0 as casas decimais.",
+            "type": "number",
+            "example": 99
+          },
+          "valor_multa_aplicado": {
+            "description": "Valor da multa aplicado do PIX. Inserir em formato 99999999999999900, sendo 9 os dígitos inteiros e 0 as casas decimais.",
+            "type": "number",
+            "example": 99
+          },
+          "valor_abatimento_aplicado": {
+            "description": "Valor do abatimento aplicado do PIX. Inserir em formato 99999999999999900, sendo 9 os dígitos inteiros e 0 as casas decimais.",
+            "type": "number",
+            "example": 99
+          },
+          "valor_juros_aplicado": {
+            "description": "Valor do juros aplicado do PIX. Inserir em formato 99999999999999900, sendo 9 os dígitos inteiros e 0 as casas decimais.",
+            "type": "number",
+            "example": 99
+          },
+          "devolvido": {
+            "description": "Identificador para saber se houve devolução do pagamento",
+            "type": "string",
+            "example": "parcial"
+          },
+          "indicador_bloqueio": {
+            "description": "Indica se o pagamento do pix está bloqueado",
+            "type": "boolean",
+            "example": true
+          },
+          "indicador_possibilidade_devolucao": {
+            "description": "Indica se o pagamento do pix pode ser devolvido",
+            "type": "boolean",
+            "example": true
+          },
+          "valor_maximo_devolucao": {
+            "description": "Indica o valor máximo que o pix pode ser devolvido no formato 99999999999999900, sendo 9 os dígitos inteiros e 0 as casas decimais.",
+            "type": "number",
+            "example": 20
+          },
+          "valor_devolvido": {
+            "description": "Valor total devolvido, caso o pagamento já tenha sofrido devolução.",
+            "type": "number",
+            "example": 79
+          },
+          "texto_resposta_pagador": {
+            "description": "Texto informativo do pagador no ato do pagamento do PIX.",
+            "type": "string",
+            "example": "Devolucao churrasco"
+          },
+          "documento": {
+            "$ref": "#/components/schemas/documento"
+          },
+          "creditado": {
+            "$ref": "#/components/schemas/creditado"
+          },
+          "debitado": {
+            "$ref": "#/components/schemas/debitado"
+          },
+          "detalhe_valor": {
+            "$ref": "#/components/schemas/detalheValor"
+          },
+          "data_contabil": {
+            "description": "Data do contabil do Pagamento PIX",
+            "type": "string",
+            "example": "2020-09-09"
+          },
+          "data": {
+            "description": "Data do Pagamento do PIX",
+            "type": "string",
+            "example": "2020-09-09T20:15:00.358Z"
+          },
+          "devolucoes": {
+            "description": "Devolucoes de um pagamento de um PIX",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/devolucoes"
+            }
+          }
+        },
+        "required": [
+          "data",
+          "valor"
+        ]
+      },
+      "violacao": {
+        "type": "object",
+        "title": "Violações",
+        "properties": {
+          "razao": {
+            "type": "string",
+            "title": "Descrição do erro",
+            "description": "Descrição do erro",
+            "example": "Valor da cobrança não pode ser 0.00"
+          },
+          "propriedade": {
+            "type": "string",
+            "title": "Nome da propriedade",
+            "description": "Nome da propriedade",
+            "example": "cob.chave"
+          },
+          "valor": {
+            "type": "string",
+            "title": "Valor da propriedade",
+            "description": "Valor da propriedade",
+            "example": "061996671234"
+          }
+        }
+      },
+      "campo": {
+        "type": "object",
+        "properties": {
+          "campo": {
+            "description": "Nome do campo em questão",
+            "type": "string",
+            "example": "agencia"
+          },
+          "mensagem": {
+            "description": "Descrição referente ao campo em questão",
+            "type": "string",
+            "example": "Agência inválida."
+          },
+          "valor": {
+            "description": "Valor do campo em questão",
+            "type": "string",
+            "example": "0000"
+          }
+        }
+      },
+      "calendario": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "criacao": {
+            "description": "Data e Hora de criação da cobrança",
+            "type": "string",
+            "example": "2020-01-01T00:00:00Z"
+          },
+          "apresentacao": {
+            "description": "Data e Hora de apresentação da cobrança",
+            "type": "string",
+            "example": "2020-01-01T00:00:00Z"
+          },
+          "expiracao": {
+            "description": "Data Hora expiração do documento - yyyy-MM-dd'T'hh:mm:ss.z'Z'.",
+            "type": "string",
+            "example": "2020-08-28T12:00:00.0Z"
+          },
+          "data_cancelamento": {
+            "description": "Data Hora cancelamento do documento - yyyy-MM-dd'T'hh:mm:ss.z'Z'.",
+            "type": "string",
+            "example": "2020-08-28T14:30:00.0Z"
+          },
+          "validade_apos_vencimento": {
+            "description": "Quantidade de dias corridos após o vencimento em que a cobrança poderá ser paga\n",
+            "type": "integer",
+            "example": 30
+          },
+          "vencimento": {
+            "description": "Data de vencimento da cobrança",
+            "type": "string",
+            "example": "2020-04-01"
+          }
+        },
+        "required": [
+          "criacao",
+          "apresentacao",
+          "expiracao",
+          "validade_apos_vencimento",
+          "vencimento"
+        ]
+      },
+      "location": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "id": {
+            "description": "Identificador da Location",
+            "type": "integer",
+            "example": 7743
+          },
+          "location": {
+            "description": "Url da location onde será recuperada a cobrança",
+            "type": "string",
+            "example": "pix.example.com/qr/v2/2353c790eefb11eaadc10242ac120002"
+          },
+          "tipo_cobranca": {
+            "description": "Define se o tipo cobranca é imediata ou vencimento. (cob/cobv)",
+            "type": "string",
+            "example": "cob"
+          },
+          "data_criacao": {
+            "description": "Data Hora de criação da location - yyyy-MM-dd'T'hh:mm:ss.z'Z'",
+            "type": "string",
+            "example": "2020-09-09T20:15:00.358Z"
+          }
+        },
+        "required": [
+          "id",
+          "location",
+          "tipo_cobranca",
+          "data_criacao"
+        ]
+      },
+      "lote": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "id": {
+            "description": "Identificador do lote com vencimento",
+            "type": "integer",
+            "example": 7743
+          },
+          "location": {
+            "description": "Descrição da cobrança do lote com vencimento",
+            "type": "string",
+            "example": "Lote com vencimento para o dia 07/03/2021"
+          },
+          "tipo_cobranca": {
+            "description": "Define se o tipo cobranca é imediata ou vencimento. (cob/cobv)",
+            "type": "string",
+            "example": "cob"
+          },
+          "data_criacao": {
+            "description": "Data Hora de criação do lote - yyyy-MM-dd'T'hh:mm:ss.z'Z'",
+            "type": "string",
+            "example": "2020-09-09T20:15:00.358Z"
+          }
+        },
+        "required": [
+          "id",
+          "location",
+          "tipo_cobranca",
+          "data_criacao"
+        ]
+      },
+      "pagador": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "cpf": {
+            "description": "Número do Documento Cadastro de Pessoa Física. (Utilizar CPF ou CNPJ, não enviar ambos)",
+            "type": "string",
+            "example": "12345678910"
+          },
+          "cnpj": {
+            "description": "Número do Cadastro Nacional da Pessoa Jurídica. (Utilizar CPF ou CNPJ, não enviar ambos)",
+            "type": "string",
+            "example": "11111111111111"
+          },
+          "nome": {
+            "description": "Nome do pagador do QR Code.",
+            "type": "string",
+            "example": "Empresa de Serviços SA"
+          },
+          "email": {
+            "description": "E-mail do pagador do QR Code.",
+            "type": "string",
+            "example": "pagador@email.com.br"
+          },
+          "telefone": {
+            "description": "Telefone do pagador do QR Code.",
+            "type": "string",
+            "example": "11647560000"
+          },
+          "logradouro": {
+            "description": "Logradouro do endereco do pagador do QR CODE",
+            "type": "string",
+            "example": "Rua 15, Numero 1, Bairro Luz"
+          },
+          "cidade": {
+            "description": "Cidade do endereco do pagador do QR CODE",
+            "type": "string",
+            "example": "Belo Horizonte"
+          },
+          "uf": {
+            "description": "Estado do endereco do pagador do QR CODE",
+            "type": "string",
+            "example": "MG"
+          },
+          "cep": {
+            "description": "CEP do endereco do pagador do QR CODE",
+            "type": "string",
+            "example": "99000750"
+          },
+          "dados_conta": {
+            "$ref": "#/components/schemas/dadosContaPagador"
+          }
+        },
+        "required": [
+          "cpf",
+          "cnpj"
+        ]
+      },
+      "qrcodePix": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "id_qrcode_pix": {
+            "description": "UUID que identifica o Documento",
+            "type": "string",
+            "example": "d1ff5cc0-8a9d-497a-b982-438904c23383"
+          },
+          "simulacao": {
+            "description": "Indicador se a emissao é uma simulação",
+            "type": "boolean",
+            "example": true
+          },
+          "tipo": {
+            "description": "Tipo do QR Code. (Estatico ou Dinamico)",
+            "type": "string",
+            "example": "dinamico"
+          },
+          "padrao": {
+            "description": "Indicador se o QR CODE é o padrão/cadastral. (Apenas para QR Code estático)\n",
+            "type": "boolean",
+            "example": true
+          },
+          "status": {
+            "description": "Status do QR Code",
+            "type": "string",
+            "example": "ativo"
+          },
+          "participante_indireto": {
+            "$ref": "#/components/schemas/participanteIndireto"
+          },
+          "reutilizavel": {
+            "description": "Indicador se o QR CODE pode ser reutilizado. (Apenas para QR Code dinâmico)\n",
+            "type": "boolean",
+            "example": true
+          },
+          "tipo_reutilizacao": {
+            "description": "",
+            "type": "string",
+            "example": "automatica"
+          },
+          "recebedor": {
+            "$ref": "#/components/schemas/recebedor"
+          },
+          "pix_link": {
+            "description": "URL do PIX para consulta do payload criptografado - Pix Link BACEN",
+            "type": "string",
+            "example": "https://pix.bcb.gov.br/qr/MDAwMjAxMDEwMjEyMjY4..."
+          },
+          "emv": {
+            "description": "Texto do QR CODE no padrao EMVco",
+            "type": "string",
+            "example": "00020101021226850014BR.GOV.BCB.PIX0136d1ff5cc0-8a9d-497a-b982-438904c233835204000053039865802BR5925Empresa Exemplo Ltda6009SAO PAULO62070503***6304ABCD"
+          },
+          "imagem_base64": {
+            "description": "Imagem em base64 do QRCODE PIX",
+            "type": "string",
+            "example": "iVBORw0KGgoAAAANSUhEUgAAAPoAAAD6AQAAAACgl2eQAAAC3ElEQVR4X..."
+          },
+          "canal_operacao": {
+            "description": "Canal usado na operação",
+            "type": "string",
+            "example": "bankline_pj"
+          },
+          "id_operador": {
+            "description": "Id do operador que efetuou a operação. Campo de controle interno do Itau Unibanco\n",
+            "type": "string",
+            "example": " "
+          }
+        },
+        "required": [
+          "tipo",
+          "recebedor"
+        ]
+      },
+      "message": {
+        "type": "object",
+        "properties": {
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/message"
+            }
+          }
+        },
+        "required": [
+          "messages"
+        ]
+      },
+      "messages": {
+        "type": "object",
+        "properties": {
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/message"
+            }
+          }
+        },
+        "required": [
+          "messages"
+        ]
+      },
+      "dadosContaPagador": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "tipo_conta": {
+            "description": "Tipo de conta do pagador do PIX\n<table><tr><td>ENUM</td></tr><tr><td>corrente</td></tr><tr><td>poupanca</td></tr><tr><td>salario</td></tr></table>\n",
+            "type": "string",
+            "example": "corrente"
+          },
+          "ispb": {
+            "description": "Identificador do Sistema de Pagamentos Brasileiros do pagador do PIX",
+            "type": "string",
+            "example": "60701190"
+          },
+          "nome_instituicao": {
+            "description": "Nome da Instituição do pagador do PIX",
+            "type": "string",
+            "example": "Banco Itaú Unibanco S.A"
+          },
+          "agencia": {
+            "description": "Agência do pagador do PIX",
+            "type": "string",
+            "example": "3200"
+          },
+          "conta": {
+            "description": "Conta do pagador do PIX",
+            "type": "string",
+            "example": "00012345"
+          }
+        }
+      },
+      "dadosContaRecebedor": {
+        "type": "object",
+        "title": "Dados Conta Recebedor",
+        "description": "**Descrição:** Dados de conta do recebedor.\n",
+        "properties": {
+          "tipo_conta": {
+            "description": "**Descrição:** Tipo de conta do recebedor do PIX.\n",
+            "type": "string",
+            "enum": [
+              "corrente",
+              "poupanca",
+              "salario"
+            ],
+            "example": "corrente"
+          },
+          "ispb": {
+            "description": "**Descrição:** Identificador do Sistema de Pagamentos Brasileiros do recebedor do PIX.\n",
+            "type": "string",
+            "maxLength": 8,
+            "example": "60701190"
+          },
+          "nome_instituicao": {
+            "description": "**Descrição:** Nome da Instituição do recebedor do PIX.\n",
+            "type": "string",
+            "example": "Banco Itaú Unibanco S.A"
+          },
+          "agencia": {
+            "description": "**Descrição:** Agência do recebedor do PIX.\n",
+            "type": "string",
+            "minLength": 4,
+            "maxLength": 4,
+            "example": "3200"
+          },
+          "conta": {
+            "description": "**Descrição:** Conta do recebedor do PIX.\n",
+            "type": "string",
+            "maxLength": 8,
+            "example": "00012345"
+          }
+        },
+        "required": [
+          "tipo_conta",
+          "ispb",
+          "nome_instituicao",
+          "agencia",
+          "conta"
+        ]
+      },
+      "devedor": {
+        "type": "object",
+        "title": "Devedor",
+        "description": "**Descrição:** Campo que organiza a identificação do devedor, ou seja, a pessoa ou instituição a quem a cobrança está endereçada. Não identifica, necessariamente, quem irá efetivamente realizar o pagamento.\n\n**Observação:** Campo retornado somente se o parâmetro de entrada foi colocado na requisição.\n\nNão é permitido que o campo `devedor.cpf` e campo `devedor.cnpj` estejam preenchidos ao mesmo tempo. Se o campo `devedor.cnpj` está preenchido, então o campo `devedor.cpf` não pode estar preenchido, e vice-versa. Se o campo devedor.nome está preenchido, então deve existir ou um `devedor.cpf` ou um campo `devedor.cnpj` preenchido.\n",
+        "properties": {
+          "cpf": {
+            "description": "**Descrição:** Número do Documento Cadastro de Pessoa Física.\n\n**Observação:** Se preenchido, não enviar CNPJ.\n",
+            "type": "string",
+            "title": "CPF",
+            "pattern": "^\\d{11}$",
+            "example": "12345678901"
+          },
+          "cnpj": {
+            "description": "**Descrição:** Número do Cadastro Nacional da Pessoa Jurídica.\n\n**Observação:** Se preenchido, não enviar CPF.\n",
+            "type": "string",
+            "title": "CNPJ",
+            "pattern": "^\\d{14}$",
+            "example": "12345678000199"
+          },
+          "nome": {
+            "description": "**Descrição:** Nome do pagador da cobrança. \n\n**Observação:** Necessário preencher o campo CNPJ ou o campo CPF.\n",
+            "type": "string",
+            "title": "Nome",
+            "maxLength": 200,
+            "example": "Empresa XPTO Ltda"
+          }
+        },
+        "required": [
+          "cpf",
+          "cnpj",
+          "nome"
+        ]
+      },
+      "devedorImediata": {
+        "type": "object",
+        "title": "Devedor",
+        "description": "**Descrição:** Campo que organiza a identificação do devedor, ou seja, a pessoa ou instituição a quem a cobrança está endereçada. Não identifica, necessariamente, quem irá efetivamente realizar o pagamento.\n\n**Observação:** Campo retornado somente se o parâmetro de entrada foi colocado na requisição.\n\nNão é permitido que o campo `devedor.cpf` e campo `devedor.cnpj` estejam preenchidos ao mesmo tempo. Se o campo `devedor.cnpj` está preenchido, então o campo `devedor.cpf` não pode estar preenchido, e vice-versa. Se o campo devedor.nome está preenchido, então deve existir ou um `devedor.cpf` ou um campo `devedor.cnpj` preenchido.\n",
+        "properties": {
+          "cpf": {
+            "description": "**Descrição:** Número do Documento Cadastro de Pessoa Física.\n\n**Observação:** Se preenchido, não enviar CNPJ.\n",
+            "type": "string",
+            "title": "CPF",
+            "pattern": "^\\d{11}$",
+            "example": "12345678901"
+          },
+          "cnpj": {
+            "description": "**Descrição:** Número do Cadastro Nacional da Pessoa Jurídica.\n\n**Observação:** Se preenchido, não enviar CPF.\n",
+            "type": "string",
+            "title": "CNPJ",
+            "pattern": "^\\d{14}$",
+            "example": "12345678000199"
+          },
+          "nome": {
+            "description": "**Descrição:** Nome do pagador da cobrança (nome ou nome fantasia). \n\n**Observação:** Necessário preencher o campo CNPJ ou o campo CPF.\n",
+            "type": "string",
+            "title": "Nome",
+            "maxLength": 200,
+            "example": "Empresa XPTO Ltda"
+          }
+        },
+        "required": [
+          "cpf",
+          "cnpj",
+          "nome"
+        ]
+      },
+      "horario": {
+        "type": "object",
+        "description": "**Descrição:** Horários de abertura e fechamento para a disponibilidade do serviço de saque\n",
+        "properties": {
+          "abertura_saque": {
+            "title": "Hora de abertura",
+            "description": "**Descrição:** Hora de abertura para serviço de saque.\n",
+            "type": "string",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "example": "08:00"
+          },
+          "fechamento_saque": {
+            "title": "Hora de fechamento",
+            "description": "**Descrição:** Hora de fechamento para serviço de saque.\n",
+            "type": "string",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "example": "18:00"
+          }
+        }
+      },
+      "informacaoAdicional": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "nome": {
+            "description": "**Descrição:** Nome do campo de informação adicional.\n",
+            "type": "string",
+            "title": "Nome",
+            "maxLength": 50,
+            "example": "tipoDeServico"
+          },
+          "valor": {
+            "description": "**Descrição:** Dados a serem apresentados na informação adicional.\n",
+            "type": "string",
+            "title": "Valor",
+            "maxLength": 200,
+            "example": "Saque emergencial disponível"
+          }
+        },
+        "required": [
+          "nome",
+          "valor"
+        ]
+      },
+      "locationBase": {
+        "type": "object",
+        "title": "Location do Payload",
+        "description": "Dados da localização do payload.",
+        "properties": {
+          "id": {
+            "title": "Identificador da Localização do Payload",
+            "description": "**Descrição:** Identificador da URL do PIX para consulta do payload criptografado - pix link BACEN.\n\n**Tipo do campo:** integer($int64).\n",
+            "type": "integer",
+            "readOnly": true,
+            "example": 123456789
+          },
+          "location": {
+            "title": "Localização do Payload",
+            "description": "**Descrição:** URL do PIX para consulta do payload criptografado - pix link BACEN.\n\n**Tipo do campo:** string($uri).\n",
+            "type": "string",
+            "maxLength": 77,
+            "readOnly": true,
+            "example": "https://api.bcb.gov.br/pix/location/123456789"
+          },
+          "tipo_cob": {
+            "title": "Tipo da Cobrança",
+            "description": "**Descrição:** Define se o tipo do documento é imediata ou vencimento.\n",
+            "enum": [
+              "cob",
+              "cobv"
+            ],
+            "type": "string",
+            "example": "cob"
+          },
+          "criacao": {
+            "title": "Data de Criação",
+            "description": "**Descrição:** Data e hora de criação da localização da cobrança.\n\n**Observação:** Respeita RFC 3339.\n\n**Tipo do campo:** string($date-time).\n",
+            "type": "string",
+            "readOnly": true,
+            "example": "2024-01-10T14:30:00Z"
+          }
+        },
+        "required": [
+          "id",
+          "location",
+          "tipo_cob",
+          "criacao"
+        ]
+      },
+      "produtos": {
+        "type": "object",
+        "description": "**Descrição:** Indicação sobre quais produtos este ponto de atendimento oferece\n",
+        "properties": {
+          "pix_saque": {
+            "title": "Pix Saque",
+            "description": "**Descrição:** Identificador sobre se o produto pix-saque é oferecido pelo ponto de\natendimento.\n\n**Observação:** true - false\n",
+            "type": "boolean",
+            "example": true
+          },
+          "pix_troco": {
+            "title": "Pix Troco",
+            "description": "**Descrição:** Identificador sobre se o produto pix-troco é oferecido pelo ponto de\natendimento.\n\n**Observação:** true - false\n",
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "pix_saque",
+          "pix_troco"
+        ]
+      },
+      "recorrencia": {
+        "type": "object",
+        "description": "Objeto recorrencia referente ao pix automatico",
+        "properties": {
+          "id_recorrencia": {
+            "description": "Identificador da recorrencia",
+            "type": "string",
+            "example": "45021546414"
+          },
+          "tipo_frequencia": {
+            "description": "Frequencia da recorrencia",
+            "type": "string",
+            "example": "ANUAL"
+          },
+          "numero_contrato": {
+            "description": "Numero do contrato",
+            "type": "string",
+            "example": "854121fsa4472s42"
+          },
+          "data_agendamento": {
+            "description": "Data do agendamento",
+            "type": "string",
+            "example": "2025-05-16T15:56:25"
+          },
+          "informacao_adicional": {
+            "description": "Informaçao adicional",
+            "type": "string",
+            "example": "recorrencia para pagamento de contas"
+          }
+        }
+      },
+      "valorBase": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "original": {
+            "description": "Valor nominal/cadastro do QR CODE",
+            "type": "number",
+            "example": 150.75
+          },
+          "permite_alteracao": {
+            "description": "Indica se o valor do QR CODE pode ser alterado",
+            "type": "boolean",
+            "example": true
+          },
+          "valor_qrcode": {
+            "description": "Valor do QR CODE",
+            "type": "number",
+            "example": 150.75
+          },
+          "juros": {
+            "description": "Valor do juros por atraso de pagamento do QR CODE.",
+            "type": "number",
+            "example": 2.5
+          },
+          "multa": {
+            "description": "Valor da multa por atraso de pagamento do QR CODE",
+            "type": "number",
+            "example": 1.75
+          },
+          "abatimento": {
+            "description": "Valor de abatimento do valor do QR CODE",
+            "type": "number",
+            "example": 5
+          },
+          "desconto": {
+            "description": "Valor de desconto por dias de antecipação de pagamento em relação a data referencia de desconto do QR CODE",
+            "type": "number",
+            "example": 3
+          },
+          "final": {
+            "description": "Valor calculado aplicando juros, multa, abatimento e desconto",
+            "type": "number",
+            "example": 146
+          }
+        }
+      },
+      "detalheDevolucoes": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "id_devolucao": {
+            "description": "UUID que identifica a devolução",
+            "type": "string",
+            "example": "b1ff5cc0-8a9c-497e-b983-738904c23389"
+          },
+          "id": {
+            "description": "Id que identifica a devolução",
+            "type": "string",
+            "example": "D6070119020201115220844048500858"
+          },
+          "id_lancamento_pagamento_original_pix": {
+            "description": "UUID que identifica o id do pagamento que originou a devolução",
+            "type": "string",
+            "example": "b1ff5cc0-8a9c-497e-b983-738904c23389"
+          },
+          "pagamento": {
+            "$ref": "#/components/schemas/pagamento"
+          },
+          "data": {
+            "description": "Data da devolução do PIX",
+            "type": "string",
+            "example": "2020-11-04T15:07:49.34Z"
+          },
+          "valor": {
+            "description": "Valor da devolução.",
+            "type": "number",
+            "example": 0.05
+          },
+          "motivo_devolucao": {
+            "description": "Motivo da devolução.",
+            "type": "string",
+            "example": "Sem motivos"
+          },
+          "codigo_motivo_devolucao": {
+            "description": "Código do motivo da devolução.",
+            "type": "string",
+            "example": "1221"
+          },
+          "natureza": {
+            "description": "Natureza da devolução.",
+            "type": "string",
+            "example": "ORIGINAL"
+          },
+          "outro_motivo_devolucao": {
+            "description": "Motivo personalizado pela qual foi solicitada a devolução da transferência.",
+            "type": "string",
+            "example": "Outros motivos"
+          },
+          "creditado": {
+            "$ref": "#/components/schemas/devolucoesCreditado"
+          },
+          "debitado": {
+            "$ref": "#/components/schemas/devolucoesDebitado"
+          },
+          "canal_operacao": {
+            "description": "Canal que foi realizada a devolução.",
+            "type": "string",
+            "example": "2020-11-04T15:07:49.34Z"
+          },
+          "operador": {
+            "description": "operador que efetuou a operação.",
+            "type": "string",
+            "example": "2020-11-04T15:07:49.34Z"
+          },
+          "participante_indireto": {
+            "$ref": "#/components/schemas/participanteIndireto"
+          },
+          "aviso": {
+            "$ref": "#/components/schemas/aviso"
+          },
+          "operacao_credito": {
+            "description": "Indica se determinado QR CODE foi utilizado como garantia de uma operação de crédito ou antecipado.",
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "data",
+          "valor"
+        ]
+      },
+      "devolucoesCreditado": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "numero_documento": {
+            "description": "Número documento do pagador final do PIX",
+            "type": "string",
+            "example": "00336708429"
+          },
+          "nome": {
+            "description": "Nome do pagador final do PIX",
+            "type": "string",
+            "example": "João da Silva"
+          },
+          "codigo_ispb": {
+            "description": "Código ISPB da instituição fincanceira da conta de pagamento do PIX",
+            "type": "string",
+            "example": "60701190"
+          },
+          "nome_instituicao_financeira": {
+            "description": "Nome da instituição fincanceira da conta de pagamento do PIX",
+            "type": "string",
+            "example": "Banco Itau Unibanco S.A"
+          },
+          "tipo_conta": {
+            "description": "Tipo da conta. Pode ser Conta corrente, poupança ou salário",
+            "type": "string",
+            "example": "corrente"
+          },
+          "agencia": {
+            "description": "Agência utilizada para pagamento de PIX",
+            "type": "string",
+            "example": "3200"
+          },
+          "conta": {
+            "description": "Conta utilizada para pagamento de PIX",
+            "type": "string",
+            "example": "0000000675432"
+          },
+          "digito_verificador": {
+            "description": "Dígito verificador da conta utilizada para pagamento de PIX",
+            "type": "string",
+            "example": "4"
+          }
+        }
+      },
+      "devolucoesDebitado": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "numero_documento": {
+            "description": "Número documento do pagador final do PIX",
+            "type": "string",
+            "example": "00336708429"
+          },
+          "nome": {
+            "description": "Nome do pagador final do PIX",
+            "type": "string",
+            "example": "João da Silva"
+          },
+          "codigo_ispb": {
+            "description": "Código ISPB da instituição fincanceira da conta de pagamento do PIX",
+            "type": "string",
+            "example": "60701190"
+          },
+          "nome_instituicao_financeira": {
+            "description": "Nome da instituição fincanceira da conta de pagamento do PIX",
+            "type": "string",
+            "example": "Banco Itau Unibanco S.A"
+          },
+          "tipo_conta": {
+            "description": "Tipo da conta. Pode ser Conta corrente, poupança ou salário",
+            "type": "string",
+            "example": "corrente"
+          },
+          "agencia": {
+            "description": "Agência utilizada para pagamento de PIX",
+            "type": "string",
+            "example": "3200"
+          },
+          "conta": {
+            "description": "Conta utilizada para pagamento de PIX",
+            "type": "string",
+            "example": "0000000675432"
+          },
+          "digito_verificador": {
+            "description": "Dígito verificador da conta utilizada para pagamento de PIX",
+            "type": "string",
+            "example": "4"
+          },
+          "chave_enderecamento": {
+            "description": "chaves de endereçamento do da conta",
+            "type": "string",
+            "example": "itau@itau-unibanco.com.br"
+          }
+        }
+      }
+    },
+    "examples": {
+      "200LancamentosPixLista": {
+        "value": {
+          "data": [
+            {
+              "idLancamento": "0df06567-3112-4530-82ff-2c78b68ca01d",
+              "tipoLancamento": "pagamento",
+              "visao": "emissor",
+              "tipoOperacao": "credito",
+              "literalLancamento": "PIX QRS JOAO",
+              "detalhePagamento": {
+                "idPagamento": "E60701190202008071950DY5Q40W22TX",
+                "idTransferencia": "62fee71d-997e-3058-a33a-4f0b011a852",
+                "idPagamentoPlataforma": "32697352-c6ee-420d-a090-a5002dfd42af",
+                "idLancamento": "25d2ca6c-ecc4-494e-5236-f734802fe652",
+                "data": "2024-05-07T16:50:54",
+                "valor": 2.5,
+                "valorTarifa": 0.1,
+                "documento": {
+                  "idDocumento": "87eb27e7-6ad3-41d1-87d6-684e4ea013db",
+                  "versao": "1.0.0",
+                  "chave": "email@email.com",
+                  "txid": "cobX1uayx0182873",
+                  "revisao": 1,
+                  "status": "ATIVA",
+                  "valor": {
+                    "original": 2.5,
+                    "valorQrcode": 2.5,
+                    "saque": {
+                      "valor": 100,
+                      "compra": 0,
+                      "modalidadeAgente": "AGPSS",
+                      "modalidadeAlteracao": 0,
+                      "prestadorDeServicoDeSaque": "12345678"
+                    }
+                  },
+                  "calendario": {
+                    "criacao": "2024-05-07T15:50:54.000Z",
+                    "expiracao": "2024-06-13T13:01:31.281Z"
+                  },
+                  "qrcodePix": {
+                    "tipo": "estatico"
+                  }
+                },
+                "creditado": {
+                  "numeroDocumento": "36681188000128",
+                  "nome": "MOISES DA SILVA",
+                  "codigoIspb": "60701190",
+                  "nomeInstituicaoFinanceira": "ITAÚ UNIBANCO S.A",
+                  "tipoConta": "corrente",
+                  "agencia": "0852",
+                  "conta": "14523",
+                  "digitoVerificador": "3",
+                  "chaveEnderecamento": "36681188000128"
+                },
+                "debitado": {
+                  "numeroDocumento": "03663161000153",
+                  "nome": "JOAO DA SILVA",
+                  "codigoIspb": "45625895",
+                  "nomeInstituicaoFinanceira": "BANCO INTERNET S.A.",
+                  "tipoConta": "transacional",
+                  "agencia": "0001",
+                  "conta": "423145698",
+                  "digitoVerificador": "5"
+                },
+                "detalheValor": {
+                  "valor": 10,
+                  "valorQrcode": 10
+                },
+                "dataContabil": "2024-05-07"
+              }
+            },
+            {
+              "idLancamento": "6a622b13-b8e1-42f1-816d-4578e1871f78",
+              "tipoLancamento": "pagamento",
+              "visao": "emissor",
+              "tipoOperacao": "credito",
+              "literalLancamento": "PIX TRANSF JOAO01/05",
+              "tipoPix": "transferencia",
+              "operacaoCredito": false,
+              "detalhePagamento": {
+                "idPagamento": "E6070119020200730190278436056189",
+                "idTransferencia": "62fee71d-107e-1240-a33a-4f0b011a852",
+                "idPagamentoPlataforma": "5fb47c9e-70f8-42f3-896d-9874f0b5511c",
+                "idLancamento": "6a622b13-b8e1-42f1-816d-4578e1871f78",
+                "valor": 10,
+                "valorTarifa": 0,
+                "devolvido": "NAO_DEVOLVIDO",
+                "indicadorBloqueio": false,
+                "indicadorPossibilidadeDevolucao": true,
+                "valorMaximoDevolucao": 10,
+                "valorDevolvido": 0,
+                "creditado": {
+                  "numeroDocumento": "36681188000128",
+                  "nome": "MOISES DA SILVA",
+                  "codigoIspb": "60701190",
+                  "nomeInstituicaoFinanceira": "ITAÚ UNIBANCO S.A",
+                  "tipoConta": "corrente",
+                  "agencia": "0852",
+                  "conta": "14523",
+                  "digitoVerificador": "3",
+                  "chaveEnderecamento": "36681188000128"
+                },
+                "debitado": {
+                  "numeroDocumento": "03663161000153",
+                  "nome": "JOAO DA SILVA",
+                  "codigoIspb": "45625895",
+                  "nomeInstituicaoFinanceira": "BANCO INTERNET S.A.",
+                  "tipoConta": "transacional",
+                  "agencia": "0001",
+                  "conta": "423145698",
+                  "digitoVerificador": "5"
+                },
+                "detalheValor": {
+                  "valor": 10,
+                  "valorQrcode": 10
+                },
+                "data": "2024-05-01T23:22:41",
+                "dataContabil": "2024-05-02"
+              }
+            }
+          ],
+          "summary": [
+            {
+              "field": "valorRecebido",
+              "value": {
+                "amount": 12.5,
+                "unity": "reais"
+              }
+            },
+            {
+              "field": "valorDebitado",
+              "value": {
+                "amount": 0,
+                "unity": "reais"
+              }
+            }
+          ],
+          "pagination": {
+            "links": {
+              "first": "/conciliacao/v1/lancamentos-pix?page=1&pageSize=5",
+              "last": "/conciliacao/v1/lancamentos-pix?page=1&pageSize=5",
+              "previous": "",
+              "next": ""
+            },
+            "page": 1,
+            "totalPages": 1,
+            "totalElements": 2,
+            "pageSize": 5
+          }
+        },
+        "description": ""
+      },
+      "200LancamentosPixDetalhe": {
+        "value": {
+          "data": {
+            "idLancamento": "6a622b13-b8e1-42f1-816d-4578e1871f78",
+            "tipoLancamento": "pagamento",
+            "visao": "emissor",
+            "tipoOperacao": "credito",
+            "literalLancamento": "PIX TRANSF JOAO01/05",
+            "tipoPix": "transferencia",
+            "operacaoCredito": false,
+            "detalhePagamento": {
+              "idPagamento": "E6070119020200730190278436056189",
+              "idTransferencia": "62fee71d-107e-1240-a33a-4f0b011a852",
+              "idPagamentoPlataforma": "5fb47c9e-70f8-42f3-896d-9874f0b5511c",
+              "idLancamento": "6a622b13-b8e1-42f1-816d-4578e1871f78",
+              "valor": 10,
+              "valorTarifa": 0,
+              "devolvido": "NAO_DEVOLVIDO",
+              "indicadorBloqueio": false,
+              "indicadorPossibilidadeDevolucao": true,
+              "valorMaximoDevolucao": 10,
+              "valorDevolvido": 0,
+              "creditado": {
+                "numeroDocumento": "36681188000128",
+                "nome": "MOISES DA SILVA",
+                "codigoIspb": "60701190",
+                "nomeInstituicaoFinanceira": "ITAÚ UNIBANCO S.A",
+                "tipoConta": "corrente",
+                "agencia": "0852",
+                "conta": "14523",
+                "digitoVerificador": "3",
+                "chaveEnderecamento": "36681188000128"
+              },
+              "debitado": {
+                "numeroDocumento": "03663161000153",
+                "nome": "JOAO DA SILVA",
+                "codigoIspb": "45625895",
+                "nomeInstituicaoFinanceira": "BANCO INTERNET S.A.",
+                "tipoConta": "transacional",
+                "agencia": "0001",
+                "conta": "423145698",
+                "digitoVerificador": "5"
+              },
+              "detalheValor": {
+                "valor": 10,
+                "valorQrcode": 10
+              },
+              "data": "2024-05-01T23:22:41",
+              "dataContabil": "2024-05-02"
+            }
+          }
+        },
+        "description": ""
+      }
+    },
+    "responses": {
+      "204": {
+        "headers": {
+          "Content-Location": {
+            "description": "URI correspondente a pesquisa corrente",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "A consulta retorna informações:\n   - A coleção tem elementos mas nenhum atende aos filtros especificados possível.\n   - A coleção não contém elementos.\nBody não incluir resposta.\n"
+      },
+      "303": {
+        "headers": {
+          "Content-Location": {
+            "description": "URI correspondente a consulta do status do processamento assíncrono.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "Location": {
+            "description": "URI correspondente a consulta do elemento já processado assíncronamente.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "See Other - Redirecionamento. A resposta da consulta será um redirecionamento com o HTTP status code 303.\nA localização do recurso é informado no no Header de resposta Location.\n"
+      },
+      "304": {
+        "headers": {
+          "Content-Location": {
+            "description": "O recurso não foi atualizado (foi fornecido do cache). Apropriado apenas nos serviços que são susceptíveis de registrar suas respostas.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "O recurso não foi atualizado (foi fornecido do cache). Apropriado apenas nos serviços que são susceptíveis de registrar suas respostas."
+      },
+      "400": {
+        "description": "Não Autorizado",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/messages"
+            },
+            "examples": {
+              "400": {
+                "value": [
+                  {
+                    "codigo": "400",
+                    "mensagem": "Erros de validação ou os campos informados. Verifique na resposta da API os campos informados.",
+                    "campos": [
+                      {
+                        "nome": "CNPJ",
+                        "mensagem": "Parâmetro não informado",
+                        "valor\"": "null"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "401": {
+        "description": "Não Autorizado",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/messages"
+            },
+            "examples": {
+              "401": {
+                "value": {
+                  "messages": [
+                    {
+                      "codigo": "401",
+                      "mensagem": "Não Autorizado"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "403": {
+        "description": "Não Autorizado",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/messages"
+            },
+            "examples": {
+              "404": {
+                "value": {
+                  "messages": [
+                    {
+                      "codigo": "403",
+                      "mensagem": "Acesso não autorizado"
+                    }
+                  ]
+                },
+                "description": ""
+              }
+            }
+          }
+        }
+      },
+      "404": {
+        "description": "Não Autorizado",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/messages"
+            },
+            "examples": {
+              "404": {
+                "value": {
+                  "messages": [
+                    {
+                      "codigo": "404",
+                      "mensagem": "Recurso Inexistente"
+                    }
+                  ]
+                },
+                "description": ""
+              }
+            }
+          }
+        }
+      },
+      "405": {
+        "description": "Não Autorizado",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/messages"
+            },
+            "examples": {
+              "405": {
+                "value": {
+                  "messages": [
+                    {
+                      "codigo": "405",
+                      "mensagem": "Método não permitido"
+                    }
+                  ]
+                },
+                "description": "Método não permitido"
+              }
+            }
+          }
+        }
+      },
+      "410": {
+        "description": "Indica que a entidade existia, mas foi permanentemente removida."
+      },
+      "422": {
+        "description": "Não Autorizado",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/messages"
+            },
+            "examples": {
+              "422": {
+                "value": {
+                  "messages": [
+                    {
+                      "codigo": "422",
+                      "mensagem": "Erro semântico"
+                    }
+                  ]
+                },
+                "description": "Erro semântico"
+              }
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "Não Autorizado",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/messages"
+            },
+            "examples": {
+              "500": {
+                "value": {
+                  "messages": [
+                    {
+                      "codigo": "500",
+                      "mensagem": "Erro inesperado"
+                    }
+                  ]
+                },
+                "description": "Erro inesperado"
+              }
+            }
+          }
+        }
+      },
+      "503": {
+        "description": "Não Autorizado",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/messages"
+            },
+            "examples": {
+              "503": {
+                "value": {
+                  "messages": [
+                    {
+                      "codigo": "501",
+                      "mensagem": "Serviço Indisponível"
+                    }
+                  ]
+                },
+                "description": "Serviço Indisponível"
+              }
+            }
+          }
+        }
+      },
+      "504": {
+        "description": "Gateway Timeout. Entre em contato com o suporte Itaú."
+      }
+    },
+    "parameters": {
+      "idConta": {
+        "in": "query",
+        "name": "id_conta",
+        "required": true,
+        "description": "**Descrição:** ID da conta que que efetuou a operação. Campo composto por codigo ISPB + agencia (4 dígitos) + conta (13 dígitos), sem o DAC. \n\nExemplo: ISPB Itaú: 60701190, Agência: 1111, Conta: 12345-3, idConta = '6070119011110000000012345'\n\nPara clientes indiretos, o ID da conta deve ser preenchido com a informação do ISPB indireto.\n\n**Observação:** É obrigatório o preenchimento do campo idConta.\n",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "dataCriacaoLancamento": {
+        "in": "query",
+        "name": "data_criacao_lancamento",
+        "required": false,
+        "description": "**Descrição:** Range de datas de pagamento/devolução dos pixs, no formato \"2020-06-01T16:00,2020-06-05T16:15\" com limite de 6 meses a partir da data da consulta. Este parâmetro filtra todos lançamentos que foram consumidos e disponibilizadas na conciliação neste intervalo.\n\n**Observação:** É obrigatório o preenchimento do campo dataCriacaoLancamento ou do campo dataLancamento. Recomenda-se a utilização da dataCriacaoLancamento.\n",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "dataLancamento": {
+        "in": "query",
+        "name": "data_lancamento",
+        "required": false,
+        "description": "**Descrição:** Range de datas para consultar a data de lançamento, no formato \"2020-06-01T16:00,2020-06-05T16:15\" com limite de 6 meses a partir da data da consulta. Este parâmetro filtra todos lançamentos que aconteceram no intervalo daquela data. \n\n**Observação:** É obrigatório o preenchimento do campo dataLancamento. Se preenchido dataCriacaoLancamento, não preencher esse campo.\n",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "txid": {
+        "in": "query",
+        "name": "txid",
+        "required": false,
+        "description": "**Descrição:** Identificador do QR Code que possibilita a conciliação de pagamentos. \n\n**Observação:** Para QR Code Estático, este identificador deve conter no máximo 25 posições. Para QR Code Dinâmico, este código deve possuir entre 26 a 35 posições, podendo conter letras minúsculas (a-z), letras maiúsculas (A-Z) e números (0-9).\n",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "e2eid": {
+        "in": "query",
+        "name": "e2eid",
+        "required": false,
+        "description": "**Descrição:** Id fim a fim da transação. Esse campo é o id do pagamento. Transita nas mensagens de recebimento dos QR Codes e transferências.\n",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "visao": {
+        "in": "query",
+        "name": "visao",
+        "required": false,
+        "description": "**Descrição:** Indica se a consulta deve retornar os pix pela visão emissor (os que eu emiti e forma pagos/devolvidos) ou visão pagador (os que eu paguei/ recebi devolução). \n\n**Observação:** Caso não informado, vem as duas visões.\n",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "emissor",
+            "pagador"
+          ]
+        }
+      },
+      "tipoLancamento": {
+        "in": "query",
+        "name": "tipo_lancamento",
+        "required": false,
+        "description": "**Descrição:** Indica se a consulta deve retornar pagamentos ou devoluções, ou ambos se não informado.\n",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "pagamento",
+            "devolucao"
+          ]
+        }
+      },
+      "tipoOperacao": {
+        "in": "query",
+        "name": "tipo_operacao",
+        "required": false,
+        "description": "**Descrição:** Tipo da operação transacional que está sendo realizada.\n",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "debito",
+            "credito"
+          ]
+        }
+      },
+      "tipo": {
+        "in": "query",
+        "name": "tipo",
+        "required": false,
+        "description": "**Descrição:** Tipo do lançamento do Pix, podendo ser estático, dinâmico ou transferência pix.\n",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "estatico",
+            "dinamico",
+            "transferencia"
+          ]
+        }
+      },
+      "idDocumento": {
+        "in": "query",
+        "name": "id_documento",
+        "required": false,
+        "description": "**Descrição:** UUID que identifica o Documento\n",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "valorDocumentoPagadorEfetivo": {
+        "in": "query",
+        "name": "valor_documento_pagador_efetivo",
+        "required": false,
+        "description": "**Descrição:** CNPJ/CPF do pagador efetivo\n",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "documento": {
+        "in": "query",
+        "name": "documento",
+        "required": false,
+        "description": "**Descrição:** CNPJ do recebedor\n",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "chaves": {
+        "in": "query",
+        "name": "chaves",
+        "required": false,
+        "description": "**Descrição:** Lista de chaves de endereçamento do recebedor, utilizada na emissão de um PIX. \n\n**Observação:** Inserir no formato 'chave1,chave2'\n",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "devolvido": {
+        "in": "query",
+        "name": "devolvido",
+        "required": false,
+        "description": "**Descrição:** Indica se um determinado pagamento foi devolvido (parcial ou total) ou não devolvido.\n",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "total",
+            "parcial",
+            "nao_devolvido"
+          ]
+        }
+      },
+      "view": {
+        "in": "query",
+        "name": "view",
+        "required": false,
+        "description": "**Descrição:** Definição a visão que irá permitir o mecanismo de agrupar dados de saída de um determinado recurso.\n  -- basico: retorna somente os atributos básicos do recurso\n  -- completo: retorna todos os atributos do recurso\n",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "basico",
+            "completo"
+          ]
+        }
+      },
+      "subTipoPix": {
+        "in": "query",
+        "name": "sub_tipo_pix",
+        "required": false,
+        "description": "**Descrição:** Subtipo do QR Code. \n\n**Observação:** Para QR Codes do tipo dinâmico, o subtipo pode ser imediato e vencimento. Para o QR Code do tipo estático, o subtipo pode ser estático registrado\n",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "imediato",
+            "vencimento",
+            "estatico_registrado"
+          ]
+        }
+      },
+      "subCategoria": {
+        "in": "query",
+        "name": "sub_categoria",
+        "required": false,
+        "description": "**Descrição:** Subcategoria do QR Code para filtrar saque, troco, bolecode e qrcode estático cadastral.\n",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "saque",
+            "troco",
+            "bolecode",
+            "cadastral"
+          ]
+        }
+      },
+      "canalOperacao": {
+        "in": "query",
+        "name": "canal_operacao",
+        "required": false,
+        "description": "**Descrição:** Canal utilizado para emitir o QR Code.\n",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "bankline_pf",
+            "bankline_pj",
+            "mobile_pf",
+            "mobile_pj",
+            "api",
+            "rede",
+            "cnab",
+            "cnab_boleto_pix",
+            "bankline_boleto_pix",
+            "api_externa_boleto_pix",
+            "at",
+            "reneg",
+            "qrcodelaranja",
+            "internacional",
+            "ia"
+          ]
+        }
+      },
+      "operacaoCredito": {
+        "in": "query",
+        "name": "operacao_credito",
+        "required": false,
+        "description": "**Descrição:** Indica se determinado QR Code foi utilizado como garantia de uma operação de crédito ou antecipado. \n\n**Observação:** Atualmente, apenas os QR Codes atrelados ao bolecode podem ser utilizados na operação de crédito. Vale ressaltar que o valor da operação do QR Code liquidado, quando atrelado a uma operação de crédito, não será creditado na conta emissora do QR Code.\n",
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      "page": {
+        "in": "query",
+        "name": "page",
+        "required": false,
+        "description": "**Descrição:** Definir um número de página para obter informações desta coleção\n",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "pageSize": {
+        "in": "query",
+        "name": "page_size",
+        "required": false,
+        "description": "**Descrição:** Limitar o número de elementos por página\n",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "orderBy": {
+        "in": "query",
+        "name": "order_by",
+        "required": false,
+        "description": "**Descrição:** Opção para ordenação.\n",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "order": {
+        "in": "query",
+        "name": "order",
+        "required": false,
+        "description": "**Descrição:** Opção de ordenação ascendente ou descendente.\n",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "asc",
+            "desc"
+          ]
+        }
+      },
+      "lancamentoPixId": {
+        "in": "path",
+        "name": "lancamentoPixId",
+        "required": true,
+        "description": "**Descrição:** ID do lancamento pix\n",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "x-itau-correlationID": {
+        "name": "x-itau-correlationID",
+        "in": "header",
+        "description": "**Descrição:** Identificador de correlação que serve como um agrupador dentro da estrutura de audit trail.\n\n**RegEx:** `^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`\n",
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "example": "bc4d8712-904a-47af-a3a0-63751ddb7e56"
+      },
+      "x-itau-flowID": {
+        "name": "x-itau-flowID",
+        "in": "header",
+        "description": "**Descrição:** Identificador de correlação que serve como um agrupador dentro da estrutura de audit trail.\n\n**RegEx:** `^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`\n",
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "example": "bc4d8712-904a-47af-a3a0-63751ddb7e56"
+      }
+    },
+    "securitySchemes": {
+      "sigv4": {
+        "type": "apiKey",
+        "name": "Authorization",
+        "in": "header",
+        "x-amazon-apigateway-authtype": "awsSigv4"
+      },
+      "APIGatewaySTSAuthorizer": {
+        "x-amazon-apigateway-authtype": "custom",
+        "in": "header",
+        "name": "auth",
+        "type": "apiKey",
+        "x-amazon-apigateway-authorizer": {
+          "identitySource": "method.request.header.authorization",
+          "authorizerUri": "arn:aws:apigateway:${iupipes_aws_region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${iupipes_aws_region}:${iupipes_deploy_aws_env_account}:function:valida-token-gov2-conciliacao-v1-aws-ext/invocations",
+          "authorizerCredentials": "arn:aws:iam::${iupipes_deploy_aws_env_account}:role/custom-gateway-invoke-authorizer-role",
+          "authorizerResultTtlInSeconds": 0,
+          "type": "request"
+        }
+      }
+    }
+  },
+  "x-amazon-apigateway-request-validators": {
+    "all": {
+      "validateRequestBody": true,
+      "validateRequestParameters": true
+    },
+    "none": {
+      "validateRequestBody": false,
+      "validateRequestParameters": false
+    },
+    "params-only": {
+      "validateRequestBody": false,
+      "validateRequestParameters": true
+    }
+  },
+  "x-amazon-apigateway-gateway-responses": {
+    "DEFAULT_4XX": {
+      "responseTemplates": {
+        "application/json": "{\"message\":\"Forbidden\"}"
+      }
+    }
+  },
+  "x-amazon-apigateway-policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Principal": "*",
+        "Action": "execute-api:Invoke",
+        "Resource": "*"
+      }
+    ]
+  }
+}

@@ -1,0 +1,284 @@
+[
+  {
+    "slug": "itau-ep9-api-recebimentos-v1-externo",
+    "label": "Boleto com Pix (Bolecode)",
+    "title": "Boleto com Pix",
+    "version": "1.0.7",
+    "servers": [
+      "https://pix-pj.api.dev.itau.com/recebimentos-pix/v1",
+      "https://pix-pj.api.hom.itau.com/recebimentos-pix/v1",
+      "https://pix-pj.api.itau.com/recebimentos-pix/v1"
+    ],
+    "paths": [
+      "/boletos-pix"
+    ]
+  },
+  {
+    "slug": "itau-ep9-gtw-cash-management-ext-v2",
+    "label": "API Boletos - Emissão e Instrução",
+    "title": "API Boletos - Emissão e Instrução",
+    "version": "2.75.150",
+    "servers": [
+      "https://api.gateway.itau.com.br/cash_management/v2"
+    ],
+    "paths": [
+      "/boletos",
+      "/boletos/{id_boleto}/abatimento",
+      "/boletos/{id_boleto}/baixa",
+      "/boletos/{id_boleto}/data_vencimento",
+      "/boletos/{id_boleto}/juros",
+      "/boletos/{id_boleto}/multa",
+      "/boletos/{id_boleto}/valor_nominal",
+      "/boletos/{id_boleto}/data_limite_pagamento",
+      "/boletos/{id_boleto}/seu_numero",
+      "/boletos/{id_boleto}/protesto",
+      "/boletos/{id_boleto}/negativacao",
+      "/boletos/{id_boleto}/desconto",
+      "/boletos/{id_boleto}/pagador",
+      "/boletos/{id_boleto}/sacador_avalista",
+      "/boletos/{id_boleto}/recebimento_divergente"
+    ]
+  },
+  {
+    "slug": "itau-ep9-gtw-boletos-boletos-v3-ext-aws",
+    "label": "API Boletos (v3) - francesa, boletos e notificações",
+    "title": "API Boletos (v3)",
+    "version": "1.34.1",
+    "servers": [
+      "https://boletos.cloud.itau.com.br/boletos/v3"
+    ],
+    "paths": [
+      "/francesas",
+      "/francesas/{id_francesa}/movimentacoes",
+      "/francesas/{id_francesa}/movimentacoes_resumidas",
+      "/notificacoes_boletos",
+      "/notificacoes_boletos/{id_notificacao_boleto}"
+    ]
+  },
+  {
+    "slug": "itau-ep9-api-boleto-v1-externo",
+    "label": "API Boletos (ciclo de vida)",
+    "title": "API Boletos",
+    "version": "1.16.0",
+    "servers": [
+      "https://boleto.${iupipes_env_dns}/boleto/v1"
+    ],
+    "paths": [
+      "/boletos",
+      "/requisicoes-boletos-negociados/{requisicaoBoletoNegociadoId}",
+      "/ativos-financeiros"
+    ]
+  },
+  {
+    "slug": "itau-ep9-gtw-boletoscash-boletoscash-v2-ext-aws",
+    "label": "API Boletos - Consulta de detalhe",
+    "title": "API Boletos - Consulta de detalhe do Boleto",
+    "version": "1.3.0",
+    "servers": [
+      "https://secure.api.cloud.itau.com.br/boletoscash/v2"
+    ],
+    "paths": [
+      "/boletos"
+    ]
+  },
+  {
+    "slug": "itau-ep9-api-extrato-v1-externo",
+    "label": "API Boletos - Extrato da carteira de cobrança",
+    "title": "API Boletos - Extrato Boleto Cobranca",
+    "version": "1.13.7",
+    "servers": [
+      "https://boleto.${iupipes_env_dns}/extrato/v1"
+    ],
+    "paths": [
+      "/francesas",
+      "/francesas/{francesaId}/movimentacoes",
+      "/francesas/{francesaId}/movimentacoes-resumidas"
+    ]
+  },
+  {
+    "slug": "itau-ep9-api-regulatorio-pix-v2-externo",
+    "label": "Recebimentos Pix (padrão Bacen)",
+    "title": "Recebimentos Pix",
+    "version": "2.27.2",
+    "servers": [
+      "https://pix-pj.${iupipes_env_dns}/regulatorio-pix/v2"
+    ],
+    "paths": [
+      "/cob/{txid}",
+      "/cob",
+      "/cob/{txid}/qrcode",
+      "/cobv/{txid}",
+      "/cobv",
+      "/cobv/{txid}/qrcode",
+      "/loc",
+      "/loc/{id}",
+      "/loc/{id}/txid",
+      "/pix",
+      "/pix/{e2eid}",
+      "/pix/{e2eid}/devolucao/{id}",
+      "/qr/{pixUrlAccessToken}",
+      "/qr/cobv/{pixUrlAccessToken}",
+      "/lotecobv/{id}",
+      "/lotecobv",
+      "/webhook",
+      "/webhook/{chave}"
+    ]
+  },
+  {
+    "slug": "itau-ep9-api-conciliacao-v1-externo",
+    "label": "Recebimentos Pix - APIs exclusivas (conciliação)",
+    "title": "Recebimentos Pix- API's Exclusivas",
+    "version": "1.20.7",
+    "servers": [
+      "https://pix-pj.api.dev.itau.com/conciliacao/v1",
+      "https://pix-pj.api.hom.itau.com/conciliacao/v1",
+      "https://pix-pj.api.itau.com/conciliacao/v1"
+    ],
+    "paths": [
+      "/lancamentos-pix",
+      "/lancamentos-pix/{lancamentoPixId}"
+    ]
+  },
+  {
+    "slug": "itau-ng7-api-pixautomatico-v1-externo",
+    "label": "Pix Automático",
+    "title": "API Pixautomatico",
+    "version": "1.45.10",
+    "servers": [
+      "https://pixautomatico-recebimentos.${iupipes_env_dns}/pixautomatico/v1",
+      "https://pixautomatico-recebimentos.api.dev.itau.com/pixautomatico/v1",
+      "https://pixautomatico-recebimentos.api.hom.itau.com/pixautomatico/v1",
+      "https://pixautomatico-recebimentos.api.itau.com/pixautomatico/v1"
+    ],
+    "paths": [
+      "/locrec",
+      "/locrec/{id}",
+      "/locrec/{id}/idRec",
+      "/token/rec/{recUrlAccessToken}",
+      "/webhookrec",
+      "/webhookcobr",
+      "/rec/{idRec}",
+      "/recorrencia/{idRec}/dados-pagador",
+      "/rec",
+      "/solicrec",
+      "/solicrec/{idSolicRec}",
+      "/cobr/{txid}",
+      "/cobr",
+      "/cobr/{txid}/retentativa/{data}"
+    ]
+  },
+  {
+    "slug": "itau-ep9-api-qrcode-pix-automatico-v1-externo",
+    "label": "Emissão de QR Code Pix Automático",
+    "title": "API - Emissão de QR Code Pix Automático",
+    "version": "1.28.10",
+    "servers": [
+      "https://recebimentos-pix.${iupipes_env_dns}/qrcode-pix-automatico/v1"
+    ],
+    "paths": [
+      "/cobrancas",
+      "/cobrancas/{cobrancaId}"
+    ]
+  },
+  {
+    "slug": "itau-vw9-api-account-statement-v1-externo",
+    "label": "Account Statement (extrato da conta)",
+    "title": "API ACCOUNT STATEMENT",
+    "version": "1.27.0",
+    "servers": [
+      "https://account-statement.api.dev.itau.com/account-statement/v1",
+      "https://account-statement.api.hom.itau.com/account-statement/v1",
+      "https://account-statement.api.itau.com/account-statement/v1"
+    ],
+    "paths": [
+      "/statements/{statementId}",
+      "/statements/{statementId}/interest-bearing-accounts",
+      "/statements/{statementId}/judicial-orders",
+      "/balances",
+      "/statements/{statementId}/investment-balances"
+    ]
+  },
+  {
+    "slug": "itau-ep9-gtw-sispag-ext",
+    "label": "Cash Management / SISPAG (pagamentos)",
+    "title": "API Cash Management",
+    "version": "1.14.30",
+    "servers": [
+      "https://api.gateway.itau.com.br/sispag/v1"
+    ],
+    "paths": [
+      "/transferencias",
+      "/pagamentos_sispag",
+      "/pagamentos_sispag/{id_pagamento_sispag}"
+    ]
+  },
+  {
+    "slug": "itau-ep9-gtw-pix-recebimentos-ext-v2",
+    "label": "EM DESATIVAÇÃO - Pix Recebimentos regulatórias",
+    "title": "EM DESATIVAÇÃO- APIs Regulatórias Pix Recebimentos",
+    "version": "2.69.56",
+    "servers": [
+      "https://secure.gateway.api.itau/pix_recebimentos/v2"
+    ],
+    "paths": [
+      "/cob/{txid}",
+      "/cob",
+      "/cob/{txid}/qrcode",
+      "/cobv/{txid}",
+      "/cobv",
+      "/cobv/{txid}/qrcode",
+      "/lotecobv/{id}",
+      "/lotecobv",
+      "/loc",
+      "/loc/{id}",
+      "/loc/{id}/txid",
+      "/pix/{e2eid}",
+      "/pix",
+      "/pix/{e2eid}/devolucao/{id}",
+      "/webhook/{chave}",
+      "/webhook"
+    ]
+  },
+  {
+    "slug": "itau-ep9-gtw-pix-recebimentos-conciliacoes-v2-ext",
+    "label": "EM DESATIVAÇÃO - Pix Recebimentos complementares",
+    "title": "EM DESATIVAÇÃO- itau-ep9-gtw-pix-recebimentos-conciliacoes-v2-ext",
+    "version": "2.148.7",
+    "servers": [
+      "https://secure.gateway.api.itau/pix_recebimentos_conciliacoes/v2"
+    ],
+    "paths": [
+      "/decodificacoes_qrcode",
+      "/leituras_qrcodes_pix",
+      "/cobrancas_imediata_pix",
+      "/cobrancas_imediata_pix/{id_cobranca_imediata_pix}",
+      "/cobrancas_imediata_pix/{id_cobranca_imediata_pix}/qrcode",
+      "/cobrancas_vencimento_pix",
+      "/cobrancas_vencimento_pix/{id_cobranca_vencimento_pix}",
+      "/cobrancas_vencimento_pix/{id_cobranca_vencimento_pix}/qrcode",
+      "/cobrancas_estatico_pix",
+      "/cobrancas_estatico_pix/{id_cobranca_estatico_pix}",
+      "/cobrancas_estatico_pix/{id_cobranca_estatico_pix}/qrcode",
+      "/lancamentos_pix",
+      "/lancamentos_pix/{id_lancamento_pix}",
+      "/estabelecimento_saque_troco_pix",
+      "/estabelecimento_saque_troco_pix/{ponto_atendimento_id}",
+      "/boletos_pix"
+    ]
+  },
+  {
+    "slug": "itau-ep9-api-saque-troco-v1-externo",
+    "label": "Saque Troco (fora do escopo)",
+    "title": "Saque Troco",
+    "version": "1.0.7",
+    "servers": [
+      "https://pix-pj.${iupipes_env_dns}/saque-troco/v1"
+    ],
+    "paths": [
+      "/pontos-atendimento",
+      "/pontos-atendimento/{pontoAtendimentoId}",
+      "/remuneracao-analiticos",
+      "/remuneracao-consolidados"
+    ]
+  }
+]

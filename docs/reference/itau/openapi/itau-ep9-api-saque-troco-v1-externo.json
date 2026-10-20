@@ -1,0 +1,1658 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Saque Troco",
+    "description": "Responsável pela gestão dos estabelecimentos comerciais do cliente, esses estabelecimentos comerciais permitem a realização do saque e devolução de troco em dinheiro em espécie. Dentro dessa gestão é possível o cliente cadastrar, consultar, alterar e excluir seus estabelecimentos comerciais e essas operações são possíveis através de APIs disponibilizadas.",
+    "version": "1.0.7",
+    "contact": {
+      "name": "RECEBIMENTOS - QR CODE PIX - GERACAO LEITURA E TARIFACAO (S002530)",
+      "email": "CI_Cash_Squad_Pix2_Estend@correio.itau.com.br"
+    },
+    "sandbox-url": "https://devportal.itau.com.br/sandboxapi/itau-ep9-api-saque-troco-v1-externo/v1"
+  },
+  "servers": [
+    {
+      "url": "https://pix-pj.${iupipes_env_dns}/saque-troco/v1"
+    }
+  ],
+  "tags": [
+    {
+      "name": "microsservicos"
+    }
+  ],
+  "paths": {
+    "/pontos-atendimento": {
+      "get": {
+        "tags": [
+          "Pix Saque e Pix Troco (Clientes)"
+        ],
+        "operationId": "get/pontos-atendimento",
+        "description": "API responsável por recuperar os dados do(s) ponto(s) de atendimento do agente de saque. É possivel consultar um ponto de atendimento especifico atraves de seu respectivo ID. Caso o ID não seja informado na busca serão retornados todos os pontos de atendimento do agente em questão.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/pontoAtendimento"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "$ref": "#/components/schemas/meta"
+                    },
+                    "links": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/link"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "Content-Location": {
+                "description": "URI correspondente a pesquisa corrente",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/400_get"
+          },
+          "403": {
+            "$ref": "#/components/responses/403_get"
+          },
+          "404": {
+            "$ref": "#/components/responses/404_get"
+          },
+          "410": {
+            "$ref": "#/components/responses/410_get"
+          },
+          "500": {
+            "$ref": "#/components/responses/500_get"
+          },
+          "503": {
+            "$ref": "#/components/responses/503_get"
+          },
+          "504": {
+            "$ref": "#/components/responses/504_get"
+          }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "pontoAtendimentoId",
+            "required": false,
+            "description": "**Descrição:**  O campo pontoAtendimentoId determina o identificador do ponto de atendimento. O objetivo desse campo é ser um elemento que possibilite a busca de um ponto de atendimento especifico.\n\n**Observação:** Os caracteres permitidos no contexto do Pix para o campo txId são: Letras minúsculas, de ‘a’ a ‘z’, Letras maiúsculas, de ‘A’ a ‘Z’, Dígitos decimais, de ‘0’ a ‘9’.\n",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "description": "Número da página que está sendo requisitada",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "description": "Quantidade total de registros de pontos de atendimento por página",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/x-itau-correlationID"
+          }
+        ],
+        "security": [
+          {
+            "APIGatewaySTSAuthorizer": [
+              "pix_recebimentos_conciliacoes-estabelecimento_saque_troco_pix.read"
+            ]
+          }
+        ],
+        "x-amazon-apigateway-integration": {
+          "passthroughBehavior": "when_no_match",
+          "connectionId": "${iupipes_deploy_aws_env_vpclinkSaqueTroco}",
+          "connectionType": "VPC_LINK",
+          "timeoutInMillis": 29000,
+          "uri": "http://${iupipes_deploy_aws_env_nlbSaqueTroco}:${iupipes_deploy_aws_env_nlbSaqueTrocoPorta}/cash_management/v1/pontos-atendimento",
+          "type": "http_proxy",
+          "httpMethod": "GET",
+          "responses": {
+            "default": {
+              "statusCode": "200"
+            }
+          },
+          "requestParameters": {}
+        },
+        "x-amazon-apigateway-request-validator": "none"
+      },
+      "post": {
+        "tags": [
+          "Pix Saque e Pix Troco (Clientes)"
+        ],
+        "operationId": "post/pontos-atendimento",
+        "description": "O Saque e Troco Pix permite a disponibilização do serviço de saque de dinheiro nos estabelecimento comerciais. No troco o valor do QR Code é superior ao valor da compra e o estabelecimento devolve ao cliente o valor excedente em espécie. No saque será repassado o valor total do QR Code ao cliente sacador. Essa API é responsável por efetuar o cadastro de um ou mais pontos de atendimento para esse serviço. No momento do cadastro de um ponto de atendimento, serão validados os campos obrigatórios bem como os campos de domínios definidos no contrato da API. Além disso, também serão validadas as regras de negócio de acordo com os parâmetros enviados no corpo da requisição.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/pontoAtendimentoPostResponse"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "200_estabelecimento_saque_troco": {
+                    "$ref": "#/components/examples/200_estabelecimento_saque_troco"
+                  }
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "Content-Location": {
+                "description": "URI correspondente a pesquisa corrente",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "201": {
+            "$ref": "#/components/responses/201_post"
+          },
+          "400": {
+            "$ref": "#/components/responses/400_post"
+          },
+          "403": {
+            "$ref": "#/components/responses/403_post"
+          },
+          "404": {
+            "$ref": "#/components/responses/404_post"
+          },
+          "410": {
+            "$ref": "#/components/responses/410_post"
+          },
+          "500": {
+            "$ref": "#/components/responses/500_post"
+          },
+          "503": {
+            "$ref": "#/components/responses/503_post"
+          },
+          "504": {
+            "$ref": "#/components/responses/504_post"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/x-itau-correlationID"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/pontoAtendimentoPostRequest"
+              },
+              "examples": {
+                "request_post_estabelecimento_saque_troco": {
+                  "$ref": "#/components/examples/request_post_estabelecimento_saque_troco"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIGatewaySTSAuthorizer": [
+              "pix_recebimentos_conciliacoes-estabelecimento_saque_troco_pix.write"
+            ]
+          }
+        ],
+        "x-amazon-apigateway-integration": {
+          "passthroughBehavior": "when_no_match",
+          "connectionId": "${iupipes_deploy_aws_env_vpclinkSaqueTroco}",
+          "connectionType": "VPC_LINK",
+          "timeoutInMillis": 29000,
+          "uri": "http://${iupipes_deploy_aws_env_nlbSaqueTroco}:${iupipes_deploy_aws_env_nlbSaqueTrocoPorta}/cash_management/v1/pontos-atendimento",
+          "type": "http_proxy",
+          "httpMethod": "POST",
+          "responses": {
+            "default": {
+              "statusCode": "200"
+            }
+          },
+          "requestParameters": {}
+        },
+        "x-amazon-apigateway-request-validator": "none"
+      }
+    },
+    "/pontos-atendimento/{pontoAtendimentoId}": {
+      "patch": {
+        "tags": [
+          "Pix Saque e Pix Troco (Clientes)"
+        ],
+        "operationId": "patch/pontos-atendimento/{pontoAtendimentoId}",
+        "description": "Atualiza pontos de atendimento de um agente de saque",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/pontoAtendimento"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "200_estabelecimento_saque_troco": {
+                    "$ref": "#/components/examples/200_estabelecimento_saque_troco"
+                  }
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "Content-Location": {
+                "description": "URI correspondente a pesquisa corrente",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "202": {
+            "$ref": "#/components/responses/202_patch"
+          },
+          "400": {
+            "$ref": "#/components/responses/400_patch"
+          },
+          "403": {
+            "$ref": "#/components/responses/403_patch"
+          },
+          "404": {
+            "$ref": "#/components/responses/404_patch"
+          },
+          "410": {
+            "$ref": "#/components/responses/410_patch"
+          },
+          "500": {
+            "$ref": "#/components/responses/500_patch"
+          },
+          "503": {
+            "$ref": "#/components/responses/503_patch"
+          },
+          "504": {
+            "$ref": "#/components/responses/504_patch"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pontoAtendimentoId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/pontoAtendimentoPatchRequest"
+              },
+              "examples": {
+                "request_patch_estabelecimento_saque_troco": {
+                  "$ref": "#/components/examples/request_patch_estabelecimento_saque_troco"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIGatewaySTSAuthorizer": [
+              "pix_recebimentos_conciliacoes-estabelecimento_saque_troco_pix.write"
+            ]
+          }
+        ],
+        "x-amazon-apigateway-integration": {
+          "passthroughBehavior": "when_no_match",
+          "connectionId": "${iupipes_deploy_aws_env_vpclinkSaqueTroco}",
+          "connectionType": "VPC_LINK",
+          "timeoutInMillis": 29000,
+          "uri": "http://${iupipes_deploy_aws_env_nlbSaqueTroco}:${iupipes_deploy_aws_env_nlbSaqueTrocoPorta}/cash_management/v1/pontos-atendimento/{pontoAtendimentoId}",
+          "type": "http_proxy",
+          "httpMethod": "PATCH",
+          "responses": {
+            "default": {
+              "statusCode": "200"
+            }
+          },
+          "requestParameters": {
+            "integration.request.path.pontoAtendimentoId": "method.request.path.pontoAtendimentoId"
+          }
+        },
+        "x-amazon-apigateway-request-validator": "none"
+      },
+      "delete": {
+        "tags": [
+          "Pix Saque e Pix Troco (Clientes)"
+        ],
+        "operationId": "delete/pontos-atendimento/{pontoAtendimentoId}",
+        "description": "API responsável por efetuar a remoção de um ou mais pontos de atendimento do Saque e Troco Pix.",
+        "responses": {
+          "202": {
+            "$ref": "#/components/responses/202_delete"
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "$ref": "#/components/responses/400_delete"
+          },
+          "403": {
+            "$ref": "#/components/responses/403_delete"
+          },
+          "404": {
+            "$ref": "#/components/responses/404_delete"
+          },
+          "410": {
+            "$ref": "#/components/responses/410_delete"
+          },
+          "500": {
+            "$ref": "#/components/responses/500_delete"
+          },
+          "503": {
+            "$ref": "#/components/responses/503_delete"
+          },
+          "504": {
+            "$ref": "#/components/responses/504_delete"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pontoAtendimentoId"
+          },
+          {
+            "$ref": "#/components/parameters/x-itau-correlationID"
+          }
+        ],
+        "security": [
+          {
+            "APIGatewaySTSAuthorizer": [
+              "pix_recebimentos_conciliacoes-estabelecimento_saque_troco_pix.write"
+            ]
+          }
+        ],
+        "x-amazon-apigateway-integration": {
+          "passthroughBehavior": "when_no_match",
+          "connectionId": "${iupipes_deploy_aws_env_vpclinkSaqueTroco}",
+          "connectionType": "VPC_LINK",
+          "timeoutInMillis": 29000,
+          "uri": "http://${iupipes_deploy_aws_env_nlbSaqueTroco}:${iupipes_deploy_aws_env_nlbSaqueTrocoPorta}/cash_management/v1/pontos-atendimento/{pontoAtendimentoId}",
+          "type": "http_proxy",
+          "httpMethod": "DELETE",
+          "responses": {
+            "default": {
+              "statusCode": "204"
+            }
+          },
+          "requestParameters": {
+            "integration.request.path.pontoAtendimentoId": "method.request.path.pontoAtendimentoId"
+          }
+        },
+        "x-amazon-apigateway-request-validator": "none"
+      }
+    },
+    "/remuneracao-analiticos": {
+      "get": {
+        "tags": [
+          "remuneracao-analiticos"
+        ],
+        "summary": "Consulta analitica de remuneracao",
+        "description": "Operação responsavel por retornar o detalhe da remuneração de um Saque Pix por conta e período.",
+        "operationId": "get/remuneracao-analiticos",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/x-itau-correlationID"
+          },
+          {
+            "$ref": "#/components/parameters/x-itau-flowID"
+          },
+          {
+            "name": "idConta",
+            "in": "query",
+            "required": true,
+            "description": "Chave constituida por agencia (4 dígitos) + conta (7 dígitos) da conta corrente do cliente, com 11 dígitos",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dataLancamento",
+            "in": "query",
+            "required": true,
+            "description": "Data inicio e fim com hora e minuto da consulta separdo por virgula yyyy-MM-ddTHH:mm,yyyy-MM-ddTHH:mm",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cnpj",
+            "in": "query",
+            "required": true,
+            "description": "CNPJ.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Pagina da consulta.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "description": "Numero de registro por pagina da consulta.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retorna as informações de uma API.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/remuneracaoAnalitico"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "200RemuneracaoAnalitico": {
+                    "$ref": "#/components/examples/200RemuneracaoAnalitico"
+                  }
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "303": {
+            "$ref": "#/components/responses/303_get"
+          },
+          "304": {
+            "$ref": "#/components/responses/304_get"
+          },
+          "400": {
+            "$ref": "#/components/responses/400_get"
+          },
+          "401": {
+            "$ref": "#/components/responses/401_get"
+          },
+          "404": {
+            "$ref": "#/components/responses/404_get"
+          },
+          "405": {
+            "$ref": "#/components/responses/405_get"
+          },
+          "422": {
+            "$ref": "#/components/responses/422_get"
+          },
+          "500": {
+            "$ref": "#/components/responses/500_get"
+          },
+          "503": {
+            "$ref": "#/components/responses/503_get"
+          }
+        },
+        "security": [
+          {
+            "APIGatewaySTSAuthorizer": [
+              "pix.read"
+            ]
+          }
+        ],
+        "x-amazon-apigateway-integration": {
+          "passthroughBehavior": "when_no_match",
+          "connectionType": "VPC_LINK",
+          "connectionId": "${iupipes_deploy_aws_env_pixCentralRemuneracao_vpcLink}",
+          "uri": "http://${iupipes_deploy_aws_env_pixCentralRemuneracao_nlb}:8080/conciliacao/v1/remuneracao-analiticos",
+          "timeoutInMillis": 14000,
+          "type": "http_proxy",
+          "httpMethod": "GET",
+          "responses": {
+            "default": {
+              "statusCode": "200",
+              "responseTemplates": {
+                "application/json": "{\"data\" : {}}"
+              }
+            }
+          },
+          "requestTemplates": {
+            "application/json": "{\"statusCode\" : 200}"
+          }
+        },
+        "x-amazon-apigateway-request-validator": "params-only"
+      }
+    },
+    "/remuneracao-consolidados": {
+      "get": {
+        "tags": [
+          "remuneracao-consolidados"
+        ],
+        "summary": "Consulta consolidada de remuneracao",
+        "description": "Operação responsavel por retornar o consolidado da remuneração de um Saque Pix por conta e período.",
+        "operationId": "get/remuneracao-consolidados",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/x-itau-correlationID"
+          },
+          {
+            "$ref": "#/components/parameters/x-itau-flowID"
+          },
+          {
+            "name": "idConta",
+            "in": "query",
+            "required": true,
+            "description": "Chave constituida por agencia (4 dígitos) + conta (7 dígitos) da conta corrente do cliente, com 11 dígitos",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dataLancamento",
+            "in": "query",
+            "required": true,
+            "description": "Data inicio e fim da consulta separdo por virgula YYYY-MM-DD,YYYY-MM-DD",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cnpj",
+            "in": "query",
+            "required": true,
+            "description": "CNPJ.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retorna as informações de uma API.",
+            "headers": {
+              "Content-Location": {
+                "description": "URI correspondente a pesquisa corrente",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/remuneracaoConsolidado"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "200RemuneracaoConsolidado": {
+                    "$ref": "#/components/examples/200RemuneracaoConsolidado"
+                  }
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "303": {
+            "$ref": "#/components/responses/303_get"
+          },
+          "304": {
+            "$ref": "#/components/responses/304_get"
+          },
+          "400": {
+            "$ref": "#/components/responses/400_get"
+          },
+          "401": {
+            "$ref": "#/components/responses/401_get"
+          },
+          "404": {
+            "$ref": "#/components/responses/404_get"
+          },
+          "405": {
+            "$ref": "#/components/responses/405_get"
+          },
+          "422": {
+            "$ref": "#/components/responses/422_get"
+          },
+          "500": {
+            "$ref": "#/components/responses/500_get"
+          },
+          "503": {
+            "$ref": "#/components/responses/503_get"
+          }
+        },
+        "security": [
+          {
+            "APIGatewaySTSAuthorizer": [
+              "pix.read"
+            ]
+          }
+        ],
+        "x-amazon-apigateway-integration": {
+          "passthroughBehavior": "when_no_match",
+          "connectionType": "VPC_LINK",
+          "connectionId": "${iupipes_deploy_aws_env_pixCentralRemuneracao_vpcLink}",
+          "uri": "http://${iupipes_deploy_aws_env_pixCentralRemuneracao_nlb}:8080/conciliacao/v1/remuneracao-consolidados",
+          "timeoutInMillis": 14000,
+          "type": "http_proxy",
+          "httpMethod": "GET",
+          "responses": {
+            "default": {
+              "statusCode": "200",
+              "responseTemplates": {
+                "application/json": "{\"data\" : {}}"
+              }
+            }
+          },
+          "requestTemplates": {
+            "application/json": "{\"statusCode\" : 200}"
+          }
+        },
+        "x-amazon-apigateway-request-validator": "none"
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "pontoAtendimentoId": {
+        "name": "pontoAtendimentoId",
+        "in": "path",
+        "required": true,
+        "description": "Identificador do ponto de atendimento.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "x-itau-correlationID": {
+        "name": "x-itau-correlationID",
+        "in": "header",
+        "description": "**Descrição:** Identificador de correlação que serve como um agrupador dentro da estrutura de audit trail.\n\n**RegEx:** `^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`\n",
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "example": "bc4d8712-904a-47af-a3a0-63751ddb7e56"
+      },
+      "x-itau-flowID": {
+        "name": "x-itau-flowID",
+        "in": "header",
+        "description": "**Descrição:** Identificador de correlação que serve como um agrupador dentro da estrutura de audit trail.\n\n**RegEx:** `^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`\n",
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "example": "bc4d8712-904a-47af-a3a0-63751ddb7e56"
+      }
+    },
+    "schemas": {
+      "pontosAtendimento": {
+        "type": "object",
+        "description": "Estrutura com informações do ponto de atendimento de um agente de saque ou do participante que, diretamente, preste o serviço de saque.",
+        "properties": {
+          "pontoAtendimentoId": {
+            "description": "Identificador do ponto de atendimento gerado no momento do cadastro.",
+            "type": "string"
+          },
+          "nome": {
+            "description": "Nome do ponto de atendimento. Este nome é opcional e tem como função detalhar cada ponto de atendimento de um agente de saque ou do participante que, diretamente, venha a prestar serviço de saque.",
+            "type": "string"
+          },
+          "latitude": {
+            "description": "Latitude da posição geográfica. A faixa de valores válida é de -90 a 90, sendo que devem ser utilizadas pelo menos 5 casas decimais.",
+            "type": "string"
+          },
+          "longitude": {
+            "description": "Longitude da posição geográfica. A faixa de valores válida é de -180 a 180, sendo que devem ser utilizadas pelo menos 5 casas decimais.",
+            "type": "string"
+          },
+          "logradouro": {
+            "description": "Logradouro do ponto de atendimento.",
+            "type": "string"
+          },
+          "bairro": {
+            "description": "Bairro do ponto de atendimento.",
+            "type": "string"
+          },
+          "cidade": {
+            "description": "Cidade do ponto de atendimento.",
+            "type": "string"
+          },
+          "estado": {
+            "description": "MG",
+            "type": "string"
+          },
+          "cep": {
+            "description": "CEP do ponto de atendimento. Devem ser informados apenas os 8 números sem qualquer máscara.",
+            "type": "string"
+          },
+          "produtos": {
+            "$ref": "#/components/schemas/produto"
+          },
+          "observacoes": {
+            "description": "Observações gerais sobre o ponto de atendimento. O fornecimento dessa informação é facultativa para o agente de saque.",
+            "type": "string"
+          },
+          "horariosFuncionamento": {
+            "description": "Lista com os horários em que o Pix Saque ou Pix Troco estará disponível. Caso algum dia da semana não seja informado isto significa que o serviço de saque não estará disponível naquele dia.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/horarioFuncionamento"
+            }
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude",
+          "logradouro",
+          "bairro",
+          "cidade",
+          "estado",
+          "cep",
+          "horariosFuncionamento"
+        ]
+      },
+      "produto": {
+        "type": "object",
+        "description": "**Descrição:** Indicação sobre quais produtos este ponto de atendimento oferece\n",
+        "properties": {
+          "pixSaque": {
+            "title": "Pix Saque",
+            "description": "**Descrição:** Identificador sobre se o produto pixSaque é oferecido pelo ponto de\natendimento.\n\n**Observação:** true - false\n",
+            "type": "boolean"
+          },
+          "pixTroco": {
+            "title": "Pix Troco",
+            "description": "**Descrição:** Identificador sobre se o produto pixTroco é oferecido pelo ponto de\natendimento.\n\n**Observação:** true - false\n",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "pixSaque",
+          "pixTroco"
+        ]
+      },
+      "horarioFuncionamento": {
+        "type": "object",
+        "description": "**Descrição:** Lista com os horários em que o Pix Saque ou Pix Troco estará disponível.\n",
+        "properties": {
+          "dia": {
+            "title": "Dias da semana",
+            "description": "**Descrição:**\nLista de dias da semana.\n\n<table><tr><td>SEGUNDA_FEIRA</td></tr><tr><td>TERCA_FEIRA</td></tr><tr><td>QUARTA_FEIRA</td></tr><tr><td>QUINTA_FEIRA</td></tr><tr><td>SEXTA_FEIRA</td></tr><tr><td>SABADO</td></tr><tr><td>DOMINGO</td></tr></table>\n",
+            "type": "string"
+          },
+          "horario": {
+            "title": "Horários de abertura e fechamento para a disponibilidade do serviço de saque",
+            "description": "**Descrição:** Horários de abertura e fechamento para a disponibilidade do serviço de saque. Os valores válidos vão de 00:00 a 23:59. Caso existam dois períodos de funcionamento dentro de um mesmo dia da semana este deve ser repetido para cada período. Estes horários não necessariamente coincidem com a abertura e o fechamento do ponto de saque para as suas atividades comerciais. Por exemplo: um determinado ponto de atendimento pode estar comercialmente aberto de 9:00 e 18:00 mas permitir saques apenas entre 12:00 e 16:00.\n",
+            "type": "object",
+            "properties": {
+              "aberturaSaque": {
+                "type": "string",
+                "format": "time",
+                "description": "Horário de abertura (formato HH:mm)."
+              },
+              "fechamentoSaque": {
+                "type": "string",
+                "format": "time",
+                "description": "Horário de fechamento (formato HH:mm)."
+              }
+            }
+          },
+          "valorMaximoDisponivel": {
+            "title": "Valor máximo disponível",
+            "description": "**Descrição:** Valor máximo disponível por saque.\n\n**Observação:** \"100.00\"\n",
+            "type": "string",
+            "pattern": "^([0-9]{1,6}[.][0-9]{2})$"
+          }
+        },
+        "required": [
+          "dia",
+          "valorMaximoDisponivel"
+        ]
+      },
+      "meta": {
+        "type": "object",
+        "description": "**Descrição:** Indicação dos metadados referente a paginação de uma consulta.\n",
+        "properties": {
+          "nomeTransmissora": {
+            "title": "Nome da transmissora",
+            "description": "**Descrição:** Identificador sobre a transmissora.\n",
+            "type": "string"
+          },
+          "ispbTransmissora": {
+            "title": "ISBP da transmissora",
+            "description": "**Descrição:** Identificador de Sistema de Pagamentos Brasileiro referente a transmissora.\n",
+            "type": "string"
+          },
+          "totalRegistros": {
+            "title": "Total de registros",
+            "description": "**Descrição:** Total de registros.\n",
+            "type": "number"
+          },
+          "totalPaginas": {
+            "title": "Total de páginas",
+            "description": "**Descrição:** Total de páginas.\n",
+            "type": "number"
+          },
+          "dataHoraGeracao": {
+            "title": "Data e hora da geração",
+            "description": "**Descrição:** Data e hora da geração.\n",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nomeTransmissora",
+          "ispbTransmissora",
+          "totalRegistros",
+          "totalPaginas",
+          "dataHoraGeracao"
+        ]
+      },
+      "link": {
+        "type": "object",
+        "description": "**Descrição:** Indicação dos links referentes a paginação de uma consulta.\n",
+        "properties": {
+          "self": {
+            "title": "Link da pagina atual",
+            "description": "**Descrição:** Identificador do Link atual.\n",
+            "type": "string"
+          },
+          "first": {
+            "title": "Link da primeira pagina",
+            "description": "**Descrição:** Identificador do Link da primeira pagina.\n",
+            "type": "string"
+          },
+          "prev": {
+            "title": "Link da pagina anterior",
+            "description": "**Descrição:** Identificador do Link da pagina anterior.\n",
+            "type": "string"
+          },
+          "next": {
+            "title": "Link da próxima pagina",
+            "description": "**Descrição:** Identificador do Link da próxima pagina.\n",
+            "type": "string"
+          },
+          "last": {
+            "title": "Link da última pagina",
+            "description": "**Descrição:** Identificador do Link da última pagina.\n",
+            "type": "string"
+          }
+        },
+        "required": [
+          "self"
+        ]
+      },
+      "pontoAtendimentoPostRequest": {
+        "type": "object",
+        "description": "**Descrição:** Cadastrar ponto(s) de atendimento\n",
+        "properties": {
+          "agencia": {
+            "title": "Agencia do agente",
+            "description": "**Descrição:** Agencia do agente de saque.\n",
+            "type": "string"
+          },
+          "conta": {
+            "title": "Conta do agente",
+            "description": "**Descrição:** Conta do agente de saque.\n",
+            "type": "string"
+          },
+          "pontosAtendimento": {
+            "description": "**Descrição:** Estrutura com informações do ponto de atendimento de um agente de saque ou do participante que, diretamente, preste o serviço de saque.\n",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/pontosAtendimento"
+            }
+          }
+        },
+        "required": [
+          "agencia",
+          "conta",
+          "pontosAtendimento"
+        ]
+      },
+      "pontoAtendimentoPostResponse": {
+        "type": "object",
+        "description": "**Descrição:** Retorno da consulta ponto(s) de atendimento\n",
+        "properties": {
+          "cnpjAgenteSaque": {
+            "title": "Cnpj do agente de saque ou do participante",
+            "description": "**Descrição:** Cnpj do agente de saque ou do participante que, diretamente, preste o serviço de saque. Com 14 dígitos, sem máscara.\n",
+            "type": "string"
+          },
+          "nomeAgenteSaque": {
+            "title": "Nome do agente de saque ou do participante",
+            "description": "**Descrição:** Nome do agente de saque ou do participante que, diretamente, preste o serviço de saque.\n",
+            "type": "string"
+          },
+          "agencia": {
+            "title": "Agencia do agente",
+            "description": "**Descrição:** Agencia do agente de saque.\n",
+            "type": "number"
+          },
+          "conta": {
+            "title": "Conta do agente",
+            "description": "**Descrição:** Conta do agente de saque.\n",
+            "type": "string"
+          },
+          "pontosAtendimento": {
+            "description": "**Descrição:** Estrutura com informações do ponto de atendimento de um agente de saque ou do participante que, diretamente, preste o serviço de saque.\n",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/pontosAtendimento"
+            }
+          }
+        },
+        "required": [
+          "nomeAgenteSaque",
+          "cnpjAgenteSaque",
+          "pontosAtendimento",
+          "agencia",
+          "conta"
+        ]
+      },
+      "pontoAtendimentoPatchRequest": {
+        "type": "object",
+        "description": "**Descrição:** Cadastrar ponto(s) de atendimento\n",
+        "properties": {
+          "agencia": {
+            "title": "Agencia do agente",
+            "description": "**Descrição:** Agencia do agente de saque.\n",
+            "type": "string"
+          },
+          "conta": {
+            "title": "Conta do agente",
+            "description": "**Descrição:** Conta do agente de saque.\n",
+            "type": "string"
+          },
+          "pontosAtendimento": {
+            "description": "**Descrição:** Estrutura com informações do ponto de atendimento de um agente de saque ou do participante que, diretamente, preste o serviço de saque.\n",
+            "type": "object",
+            "$ref": "#/components/schemas/pontosAtendimento"
+          }
+        },
+        "required": [
+          "agencia",
+          "conta",
+          "pontosAtendimento"
+        ]
+      },
+      "pontoAtendimento": {
+        "type": "object",
+        "description": "**Descrição:** Retorno da consulta ponto(s) de atendimento\n",
+        "properties": {
+          "cnpjAgenteSaque": {
+            "title": "Cnpj do agente de saque ou do participante",
+            "description": "**Descrição:** Cnpj do agente de saque ou do participante que, diretamente, preste o serviço de saque. Com 14 dígitos, sem máscara.\n",
+            "type": "string"
+          },
+          "nomeAgenteSaque": {
+            "title": "Nome do agente de saque ou do participante",
+            "description": "**Descrição:** Nome do agente de saque ou do participante que, diretamente, preste o serviço de saque.\n",
+            "type": "string"
+          },
+          "agencia": {
+            "title": "Agencia do agente",
+            "description": "**Descrição:** Agencia do agente de saque.\n",
+            "type": "number"
+          },
+          "conta": {
+            "title": "Conta do agente",
+            "description": "**Descrição:** Conta do agente de saque.\n",
+            "type": "string"
+          },
+          "pontosAtendimento": {
+            "description": "**Descrição:** Estrutura com informações do ponto de atendimento de um agente de saque ou do participante que, diretamente, preste o serviço de saque.\n",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/pontosAtendimento"
+            }
+          }
+        },
+        "required": [
+          "nomeAgenteSaque",
+          "cnpjAgenteSaque",
+          "pontosAtendimento",
+          "agencia",
+          "conta"
+        ]
+      },
+      "remuneracaoAnalitico": {
+        "type": "object",
+        "description": "Response Remuneração Analitico",
+        "properties": {
+          "txid": {
+            "type": "string",
+            "description": "Identificação da transação"
+          },
+          "idPagamento": {
+            "description": "Identificador Fim a Fim da transação",
+            "type": "string"
+          },
+          "valor": {
+            "description": "Valor do Saque Pix",
+            "type": "number"
+          },
+          "remuneracao": {
+            "description": "Valor da Remuneração",
+            "type": "number"
+          },
+          "data": {
+            "description": "Data do Saque Pix",
+            "type": "string"
+          }
+        }
+      },
+      "remuneracaoConsolidado": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "valorTotal": {
+            "description": "Valor total do período consolidado",
+            "type": "number"
+          },
+          "quantidadeTotal": {
+            "description": "Número que corresponde ao total de serviços utilizados",
+            "type": "number"
+          },
+          "dataCompetenciaInicio": {
+            "description": "Data inicial do período desejado",
+            "type": "string"
+          },
+          "dataCompetenciaFim": {
+            "description": "Data final do período desejado",
+            "type": "string"
+          }
+        }
+      }
+    },
+    "responses": {
+      "200_get": {
+        "headers": {
+          "Content-Location": {
+            "description": "URI correspondente a pesquisa corrente",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "A execução foi bem sucedida e retornou os dados do recurso de saída.\n  -- Se for um recurso único este estará representado na saída\n  -- Se o recurso for uma coleção, todos os elementos da consulta serão devolvidos.\n    -- Se a resposta for um conjunto parcial então o status 206 deverá ser utilizado.\n"
+      },
+      "204_get": {
+        "headers": {
+          "Content-Location": {
+            "description": "URI correspondente a pesquisa corrente",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "A consulta retorna informações:\n   - A coleção tem elementos mas nenhum atende aos filtros especificados possível.\n   - A coleção não contém elementos.\nBody não incluir resposta.\n"
+      },
+      "303_get": {
+        "headers": {
+          "Content-Location": {
+            "description": "URI correspondente a consulta do status do processamento assíncrono.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "Location": {
+            "description": "URI correspondente a consulta do elemento já processado assíncronamente.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "See Other - Redirecionamento. A resposta da consulta será um redirecionamento com o HTTP status code 303.\nA localização do recurso é informado no no Header de resposta Location.\n"
+      },
+      "304_get": {
+        "headers": {
+          "Content-Location": {
+            "description": "O recurso não foi atualizado (foi fornecido do cache). Apropriado apenas nos serviços que são susceptíveis de registrar suas respostas.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "O recurso não foi atualizado (foi fornecido do cache). Apropriado apenas nos serviços que são susceptíveis de registrar suas respostas."
+      },
+      "400_get": {
+        "description": "Parâmetros incorretos (os dados de entradas estão incorretos ou ausentes)."
+      },
+      "401_get": {
+        "description": "Não Autorizado"
+      },
+      "403_get": {
+        "description": "Acesso Proibido. Verifique se os parâmetros de acesso estão válidos (como certificado, expiração do token, configuração da credencial e secret ou jwt). Se o problema persistir, entre em contato com o suporte Itaú."
+      },
+      "404_get": {
+        "description": "Recurso Inexistente (não encontrado)"
+      },
+      "405_get": {
+        "description": "Método não permitido"
+      },
+      "410_get": {
+        "description": "Indica que a entidade existia, mas foi permanentemente removida."
+      },
+      "422_get": {
+        "description": "Erro semântico"
+      },
+      "428_get": {
+        "description": "Pré requisito necessário"
+      },
+      "500_get": {
+        "description": "Erro Inesperado. Entre em contato com o suporte Itaú."
+      },
+      "501_get": {
+        "description": "Não implementado"
+      },
+      "503_get": {
+        "description": "Serviço Indisponível.Entre em contato com o suporte Itaú."
+      },
+      "504_get": {
+        "description": "Gateway Timeout. Entre em contato com o suporte Itaú."
+      },
+      "200_post": {
+        "description": "O recurso foi criado com êxito, a resposta incluirá um corpo com a representação do recurso.\n"
+      },
+      "201_post": {
+        "description": "O recurso foi criado de forma síncrona."
+      },
+      "400_post": {
+        "description": "Parâmetros incorretos (os dados de entradas estão incorretos ou ausentes)."
+      },
+      "403_post": {
+        "description": "Acesso Proibido. Verifique se os parâmetros de acesso estão válidos (certificado, expiração do token, configuração da credencial, secret ou jwt). Se o problema persistir, entre em contato com o suporte Itaú."
+      },
+      "404_post": {
+        "description": "Recurso Inexistente (não encontrado)"
+      },
+      "410_post": {
+        "description": "Indica que a entidade existia, mas foi permanentemente removida."
+      },
+      "500_post": {
+        "description": "Erro Inesperado. Entre em contato com o suporte Itaú."
+      },
+      "503_post": {
+        "description": "Serviço Indisponível.Entre em contato com o suporte Itaú."
+      },
+      "504_post": {
+        "description": "Gateway Timeout. Entre em contato com o suporte Itaú."
+      },
+      "200_put": {
+        "headers": {
+          "Content-Location": {
+            "description": "URI correspondente ao item atualizado.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "A execução foi bem-sucedida, o recurso é atualizado de acordo com as mudanças enviadas de forma síncrona.\n"
+      },
+      "201_put": {
+        "headers": {
+          "Content-Location": {
+            "description": "URI correspondente ao item criado.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "Se não existir o recurso, neste caso, o recurso foi criado.\n"
+      },
+      "400_put": {
+        "description": "Parâmetros incorretos (os dados de entradas estão incorretos ou ausentes)."
+      },
+      "403_put": {
+        "description": "Acesso Proibido. Verifique se os parâmetros de acesso estão válidos (certificado, expiração do token, configuração da credencial, secret ou jwt). Se o problema persistir, entre em contato com o suporte Itaú."
+      },
+      "404_put": {
+        "description": "Recurso Inexistente (não encontrado)"
+      },
+      "410_put": {
+        "description": "Indica que a entidade existia, mas foi permanentemente removida."
+      },
+      "500_put": {
+        "description": "Erro Inesperado. Entre em contato com o suporte Itaú."
+      },
+      "503_put": {
+        "description": "Serviço Indisponível. Entre em contato com o suporte Itaú."
+      },
+      "504_put": {
+        "description": "Gateway Timeout. Entre em contato com o suporte Itaú."
+      },
+      "200_patch": {
+        "headers": {
+          "Content-Location": {
+            "description": "URI correspondente ao item atualizado.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "A execução foi bem-sucedida, o recurso é atualizado de acordo com as mudanças enviadas de forma síncrona.\n"
+      },
+      "202_patch": {
+        "description": "A execução foi bem-sucedida e atualização se dará de forma assíncrona.\nO retorno deverá ser um recurso de tarefas.\n"
+      },
+      "400_patch": {
+        "description": "Parâmetros incorretos (os dados de entradas estão incorretos ou ausentes)."
+      },
+      "403_patch": {
+        "description": "Acesso Proibido. Verifique se os parâmetros de acesso estão válidos (certificado, expiração do token, configuração da credencial, secret ou jwt). Se o problema persistir, entre em contato com o suporte Itaú."
+      },
+      "404_patch": {
+        "description": "Recurso Inexistente (não encontrado)"
+      },
+      "410_patch": {
+        "description": "Indica que a entidade existia, mas foi permanentemente removida."
+      },
+      "500_patch": {
+        "description": "Erro Inesperado. Entre em contato com o suporte Itaú."
+      },
+      "503_patch": {
+        "description": "Serviço Indisponível.Entre em contato com o suporte Itaú."
+      },
+      "504_patch": {
+        "description": "Gateway Timeout. Entre em contato com o suporte Itaú."
+      },
+      "200_delete": {
+        "description": "A execução foi bem-sucedida, o recurso foi removido corretamente de forma síncrona.\n"
+      },
+      "202_delete": {
+        "headers": {
+          "Content-Location": {
+            "description": "URI correspondente a consulta do status do processamento assíncrono.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "A execução foi bem-sucedida, o recurso será excluído de forma assíncrona.\nO retorno deste pedido deve ser um recurso de tarefas.\n"
+      },
+      "400_delete": {
+        "description": "Parâmetros incorretos (os dados de entradas estão incorretos ou ausentes)."
+      },
+      "403_delete": {
+        "description": "Acesso Proibido. Verifique se os parâmetros de acesso estão válidos (certificado, expiração do token, configuração da credencial, secret ou jwt). Se o problema persistir, entre em contato com o suporte Itaú."
+      },
+      "404_delete": {
+        "description": "Recurso Inexistente (não encontrado)"
+      },
+      "410_delete": {
+        "description": "Indica que a entidade existia, mas foi permanentemente removida."
+      },
+      "500_delete": {
+        "description": "Erro Inesperado. Entre em contato com o suporte Itaú."
+      },
+      "503_delete": {
+        "description": "Serviço Indisponível.Entre em contato com o suporte Itaú."
+      },
+      "504_delete": {
+        "description": "Gateway Timeout. Entre em contato com o suporte Itaú."
+      }
+    },
+    "examples": {
+      "200_estabelecimento_saque_troco": {
+        "value": {
+          "pontoAtendimentoId": "123e4567-e89b-12d3-a456-426655440000",
+          "nome": "Filial Belo Horizonte",
+          "latitude": "-19.93254",
+          "longitude": "-43.94905",
+          "logradouro": "Av Alvares Cabral 1605",
+          "bairro": "Santo Agostinho",
+          "cidade": "Belo Horizonte",
+          "estado": "MG",
+          "cep": "30170001",
+          "produtos": {
+            "pixSaque": true,
+            "pixTroco": true
+          },
+          "observacoes": "Serviço de saque apenas no subsolo. Pix Troco apenas para compras acima de 20 reais",
+          "horariosFuncionamento": [
+            {
+              "dia": "SEGUNDA_FEIRA",
+              "horario": {
+                "aberturaSaque": "09:00",
+                "fechamentoSaque": "18:00"
+              },
+              "valorMaximoDisponivel": "100.00"
+            }
+          ]
+        },
+        "description": ""
+      },
+      "request_post_estabelecimento_saque_troco": {
+        "value": {
+          "agencia": "1234",
+          "conta": "12345678",
+          "pontosAtendimento": [
+            {
+              "nome": "Filial Belo Horizonte",
+              "latitude": "-19.93254",
+              "longitude": "-43.94905",
+              "logradouro": "Av Alvares Cabral 1605",
+              "bairro": "Santo Agostinho",
+              "cidade": "Belo Horizonte",
+              "estado": "MG",
+              "cep": "30170001",
+              "produtos": {
+                "pixSaque": true,
+                "pixTroco": true
+              },
+              "observacoes": "Serviço de saque apenas no subsolo. Pix Troco apenas para compras acima de 20 reais",
+              "horariosFuncionamento": [
+                {
+                  "dia": "SEGUNDA_FEIRA",
+                  "horario": {
+                    "aberturaSaque": "09:00",
+                    "fechamentoSaque": "18:00"
+                  },
+                  "valorMaximoDisponivel": "100.00"
+                }
+              ]
+            }
+          ]
+        },
+        "description": ""
+      },
+      "request_patch_estabelecimento_saque_troco": {
+        "value": {
+          "agencia": "1234",
+          "conta": "12345678",
+          "pontosAtendimento": [
+            {
+              "nome": "Filial Belo Horizonte",
+              "latitude": "-19.93254",
+              "longitude": "-43.94905",
+              "logradouro": "Av Alvares Cabral 1605",
+              "bairro": "Santo Agostinho",
+              "cidade": "Belo Horizonte",
+              "estado": "MG",
+              "cep": "30170001",
+              "produtos": {
+                "pixSaque": true,
+                "pixTroco": true
+              },
+              "observacoes": "Serviço de saque apenas no subsolo. Pix Troco apenas para compras acima de 20 reais",
+              "horariosFuncionamento": [
+                {
+                  "dia": "SEGUNDA_FEIRA",
+                  "horario": {
+                    "aberturaSaque": "09:00",
+                    "fechamentoSaque": "18:00"
+                  },
+                  "valorMaximoDisponivel": "100.00"
+                }
+              ]
+            }
+          ]
+        },
+        "description": ""
+      },
+      "200RemuneracaoAnalitico": {
+        "value": {
+          "data": [
+            {
+              "txid": "20135204111725A2A5098E813BA7A9CD021",
+              "idPagamento": "E18236120201352041418s157deeb57c",
+              "valor": 500,
+              "remuneracao": 0.8,
+              "data": "2023-08-04T11:18:31"
+            }
+          ],
+          "pagination": {
+            "links": {
+              "first": "https://recebimentos-pix.${iupipes_env_dns}/conciliacao/v1/remuneracao-analiticos?idConta=6070119045250000000059921&dataLancamento=2023-08-01T00:00,2023-08-31T23:59&pageSize=10&cnpj=75047002000135",
+              "next": "https://recebimentos-pix.${iupipes_env_dns}/conciliacao/v1/remuneracao-analiticos?idConta=6070119045250000000059921&dataLancamento=2023-08-01T00:00,2023-08-31T23:59&pageSize=10&cnpj=75047002000135&page=2",
+              "totalPages": "2,",
+              "totalElements": "10,",
+              "pageSize": 10
+            }
+          }
+        }
+      },
+      "200RemuneracaoConsolidado": {
+        "value": {
+          "data": [
+            {
+              "valorTotal": "15949.60,",
+              "quantidadeTotal": 19937,
+              "dataCompetenciaInicio": "2023-08-01",
+              "dataCompetenciaFim": "2023-08-31"
+            }
+          ]
+        }
+      }
+    },
+    "securitySchemes": {
+      "APIGatewaySTSAuthorizer": {
+        "x-amazon-apigateway-authtype": "custom",
+        "in": "header",
+        "name": "auth",
+        "type": "apiKey",
+        "x-amazon-apigateway-authorizer": {
+          "identitySource": "method.request.header.authorization",
+          "authorizerUri": "arn:aws:apigateway:${iupipes_aws_region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${iupipes_aws_region}:${iupipes_deploy_aws_env_account}:function:valida-token-gov2-pix-saquetroco-v1-aws-ext/invocations",
+          "authorizerCredentials": "arn:aws:iam::${iupipes_deploy_aws_env_account}:role/custom-gateway-invoke-authorizer-role",
+          "authorizerResultTtlInSeconds": 0,
+          "type": "request"
+        }
+      },
+      "sigv4": {
+        "type": "apiKey",
+        "name": "Authorization",
+        "in": "header",
+        "x-amazon-apigateway-authtype": "awsSigv4"
+      }
+    },
+    "x-metadata": {
+      "versao": 2,
+      "info": "Metadados das APIs do domínio cash management",
+      "categoria": "pix",
+      "rotas": [
+        {
+          "rota": "/pontos-atendimento",
+          "metodos": [
+            {
+              "metodo": "get",
+              "sigla": "EP9",
+              "tempo_desenvolvimento": 120,
+              "tags": [
+                "pix"
+              ],
+              "documentos": [
+                {
+                  "titulo": "Comunidade de Cash - Recebimentos Pix 2",
+                  "link": ""
+                }
+              ],
+              "contatos": [
+                {
+                  "tipo": "Equipe de Projeto: Comunidade Cash Management Squad Recebimentos PIX 2",
+                  "contato": "CI_Cash_Squad_Pix2_Estend@correio.itau.com.br"
+                }
+              ],
+              "comunidade": "CASH MANAGEMENT - RECEBIMENTOS E PAGAMENTOS PJ"
+            },
+            {
+              "metodo": "post",
+              "sigla": "EP9",
+              "tempo_desenvolvimento": 120,
+              "tags": [
+                "pix"
+              ],
+              "documentos": [
+                {
+                  "titulo": "Comunidade de Cash - Recebimentos Pix 2",
+                  "link": ""
+                }
+              ],
+              "contatos": [
+                {
+                  "tipo": "Equipe de Projeto: Comunidade Cash Management Squad Recebimentos PIX 2",
+                  "contato": "CI_Cash_Squad_Pix2_Estend@correio.itau.com.br"
+                }
+              ],
+              "comunidade": "CASH MANAGEMENT - RECEBIMENTOS E PAGAMENTOS PJ"
+            }
+          ]
+        },
+        {
+          "rota": "/pontos-atendimento/{pontoAtendimentoId}",
+          "metodos": [
+            {
+              "metodo": "patch",
+              "sigla": "EP9",
+              "tempo_desenvolvimento": 120,
+              "tags": [
+                "pix"
+              ],
+              "documentos": [
+                {
+                  "titulo": "Comunidade de Cash - Recebimentos Pix 2",
+                  "link": ""
+                }
+              ],
+              "contatos": [
+                {
+                  "tipo": "Equipe de Projeto: Comunidade Cash Management Squad Recebimentos PIX 2",
+                  "contato": "CI_Cash_Squad_Pix2_Estend@correio.itau.com.br"
+                }
+              ],
+              "comunidade": "CASH MANAGEMENT - RECEBIMENTOS E PAGAMENTOS PJ"
+            },
+            {
+              "metodo": "delete",
+              "sigla": "EP9",
+              "tempo_desenvolvimento": 120,
+              "tags": [
+                "pix"
+              ],
+              "documentos": [
+                {
+                  "titulo": "Comunidade de Cash - Recebimentos Pix 2",
+                  "link": ""
+                }
+              ],
+              "contatos": [
+                {
+                  "tipo": "Equipe de Projeto: Comunidade Cash Management Squad Recebimentos PIX 2",
+                  "contato": "CI_Cash_Squad_Pix2_Estend@correio.itau.com.br"
+                }
+              ],
+              "comunidade": "CASH MANAGEMENT - RECEBIMENTOS E PAGAMENTOS PJ"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "x-metadata": {
+    "$ref": "#/components/x-metadata"
+  },
+  "x-amazon-apigateway-request-validators": {
+    "all": {
+      "validateRequestBody": true,
+      "validateRequestParameters": true
+    },
+    "none": {
+      "validateRequestBody": false,
+      "validateRequestParameters": false
+    }
+  },
+  "x-amazon-apigateway-gateway-responses": {
+    "DEFAULT_4XX": {
+      "responseTemplates": {
+        "application/json": "{\"message\":\"An error occurred\"}"
+      }
+    }
+  },
+  "x-amazon-apigateway-policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Principal": "*",
+        "Action": "execute-api:Invoke",
+        "Resource": "*"
+      }
+    ]
+  },
+  "x-amazon-apigateway-authorizer-exceptions": [
+    {
+      "resource": "/*",
+      "method": "*",
+      "authorizer": "none"
+    }
+  ]
+}

@@ -1,0 +1,2104 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "API Boletos - Extrato Boleto Cobranca",
+    "description": "Api responsável por entregar os serviços para conciliação da carteira de boletos de cobrança, assim como extrato de movimentação financeira, relatório francesa, saldo da carteira de boletos, entradas e saídas de boletos, tarifação aplicada nos boletos.",
+    "version": "1.13.7",
+    "contact": {
+      "name": "MODERNIZACAO RECEBIMENTOS OS JETSONS (S002522)",
+      "email": "Cash_C1_SQ_Squad_Modernizacao_Os_Jetsons_Estend@correio.itau.com.br"
+    },
+    "sandbox-url": "https://devportal.itau.com.br/sandboxapi/itau-ep9-api-extrato-v1-externo/v1"
+  },
+  "servers": [
+    {
+      "url": "https://boleto.${iupipes_env_dns}/extrato/v1"
+    }
+  ],
+  "tags": [
+    {
+      "name": "extrato"
+    }
+  ],
+  "paths": {
+    "/francesas": {
+      "get": {
+        "tags": [
+          "Francesas"
+        ],
+        "operationId": "get/francesas",
+        "description": "Pesquisa das francesas disponíveis por Agência, Conta Corrente e Mês de Referência ou Data.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/x-itau-apikey"
+          },
+          {
+            "$ref": "#/components/parameters/x-itau-correlationid"
+          },
+          {
+            "in": "query",
+            "name": "agencia",
+            "required": true,
+            "description": "4 dígitos da agência.",
+            "example": "1500",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "conta",
+            "required": true,
+            "description": "7 dígitos da conta corrente.",
+            "example": "0001560",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dac",
+            "required": true,
+            "description": "1 dígito do dac",
+            "example": "1",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "mesReferencia",
+            "required": false,
+            "description": "Mês de referência para consulta de datas disponíveis para visualização da francesa (formato mmyyyy). Não deve ser informado em conjunto com a Data.",
+            "example": "122020",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/francesa"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "200FrancesaDisponivelLista": {
+                    "$ref": "#/components/examples/200FrancesaDisponivelLista"
+                  }
+                }
+              }
+            },
+            "description": "Lista relação de francesas disponíveis para os parâmetros informados.",
+            "headers": {
+              "Content-Location": {
+                "description": "URI correspondente a pesquisa corrente",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "204": {
+            "headers": {
+              "Content-Location": {
+                "description": "URI correspondente a pesquisa corrente",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "A consulta retorna informações:\n   - A coleção tem elementos mas nenhum atende aos filtros especificados possível.\n   - A coleção não contém elementos.\nBody não incluir resposta.\n"
+          },
+          "303": {
+            "headers": {
+              "Content-Location": {
+                "description": "URI correspondente a consulta do status do processamento assíncrono.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Location": {
+                "description": "URI correspondente a consulta do elemento já processado assíncronamente.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "See Other - Redirecionamento. A resposta da consulta será um redirecionamento com o HTTP status code 303.\nA localização do recurso é informado no no Header de resposta Location.\n"
+          },
+          "304": {
+            "headers": {
+              "Content-Location": {
+                "description": "O recurso não foi atualizado (foi fornecido do cache). Apropriado apenas nos serviços que são susceptíveis de registrar suas respostas.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "O recurso não foi atualizado (foi fornecido do cache). Apropriado apenas nos serviços que são susceptíveis de registrar suas respostas."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "applicationJson": {
+                      "description": "",
+                      "type": "object"
+                    }
+                  }
+                },
+                "examples": {
+                  "400": {
+                    "value": {
+                      "messages": [
+                        {
+                          "codigo": "validation_error",
+                          "mensagem": "Solicitação Imprópria",
+                          "campos": [
+                            {
+                              "campo": "usuario.teste",
+                              "mensagem": "Campo Obrigatório",
+                              "valor": ""
+                            },
+                            {
+                              "campo": "usuario.id",
+                              "mensagem": "Campo Inválido",
+                              "valor": "123-123"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "description": ""
+                  }
+                }
+              }
+            },
+            "description": "Parâmetros incorretos"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "applicationJson": {
+                      "description": "",
+                      "type": "object"
+                    }
+                  }
+                },
+                "examples": {
+                  "401": {
+                    "value": {
+                      "messages": [
+                        {
+                          "codigo": "",
+                          "mensagem": "Usuário não autenticado"
+                        }
+                      ]
+                    },
+                    "description": ""
+                  }
+                }
+              }
+            },
+            "description": "Não Autorizado"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "applicationJson": {
+                      "description": "",
+                      "type": "object"
+                    }
+                  }
+                },
+                "examples": {
+                  "403": {
+                    "value": {
+                      "messages": [
+                        {
+                          "codigo": "",
+                          "mensagem": "Acesso não autorizado"
+                        }
+                      ]
+                    },
+                    "description": ""
+                  }
+                }
+              }
+            },
+            "description": "Acesso Proibido"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "applicationJson": {
+                      "description": "",
+                      "type": "object"
+                    }
+                  }
+                },
+                "examples": {
+                  "404": {
+                    "value": {
+                      "messages": [
+                        {
+                          "codigo": "",
+                          "mensagem": "Recurso inexistente"
+                        }
+                      ]
+                    },
+                    "description": ""
+                  }
+                }
+              }
+            },
+            "description": "Recurso Inexistente"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "applicationJson": {
+                      "description": "",
+                      "type": "object"
+                    }
+                  }
+                },
+                "examples": {
+                  "405": {
+                    "value": {
+                      "messages": [
+                        {
+                          "codigo": "405",
+                          "mensagem": "Método não permitido"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Método não permitido"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "applicationJson": {
+                      "description": "",
+                      "type": "object"
+                    }
+                  }
+                },
+                "examples": {
+                  "422": {
+                    "value": {
+                      "messages": [
+                        {
+                          "codigo": "",
+                          "mensagem": "Erro na execução da solicitação"
+                        }
+                      ]
+                    },
+                    "description": ""
+                  }
+                }
+              }
+            },
+            "description": "Erro semântico"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "applicationJson": {
+                      "description": "",
+                      "type": "object"
+                    }
+                  }
+                },
+                "examples": {
+                  "428": {
+                    "value": {
+                      "messages": [
+                        {
+                          "codigo": "",
+                          "mensagem": "Pré-requisito necessário"
+                        }
+                      ]
+                    },
+                    "description": ""
+                  }
+                }
+              }
+            },
+            "description": "Pré requisito necessário"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "applicationJson": {
+                      "description": "",
+                      "type": "object"
+                    }
+                  }
+                },
+                "examples": {
+                  "500": {
+                    "value": {
+                      "messages": [
+                        {
+                          "codigo": "",
+                          "mensagem": "Erro inesperado"
+                        }
+                      ]
+                    },
+                    "description": ""
+                  }
+                }
+              }
+            },
+            "description": "Erro Inesperado"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "applicationJson": {
+                      "description": "",
+                      "type": "object"
+                    }
+                  }
+                },
+                "examples": {
+                  "501": {
+                    "value": {
+                      "messages": [
+                        {
+                          "codigo": "",
+                          "mensagem": "Não implementado"
+                        }
+                      ]
+                    },
+                    "description": ""
+                  }
+                }
+              }
+            },
+            "description": "Não implementado"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "applicationJson": {
+                      "description": "",
+                      "type": "object"
+                    }
+                  }
+                },
+                "examples": {
+                  "503": {
+                    "value": {
+                      "messages": [
+                        {
+                          "codigo": "",
+                          "mensagem": "Serviço Indisponível"
+                        }
+                      ]
+                    },
+                    "description": ""
+                  }
+                }
+              }
+            },
+            "description": "Serviço Indisponível"
+          }
+        },
+        "security": [
+          {
+            "APIGatewaySTSAuthorizer": [
+              "boletoscash-francesas.read"
+            ]
+          }
+        ],
+        "x-amazon-apigateway-request-validator": "all",
+        "x-amazon-apigateway-integration": {
+          "connectionType": "VPC_LINK",
+          "connectionId": "${iupipes_deploy_aws_env_vpcLink}",
+          "passthroughBehavior": "when_no_match",
+          "uri": "http://${iupipes_nlbUri}:${iupipes_port}/extrato/v1/francesas",
+          "timeoutInMillis": 14000,
+          "type": "http_proxy",
+          "httpMethod": "GET",
+          "responses": {
+            "default": {
+              "statusCode": "200",
+              "responseTemplates": {
+                "application/json": "{\"data\" : {}}"
+              }
+            }
+          },
+          "requestTemplates": {
+            "application/json": "{\"statusCode\" : 200}"
+          }
+        }
+      }
+    },
+    "/francesas/{francesaId}/movimentacoes": {
+      "get": {
+        "tags": [
+          "Francesas"
+        ],
+        "operationId": "get/francesas/{francesaId}/movimentacoes",
+        "description": "Lista de movimentações efetuadas na posição da francesa.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/x-itau-apikey"
+          },
+          {
+            "$ref": "#/components/parameters/x-itau-correlationid"
+          },
+          {
+            "in": "query",
+            "name": "data",
+            "required": true,
+            "description": "Data da movimentação no formato yyyy-MM-dd",
+            "example": "2020-04-20",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tipoCobranca",
+            "required": false,
+            "description": "Tipo de Cobrança para efetuar o filtro desejado. Quando não informado, serão retornados todos. Opções:  'boleto', 'bolecode', 'boleto_descontado'",
+            "example": "boleto",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tipoMovimentacao",
+            "required": false,
+            "description": "Tipos de movimentação para efetuar o filtro desejado. Quando não informado, serão retornados todos. Opções 'entradas', 'liquidacoes', 'baixas'.",
+            "example": "entradas",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "nossoNumero",
+            "required": false,
+            "description": "Consulta pelo nosso número específico",
+            "example": 12343138,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "seuNumero",
+            "required": false,
+            "description": "Consulta pelo seu número específico",
+            "example": "abc1234313",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "in": "query",
+            "name": "numeroCarteira",
+            "required": false,
+            "description": "Consulta pelo número da carteira específica",
+            "example": 123,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "in": "path",
+            "name": "francesaId",
+            "required": true,
+            "description": "(4 dígitos agência)+(7 dígitos c/c)+(1 dígito do DAC)",
+            "example": 150000024015,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "nomePagador",
+            "required": false,
+            "description": "Consulta pelo nome do pagador do título",
+            "example": "João da Silva",
+            "schema": {
+              "type": "string",
+              "maxLength": 30,
+              "minLength": 3
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/movimentacao"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "200MovimentacaoDetalhada": {
+                    "$ref": "#/components/examples/200MovimentacaoDetalhada"
+                  }
+                }
+              }
+            },
+            "description": "Relação detalhada de movimentações em títulos de cobrança e títulos descontados da francesa",
+            "headers": {
+              "Content-Location": {
+                "description": "URI correspondente a pesquisa corrente",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "204": {
+            "$ref": "#/paths/~1francesas/get/responses/204"
+          },
+          "303": {
+            "$ref": "#/paths/~1francesas/get/responses/303"
+          },
+          "304": {
+            "$ref": "#/paths/~1francesas/get/responses/304"
+          },
+          "400": {
+            "$ref": "#/paths/~1francesas/get/responses/400"
+          },
+          "401": {
+            "$ref": "#/paths/~1francesas/get/responses/401"
+          },
+          "403": {
+            "$ref": "#/paths/~1francesas/get/responses/403"
+          },
+          "404": {
+            "$ref": "#/paths/~1francesas/get/responses/404"
+          },
+          "405": {
+            "$ref": "#/paths/~1francesas/get/responses/405"
+          },
+          "422": {
+            "$ref": "#/paths/~1francesas/get/responses/422"
+          },
+          "428": {
+            "$ref": "#/paths/~1francesas/get/responses/428"
+          },
+          "500": {
+            "$ref": "#/paths/~1francesas/get/responses/500"
+          },
+          "501": {
+            "$ref": "#/paths/~1francesas/get/responses/501"
+          },
+          "503": {
+            "$ref": "#/paths/~1francesas/get/responses/503"
+          }
+        },
+        "security": [
+          {
+            "APIGatewaySTSAuthorizer": [
+              "boletoscash-francesas.read"
+            ]
+          }
+        ],
+        "x-amazon-apigateway-integration": {
+          "passthroughBehavior": "when_no_match",
+          "connectionType": "VPC_LINK",
+          "connectionId": "${iupipes_deploy_aws_env_vpcLink}",
+          "uri": "http://${iupipes_nlbUri}:${iupipes_port}/extrato/v1/francesas/{francesaId}/movimentacoes",
+          "timeoutInMillis": 14000,
+          "type": "http_proxy",
+          "httpMethod": "GET",
+          "responses": {
+            "default": {
+              "statusCode": "200",
+              "responseTemplates": {
+                "application/json": "{\"data\" : {}}"
+              }
+            }
+          },
+          "requestTemplates": {
+            "application/json": "{\"statusCode\" : 200}"
+          },
+          "requestParameters": {
+            "integration.request.path.francesaId": "method.request.path.francesaId"
+          }
+        },
+        "x-amazon-apigateway-request-validator": "all"
+      }
+    },
+    "/francesas/{francesaId}/movimentacoes-resumidas": {
+      "get": {
+        "tags": [
+          "Francesas"
+        ],
+        "operationId": "get/francesas/{francesaId}/movimentacoes_resumidas",
+        "description": "Posição da francesa resumida de títulos de cobrança e títulos descontados.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/x-itau-apikey"
+          },
+          {
+            "$ref": "#/components/parameters/x-itau-correlationid"
+          },
+          {
+            "in": "path",
+            "name": "francesaId",
+            "required": true,
+            "description": "(4 dígitos agência)+(7 dígitos c/c)+(1 dígito do DAC)",
+            "example": 150000024015,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "data",
+            "required": true,
+            "description": "Data da movimentação no formato yyyy-MM-dd",
+            "example": "2020-04-20",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/movimentacaoResumida"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "200MovimentacaoResumida": {
+                    "$ref": "#/components/examples/200MovimentacaoResumida"
+                  }
+                }
+              }
+            },
+            "description": "Relação resumida de movimentações de títulos de cobrança e descontados da francesa",
+            "headers": {
+              "Content-Location": {
+                "description": "URI correspondente a pesquisa corrente",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "204": {
+            "$ref": "#/paths/~1francesas/get/responses/204"
+          },
+          "303": {
+            "$ref": "#/paths/~1francesas/get/responses/303"
+          },
+          "304": {
+            "$ref": "#/paths/~1francesas/get/responses/304"
+          },
+          "400": {
+            "$ref": "#/paths/~1francesas/get/responses/400"
+          },
+          "401": {
+            "$ref": "#/paths/~1francesas/get/responses/401"
+          },
+          "403": {
+            "$ref": "#/paths/~1francesas/get/responses/403"
+          },
+          "404": {
+            "$ref": "#/paths/~1francesas/get/responses/404"
+          },
+          "405": {
+            "$ref": "#/paths/~1francesas/get/responses/405"
+          },
+          "422": {
+            "$ref": "#/paths/~1francesas/get/responses/422"
+          },
+          "428": {
+            "$ref": "#/paths/~1francesas/get/responses/428"
+          },
+          "500": {
+            "$ref": "#/paths/~1francesas/get/responses/500"
+          },
+          "501": {
+            "$ref": "#/paths/~1francesas/get/responses/501"
+          },
+          "503": {
+            "$ref": "#/paths/~1francesas/get/responses/503"
+          }
+        },
+        "security": [
+          {
+            "APIGatewaySTSAuthorizer": [
+              "boletoscash-francesas.read"
+            ]
+          }
+        ],
+        "x-amazon-apigateway-integration": {
+          "passthroughBehavior": "when_no_match",
+          "connectionType": "VPC_LINK",
+          "connectionId": "${iupipes_deploy_aws_env_vpcLink}",
+          "uri": "http://${iupipes_nlbUri}:${iupipes_port}/extrato/v1/francesas/{francesaId}/movimentacoes-resumidas",
+          "timeoutInMillis": 14000,
+          "type": "http_proxy",
+          "httpMethod": "GET",
+          "responses": {
+            "default": {
+              "statusCode": "200",
+              "responseTemplates": {
+                "application/json": "{\"data\" : {}}"
+              }
+            }
+          },
+          "requestTemplates": {
+            "application/json": "{\"statusCode\" : 200}"
+          },
+          "requestParameters": {
+            "integration.request.path.francesaId": "method.request.path.francesaId"
+          }
+        },
+        "x-amazon-apigateway-request-validator": "all"
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "x-itau-apikey": {
+        "in": "header",
+        "name": "x-itau-apikey",
+        "description": "Chave da API utilizado para autorizar o consumo de uma aplicação requisitante",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "x-itau-correlationid": {
+        "in": "header",
+        "name": "x-itau-correlationID",
+        "description": "Identificador de correlação que serve como um agrupar dentro da estrutura de audit trail",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "examples": {
+      "200FrancesaDisponivelLista": {
+        "value": {
+          "data": [
+            {
+              "posicao": null,
+              "dataPosicao": "2020-03-12"
+            },
+            {
+              "posicao": null,
+              "dataPosicao": "2020-03-13"
+            }
+          ]
+        }
+      },
+      "200MovimentacaoDetalhada": {
+        "value": {
+          "data": [
+            {
+              "agencia": 1234,
+              "conta": 1234567,
+              "dataMovimentacao": "2020-03-12",
+              "numeroCarteira": 109,
+              "codigoStatus": "E",
+              "tipoMovimentacao": "entradas",
+              "nossoNumero": "1234678",
+              "seuNumero": "abc12346",
+              "dacTitulo": 7,
+              "tipoCobranca": "Boleto",
+              "sequenciaTitulo": 1,
+              "pagador": "Empresa Brasileira de Armaze LTDA",
+              "agenciaRecebedora": 2861,
+              "dataMovimentacaoTituloCarteira": "2020-03-12",
+              "dataInclusao": "2020-01-01",
+              "dataVencimento": "2020-03-12",
+              "valorTitulo": "100.00",
+              "valorLiquidoLancado": "110.00",
+              "valorAcrescimo": "100.00",
+              "valorDecrescimo": "100.00",
+              "indicadorPagamentoReservaAdministrativa": "R",
+              "indicadorRateioCredito": true,
+              "dacAgenciaContaBeneficiario": 1,
+              "operacoesCobranca": [
+                {
+                  "codigo": "1",
+                  "descricao": "Juros",
+                  "valor": "-4.23"
+                },
+                {
+                  "codigo": "2",
+                  "descricao": "Multa",
+                  "valor": "-4.23"
+                },
+                {
+                  "codigo": "2",
+                  "descricao": "desconto",
+                  "valor": "-9.32"
+                }
+              ],
+              "operacoesDesconto": [
+                {
+                  "codigo": "1",
+                  "descricao": "Juros (encargos) de desconto",
+                  "valor": "-1.87"
+                },
+                {
+                  "codigo": "2",
+                  "descricao": "IOF",
+                  "valor": "-11.87"
+                },
+                {
+                  "codigo": "3",
+                  "descricao": "Tarifa de contratação de desconto",
+                  "valor": "-1.87"
+                },
+                {
+                  "codigo": "4",
+                  "descricao": "Tarifa de boleto descontado",
+                  "valor": "-1.87"
+                }
+              ]
+            }
+          ],
+          "pagination": {
+            "links": {
+              "first": "https://boleto.api.itau.com/extrato/v1/francesas/123411111111111/movimentacoes?data=2020-01-01&page=0&pageSize=20",
+              "last": "https://boleto.api.itau.com/extrato/v1/francesas/123411111111111/movimentacoes?data=2020-01-01&page=15&pageSize=20",
+              "previous": "",
+              "next": "https://boleto.api.itau.com/extrato/v1/francesas/123411111111111/movimentacoes?data=2020-01-01&page=1&pageSize=20"
+            },
+            "page": 0,
+            "total_pages": 15,
+            "total_elements": 6,
+            "pageSize": 20
+          }
+        }
+      },
+      "200MovimentacaoResumida": {
+        "value": {
+          "data": [
+            {
+              "resumidaCobranca": {
+                "posicao": {
+                  "dataPosicao": "2020-10-09",
+                  "posicaoAnterior": {
+                    "valor": "17104781.61",
+                    "quantidade": 852
+                  },
+                  "entradas": {
+                    "valor": "0.00",
+                    "quantidade": 0
+                  },
+                  "baixas": {
+                    "valor": "-50.00",
+                    "quantidade": 0
+                  },
+                  "liquidacoes": {
+                    "valor": "-128847.13",
+                    "quantidade": 14
+                  },
+                  "baixasDesconto": {
+                    "valor": "-10.00",
+                    "quantidade": 0
+                  },
+                  "posicaoAtual": {
+                    "valor": "16975934.48",
+                    "quantidade": 838
+                  },
+                  "consolidadoVencer": [
+                    {
+                      "dataInicial": "2020-10-09",
+                      "dataFinal": "2020-10-31",
+                      "valor": "3845962.31",
+                      "quantidade": 263
+                    },
+                    {
+                      "dataInicial": "2020-11-01",
+                      "dataFinal": "2020-11-30",
+                      "valor": "3746751.81",
+                      "quantidade": 204
+                    },
+                    {
+                      "dataInicial": "2020-12-01",
+                      "dataFinal": "2020-12-31",
+                      "valor": "823106.98",
+                      "quantidade": 30
+                    },
+                    {
+                      "dataInicial": "2021-01-01",
+                      "dataFinal": "9999-12-31",
+                      "valor": "390843.32",
+                      "quantidade": 12
+                    }
+                  ],
+                  "vencidos": {
+                    "dataFinal": "2020-10-08",
+                    "valor": "8169270.06",
+                    "quantidade": 329
+                  }
+                },
+                "movimentacaoFinanceira": {
+                  "principalLiquidacoes": "128847.13",
+                  "descontosAbatimentos": "0.00",
+                  "jurosMultas": "12.88",
+                  "total": "128860.01"
+                },
+                "movimentacaoConta": {
+                  "valoresDisponiveis": "54428.27",
+                  "valoresaCompensar": "74431.74",
+                  "valoresNaoLiberados": "0.00",
+                  "valorTotalDeducoes": "-87.37",
+                  "deducoes": [
+                    {
+                      "descricao": "Custas",
+                      "valor": "0.00"
+                    },
+                    {
+                      "descricao": "IOF",
+                      "valor": "0.00"
+                    },
+                    {
+                      "descricao": "Tarifas",
+                      "valor": "-87.37"
+                    }
+                  ],
+                  "tarifacaoMensal": {
+                    "dataDebito": "2020-10-09",
+                    "periodoConsolidado": {
+                      "dataInicial": "2020-10-01",
+                      "dataFinal": "2020-10-31"
+                    },
+                    "tarifas": [
+                      {
+                        "descricao": "liquidação",
+                        "quantidade": 5,
+                        "valor": "120.00"
+                      },
+                      {
+                        "descricao": "protestos solicitados",
+                        "quantidade": 10,
+                        "valor": "11.00"
+                      },
+                      {
+                        "descricao": "baixas",
+                        "quantidade": 5,
+                        "valor": "30.00"
+                      }
+                    ],
+                    "totalTarifas": {
+                      "quantidade": 20,
+                      "valor": "161.00"
+                    }
+                  }
+                }
+              },
+              "resumidaDescontado": {
+                "posicao": {
+                  "dataPosicao": "2020-10-09",
+                  "posicaoAnterior": {
+                    "valor": "17104781.61",
+                    "quantidade": 852
+                  },
+                  "entradas": {
+                    "valor": "0.00",
+                    "quantidade": 0
+                  },
+                  "baixas": {
+                    "valor": "-50.00",
+                    "quantidade": 0
+                  },
+                  "liquidacoes": {
+                    "valor": "-128847.13",
+                    "quantidade": 14
+                  },
+                  "baixasCobranca": {
+                    "valor": "-34.48",
+                    "quantidade": 1
+                  },
+                  "posicaoAtual": {
+                    "valor": "16975934.48",
+                    "quantidade": 838
+                  },
+                  "consolidadoVencer": [
+                    {
+                      "dataInicial": "2020-10-09",
+                      "dataFinal": "2020-10-31",
+                      "valor": "3845962.31",
+                      "quantidade": 263
+                    },
+                    {
+                      "dataInicial": "2020-11-01",
+                      "dataFinal": "2020-11-30",
+                      "valor": "3746751.81",
+                      "quantidade": 204
+                    },
+                    {
+                      "dataInicial": "2020-12-01",
+                      "dataFinal": "2020-12-31",
+                      "valor": "823106.98",
+                      "quantidade": 30
+                    },
+                    {
+                      "dataInicial": "2021-01-01",
+                      "dataFinal": "9999-12-31",
+                      "valor": "390843.32",
+                      "quantidade": 12
+                    }
+                  ],
+                  "vencidos": {
+                    "dataFinal": "2020-10-09",
+                    "valor": "8169270.06",
+                    "quantidade": 329
+                  }
+                },
+                "resumoLiquidacaoDesconto": {
+                  "liquidacaoDesconto": "128847.13",
+                  "creditoContaCorrente": "10.00",
+                  "debitoContaCorrente": "-12.88",
+                  "jurosMoratorio": "-128860.01"
+                },
+                "resumoEntradaDesconto": {
+                  "valorCreditadoContaCorrenteAposDeducoes": "54428.27",
+                  "deducoes": [
+                    {
+                      "descricao": "Juros (encargos) de desconto",
+                      "valor": "0.00"
+                    },
+                    {
+                      "descricao": "IOF",
+                      "valor": "0.00"
+                    },
+                    {
+                      "descricao": "Tarifa de contratação de desconto",
+                      "valor": "-87.37"
+                    },
+                    {
+                      "descricao": "Tarifa por boleto descontado",
+                      "valor": "-87.37"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "responses": {
+      "204_patch": {
+        "headers": {
+          "Content-Location": {
+            "description": "URI correspondente ao elemento atualizado.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "O recurso foi atualizado com êxito, mas não está retornando a representação do recurso.\n"
+      },
+      "400_patch": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "applicationJson": {
+                  "description": "",
+                  "type": "object"
+                }
+              }
+            },
+            "examples": {
+              "400": {
+                "value": {
+                  "messages": [
+                    {
+                      "codigo": "validation_error",
+                      "mensagem": "Solicitação Imprópria",
+                      "campos": [
+                        {
+                          "campo": "usuario.teste",
+                          "mensagem": "Campo Obrigatório",
+                          "valor": ""
+                        },
+                        {
+                          "campo": "usuario.id",
+                          "mensagem": "Campo Inválido",
+                          "valor": "123-123"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "Parâmetros incorretos"
+      },
+      "401_patch": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "applicationJson": {
+                  "description": "",
+                  "type": "object"
+                }
+              }
+            },
+            "examples": {
+              "401": {
+                "value": {
+                  "messages": [
+                    {
+                      "codigo": "",
+                      "mensagem": "Usuário não autenticado"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "Não Autorizado"
+      },
+      "403_patch": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "applicationJson": {
+                  "description": "",
+                  "type": "object"
+                }
+              }
+            },
+            "examples": {
+              "403": {
+                "value": {
+                  "messages": [
+                    {
+                      "codigo": "",
+                      "mensagem": "Acesso não autorizado"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "Acesso Proibido"
+      },
+      "404_patch": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "applicationJson": {
+                  "description": "",
+                  "type": "object"
+                }
+              }
+            },
+            "examples": {
+              "404": {
+                "value": {
+                  "messages": [
+                    {
+                      "codigo": "",
+                      "mensagem": "Recurso inexistente"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "Recurso Inexistente"
+      },
+      "405_patch": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "applicationJson": {
+                  "description": "",
+                  "type": "object"
+                }
+              }
+            },
+            "examples": {
+              "405": {
+                "value": {
+                  "messages": [
+                    {
+                      "codigo": "",
+                      "mensagem": "Método não permitido"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "Método não permitido"
+      },
+      "422_patch": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "applicationJson": {
+                  "description": "",
+                  "type": "object"
+                }
+              }
+            },
+            "examples": {
+              "422": {
+                "value": {
+                  "messages": [
+                    {
+                      "codigo": "",
+                      "mensagem": "Erro na execução da solicitação"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "Erro semântico"
+      },
+      "428_patch": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "applicationJson": {
+                  "description": "",
+                  "type": "object"
+                }
+              }
+            },
+            "examples": {
+              "428": {
+                "value": {
+                  "messages": [
+                    {
+                      "codigo": "",
+                      "mensagem": "Pré-requisito necessário"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "Pré requisito necessário"
+      },
+      "500_patch": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "applicationJson": {
+                  "description": "",
+                  "type": "object"
+                }
+              }
+            },
+            "examples": {
+              "500": {
+                "value": {
+                  "messages": [
+                    {
+                      "codigo": "",
+                      "mensagem": "Erro inesperado"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "Erro Inesperado"
+      },
+      "501_patch": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "applicationJson": {
+                  "description": "",
+                  "type": "object"
+                }
+              }
+            },
+            "examples": {
+              "501": {
+                "value": {
+                  "messages": [
+                    {
+                      "codigo": "",
+                      "mensagem": "Não implementado"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "Não implementado"
+      },
+      "503_patch": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "applicationJson": {
+                  "description": "",
+                  "type": "object"
+                }
+              }
+            },
+            "examples": {
+              "503": {
+                "value": {
+                  "messages": [
+                    {
+                      "codigo": "",
+                      "mensagem": "Serviço Indisponível"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "Serviço Indisponível"
+      }
+    },
+    "schemas": {
+      "posicaoAnterior": {
+        "$ref": "#/components/schemas/baixas"
+      },
+      "entradas": {
+        "$ref": "#/components/schemas/baixas"
+      },
+      "baixas": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "valor": {
+            "description": "Valor total",
+            "type": "string"
+          },
+          "quantidade": {
+            "description": "Quantidade total",
+            "type": "number"
+          }
+        },
+        "required": [
+          "valor",
+          "quantidade"
+        ]
+      },
+      "baixasDesconto": {
+        "$ref": "#/components/schemas/baixas"
+      },
+      "baixasCobranca": {
+        "$ref": "#/components/schemas/baixas"
+      },
+      "liquidacoes": {
+        "$ref": "#/components/schemas/baixas"
+      },
+      "posicaoAtual": {
+        "$ref": "#/components/schemas/baixas"
+      },
+      "francesaResumidaPosicaoConsolidadoVencer": {
+        "$ref": "#/components/schemas/vencidos"
+      },
+      "vencidos": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "dataInicial": {
+            "description": "Data inicial do periodo de referência da consolidação",
+            "type": "string"
+          },
+          "dataFinal": {
+            "description": "Data final do periodo de referência da consolidação",
+            "type": "string"
+          },
+          "valor": {
+            "description": "Valor total de vencimentos",
+            "type": "string"
+          },
+          "quantidade": {
+            "description": "Quantidade de titulos a vencer",
+            "type": "number"
+          }
+        },
+        "required": [
+          "dataFinal",
+          "valor",
+          "quantidade"
+        ]
+      },
+      "posicao": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "dataPosicao": {
+            "description": "Data da posição da francesa",
+            "type": "string"
+          },
+          "posicaoAnterior": {
+            "$ref": "#/components/schemas/baixas"
+          },
+          "entradas": {
+            "$ref": "#/components/schemas/baixas"
+          },
+          "baixas": {
+            "$ref": "#/components/schemas/baixas"
+          },
+          "baixasDesconto": {
+            "$ref": "#/components/schemas/baixas"
+          },
+          "baixasCobranca": {
+            "$ref": "#/components/schemas/baixas"
+          },
+          "liquidacoes": {
+            "$ref": "#/components/schemas/baixas"
+          },
+          "posicaoAtual": {
+            "$ref": "#/components/schemas/baixas"
+          },
+          "consolidadoVencer": {
+            "description": "Relação de datas com somatória de boletos a vencer",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/vencidos"
+            }
+          },
+          "vencidos": {
+            "$ref": "#/components/schemas/vencidos"
+          }
+        },
+        "required": [
+          "dataPosicao"
+        ]
+      },
+      "movimentacaoFinanceira": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "principalLiquidacoes": {
+            "description": "Valor total de liquidacoes",
+            "type": "string"
+          },
+          "descontosAbatimentos": {
+            "description": "Valor total de descontos + abatimentos",
+            "type": "string"
+          },
+          "jurosMultas": {
+            "description": "Valor total de juros + multas",
+            "type": "string"
+          },
+          "total": {
+            "description": "Totalizador da movimentação financeira: liquidações + juros e multa - desconto e abatimento",
+            "type": "string"
+          }
+        },
+        "required": [
+          "principalLiquidacoes",
+          "descontosAbatimentos",
+          "jurosMultas",
+          "total"
+        ]
+      },
+      "francesaResumidaMovimentacaoContaDeducao": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "descricao": {
+            "description": "Descrição da dedução",
+            "type": "string"
+          },
+          "valor": {
+            "description": "Valor da dedução",
+            "type": "string"
+          }
+        },
+        "required": [
+          "descricao",
+          "valor"
+        ]
+      },
+      "periodoConsolidado": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "dataInicial": {
+            "description": "Data inicial do periodo de referência da consolidação",
+            "type": "string"
+          },
+          "dataFinal": {
+            "description": "Data final do periodo de referência da consolidação",
+            "type": "string"
+          }
+        },
+        "required": [
+          "dataInicial",
+          "dataFinal"
+        ]
+      },
+      "tarifacaoMensalTarifas": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "descricao": {
+            "description": "Descrição da tarifa",
+            "type": "string"
+          },
+          "quantidade": {
+            "description": "Quantidade de títulos que incidiram tarifas",
+            "type": "integer"
+          },
+          "valor": {
+            "description": "Valor total da tarifa descrita",
+            "type": "string"
+          }
+        },
+        "required": [
+          "descricao",
+          "quantidade",
+          "valor"
+        ]
+      },
+      "totalTarifas": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "quantidade": {
+            "description": "Quantidade de tarifas",
+            "type": "number"
+          },
+          "valor": {
+            "description": "Valor das tarifas",
+            "type": "string"
+          }
+        },
+        "required": [
+          "quantidade",
+          "valor"
+        ]
+      },
+      "tarifacaoMensal": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "dataDebito": {
+            "description": "Data que ocorreu o débito da tarifação mensal",
+            "type": "string"
+          },
+          "periodoConsolidado": {
+            "$ref": "#/components/schemas/periodoConsolidado"
+          },
+          "tarifas": {
+            "description": "Lista com as tarifas que irão ser cobradas na conta",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/tarifacaoMensalTarifas"
+            }
+          },
+          "totalTarifas": {
+            "$ref": "#/components/schemas/totalTarifas"
+          }
+        },
+        "required": [
+          "dataDebito",
+          "periodoConsolidado",
+          "tarifas",
+          "totalTarifas"
+        ]
+      },
+      "movimentacaoConta": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "valoresDisponiveis": {
+            "description": "Valor total disponível",
+            "type": "string"
+          },
+          "valoresaCompensar": {
+            "description": "Valor a compensar",
+            "type": "string"
+          },
+          "valoresNaoLiberados": {
+            "description": "Valor total não liberado em conta",
+            "type": "string"
+          },
+          "valorTotalDeducoes": {
+            "description": "Valor total das deduçoes",
+            "type": "string"
+          },
+          "deducoes": {
+            "description": "Valores detalhados de deduções",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/francesaResumidaMovimentacaoContaDeducao"
+            }
+          },
+          "tarifacaoMensal": {
+            "$ref": "#/components/schemas/tarifacaoMensal"
+          }
+        },
+        "required": [
+          "valoresDisponiveis",
+          "valoresaCompensar",
+          "valoresNaoLiberados",
+          "valorTotalDeducoes",
+          "deducoes"
+        ]
+      },
+      "francesa": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "posicao": {
+            "$ref": "#/components/schemas/posicao"
+          },
+          "movimentacaoFinanceira": {
+            "$ref": "#/components/schemas/movimentacaoFinanceira"
+          },
+          "movimentacaoConta": {
+            "$ref": "#/components/schemas/movimentacaoConta"
+          }
+        }
+      },
+      "movimentacaoDetalheOperacao": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "codigo": {
+            "description": "Código da operação",
+            "type": "string"
+          },
+          "descricao": {
+            "description": "Descrição da operação",
+            "type": "string"
+          },
+          "valor": {
+            "description": "Valor da operação",
+            "type": "string"
+          }
+        },
+        "required": [
+          "codigo",
+          "descricao",
+          "valor"
+        ]
+      },
+      "movimentacao": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "agencia": {
+            "description": "Número da Agencia",
+            "type": "number"
+          },
+          "conta": {
+            "description": "Número da conta",
+            "type": "number"
+          },
+          "dataMovimentacao": {
+            "description": "Data da movimentação",
+            "type": "string"
+          },
+          "numeroCarteira": {
+            "description": "Número da carteira",
+            "type": "number"
+          },
+          "codigoStatus": {
+            "description": "Código do status do movimento",
+            "type": "string"
+          },
+          "tipoMovimentacao": {
+            "description": "Descrição do tipo de movimentação",
+            "type": "string"
+          },
+          "tipoCobranca": {
+            "description": "Tipo do título da cobrança",
+            "type": "string"
+          },
+          "nossoNumero": {
+            "description": "Número de identificação do título",
+            "type": "string"
+          },
+          "seuNumero": {
+            "description": "Número de identificação do cliente para o título",
+            "type": "string"
+          },
+          "dacTitulo": {
+            "description": "DAC do Titulo",
+            "type": "number"
+          },
+          "sequenciaTitulo": {
+            "description": "Número sequencial do Título",
+            "type": "number"
+          },
+          "pagador": {
+            "description": "Descrição do pagador do Título",
+            "type": "string"
+          },
+          "agenciaRecebedora": {
+            "description": "Número da agencia recebedora do titulo",
+            "type": "number"
+          },
+          "dataMovimentacaoTituloCarteira": {
+            "description": "Data da movimentação do titulo em carteira",
+            "type": "string"
+          },
+          "dataInclusao": {
+            "description": "Data da inclusão do título",
+            "type": "string"
+          },
+          "dataVencimento": {
+            "description": "Data de vencimento do Titulo",
+            "type": "string"
+          },
+          "valorTitulo": {
+            "description": "Valor do Título",
+            "type": "string"
+          },
+          "valorLiquidoLancado": {
+            "description": "Valor liquido lançado",
+            "type": "string"
+          },
+          "valorAcrescimo": {
+            "description": "Valor de acresimo do titulo",
+            "type": "string"
+          },
+          "valorDecrescimo": {
+            "description": "Valor de decrescimo do titulo",
+            "type": "string"
+          },
+          "indicadorPagamentoReservaAdministrativa": {
+            "description": "Indicador do pagamento em reserva administrativa",
+            "type": "string"
+          },
+          "indicadorRateioCredito": {
+            "description": "Indicador de rateio de crédito",
+            "type": "boolean"
+          },
+          "dacAgenciaContaBeneficiario": {
+            "description": "DAC da Agencia e conta do Beneficiário",
+            "type": "number"
+          },
+          "operacoesCobranca": {
+            "description": "Valores detalhados de operações de cobrança",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/movimentacaoDetalheOperacao"
+            }
+          },
+          "operacoesDesconto": {
+            "description": "Valores detalhados de operações de desconto",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/movimentacaoDetalheOperacao"
+            }
+          }
+        },
+        "required": [
+          "agencia",
+          "conta",
+          "dataMovimentacao",
+          "numeroCarteira",
+          "codigoStatus",
+          "tipoMovimentacao",
+          "tipoCobranca",
+          "nossoNumero",
+          "seuNumero",
+          "dacTitulo",
+          "sequenciaTitulo",
+          "pagador",
+          "agenciaRecebedora",
+          "dataMovimentacaoTituloCarteira",
+          "dataInclusao",
+          "dataVencimento",
+          "valorTitulo",
+          "valorLiquidoLancado",
+          "valorAcrescimo",
+          "valorDecrescimo",
+          "indicadorPagamentoReservaAdministrativa",
+          "indicadorRateioCredito",
+          "dacAgenciaContaBeneficiario",
+          "operacoesCobranca"
+        ]
+      },
+      "resumidaCobranca": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "posicao": {
+            "$ref": "#/components/schemas/posicao"
+          },
+          "movimentacaoFinanceira": {
+            "$ref": "#/components/schemas/movimentacaoFinanceira"
+          },
+          "movimentacaoConta": {
+            "$ref": "#/components/schemas/movimentacaoConta"
+          }
+        },
+        "required": [
+          "posicao",
+          "movimentacaoFinanceira",
+          "movimentacaoConta"
+        ]
+      },
+      "resumoLiquidacaoDesconto": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "liquidacaoDesconto": {
+            "description": "Valor total dos títulos descontados que foram liquidados",
+            "type": "string"
+          },
+          "creditoContaCorrente": {
+            "description": "Valor total que será creditado na conta corrente do beneficiário",
+            "type": "string"
+          },
+          "debitoContaCorrente": {
+            "description": "Valor total que será debitado na conta corrente do beneficiário",
+            "type": "string"
+          },
+          "jurosMoratorio": {
+            "description": "Valor total de juros moratório da movimentação Baixa em Desconto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "liquidacaoDesconto",
+          "creditoContaCorrente",
+          "debitoContaCorrente",
+          "jurosMoratorio"
+        ]
+      },
+      "resumoEntradaDesconto": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "valorCreditadoContaCorrenteAposDeducoes": {
+            "description": "Valor total que será creditado na conta corrente do beneficiário após subtrair as deduções.",
+            "type": "string"
+          },
+          "deducoes": {
+            "description": "Valor total que será creditado na conta corrente do beneficiário.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/francesaResumidaMovimentacaoContaDeducao"
+            }
+          }
+        },
+        "required": [
+          "valorCreditadoContaCorrenteAposDeducoes",
+          "deducoes"
+        ]
+      },
+      "resumidaDescontado": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "posicao": {
+            "$ref": "#/components/schemas/posicao"
+          },
+          "resumoLiquidacaoDesconto": {
+            "$ref": "#/components/schemas/resumoLiquidacaoDesconto"
+          },
+          "resumoEntradaDesconto": {
+            "$ref": "#/components/schemas/resumoEntradaDesconto"
+          }
+        }
+      },
+      "movimentacaoResumida": {
+        "type": "object",
+        "description": "",
+        "properties": {
+          "resumidaCobranca": {
+            "$ref": "#/components/schemas/resumidaCobranca"
+          },
+          "resumidaDescontado": {
+            "$ref": "#/components/schemas/resumidaDescontado"
+          }
+        },
+        "required": [
+          "resumidaCobranca"
+        ]
+      },
+      "francesaResumidaPosicaoQuantidadeValor": {
+        "$ref": "#/components/schemas/baixas"
+      },
+      "tarifacaoMensalPeriodoConsolidado": {
+        "$ref": "#/components/schemas/periodoConsolidado"
+      },
+      "tarifacaoMensalTotalTarifas": {
+        "$ref": "#/components/schemas/totalTarifas"
+      },
+      "francesaResumidaPosicao": {
+        "$ref": "#/components/schemas/posicao"
+      },
+      "francesaResumidaMovimentacaoFinanceira": {
+        "$ref": "#/components/schemas/movimentacaoFinanceira"
+      },
+      "francesaResumidaMovimentacaoConta": {
+        "$ref": "#/components/schemas/movimentacaoConta"
+      },
+      "francesaResumidaLiquidacaoDesconto": {
+        "$ref": "#/components/schemas/resumoLiquidacaoDesconto"
+      },
+      "francesaResumidaEntradaDesconto": {
+        "$ref": "#/components/schemas/resumoEntradaDesconto"
+      },
+      "francesaResumidaCobranca": {
+        "$ref": "#/components/schemas/resumidaCobranca"
+      },
+      "francesaResumidaDescontado": {
+        "$ref": "#/components/schemas/resumidaDescontado"
+      }
+    },
+    "securitySchemes": {
+      "APIGatewaySTSAuthorizer": {
+        "x-amazon-apigateway-authtype": "custom",
+        "in": "header",
+        "name": "auth",
+        "type": "apiKey",
+        "x-amazon-apigateway-authorizer": {
+          "identitySource": "method.request.header.authorization",
+          "authorizerUri": "arn:aws:apigateway:${iupipes_aws_region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${iupipes_aws_region}:${iupipes_deploy_aws_env_account}:function:valida-token-extrato-v1-externo/invocations",
+          "authorizerCredentials": "arn:aws:iam::${iupipes_deploy_aws_env_account}:role/custom-gateway-invoke-authorizer-role",
+          "authorizerResultTtlInSeconds": 0,
+          "type": "request"
+        }
+      },
+      "sigv4": {
+        "type": "apiKey",
+        "name": "Authorization",
+        "in": "header",
+        "x-amazon-apigateway-authtype": "awsSigv4"
+      }
+    }
+  },
+  "x-amazon-apigateway-request-validators": {
+    "all": {
+      "validateRequestBody": true,
+      "validateRequestParameters": true
+    }
+  },
+  "x-amazon-apigateway-gateway-responses": {
+    "DEFAULT_4XX": {
+      "responseTemplates": {
+        "application/json": "{\"message\":\"An error occurred\"}"
+      }
+    }
+  },
+  "x-amazon-apigateway-policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Principal": "*",
+        "Action": "execute-api:Invoke",
+        "Resource": "*"
+      }
+    ]
+  }
+}
