@@ -17,6 +17,7 @@ Não é, ainda, um ERP de cobrança bancária/fiscal completo.
 | Conciliação com matching por valor/data (OFX upload na UI) | Parcial |
 | NFS-e | Stub (número/URL simulados; sem ABRASF/prefeitura) |
 | Gateway Cora / Asaas / Pagar.me | Adapter BankGateway com CORA_MODE=mock\|sandbox\|production (apenas mock funcional no MVP; sandbox/production retornam 503); webhook Cora; exibição de modo_gateway e selo "Simulado (modo mock)" na UI |
+| Gateway Itaú (Bolecode + Pix + webhooks) | **Planejado, sem código** (especificação na §8; depende de contrato e credenciais Itaú) |
 | Boleto registrado Febraban / cartão recorrente | Não operacional |
 | CNAB 240/400 | Ausente |
 | Plano de contas | Schema apenas |
@@ -77,7 +78,7 @@ Portal da família: Mensalidades (2ª via Pix com filtros e confirmação de pag
 
 ## 6. Backlog de mercado (não prometido como pronto)
 
-1. Emissão real via PSP (Cora/Asaas) preenchendo `gateway_invoice_id`  
+1. Emissão real via PSP (Cora/Asaas/Itaú) preenchendo `gateway_invoice_id` (Itaú especificado na §8)  
 2. Boleto registrado + PDF 2ª via  
 3. Disparo omnicanal real da régua  
 4. NFS-e ABRASF / provedor municipal  
@@ -91,3 +92,158 @@ Organização após o refactor B12 (só moveu código, sem mudança de regra):
 
 - `frontend/src/components/FinanceiroSection.tsx` orquestra: estado, carregamento, handlers (incluindo `handleOFXUpload`) e abas. Concentra todas as chamadas `apiFetch` do Financeiro.
 - `frontend/src/components/financeiro/` só exibe, via props: abas (`ReceberPanel`, `PagarPanel`, `FornecedoresPanel`, `CobrancaPanel`, `NfsePanel`, `BiPanel`), modais (`NovaFaturaModal`, `NovaDespesaModal`, `NovoFornecedorModal`, `PixModal`) e `types.ts`. O `PixModal` do Financeiro é independente do `portal_aluno/PixModal.tsx`.
+
+## 8. Integração Itaú: Bolecode + Pix + webhooks (planejada)
+
+> **Estado: especificação, sem código.** Nada desta seção está implementado. Fonte: documentação do Itaú for Developers copiada em `docs/reference/itau/` (specs OpenAPI em `openapi/`, visões gerais em `visao-geral/`, guias em `guias/`), extraída em 2026-10-20. Itens marcados **(a confirmar)** dependem do primeiro teste com credenciais reais ou do gerente Itaú.
+
+### 8.1 Objetivo e escopo
+
+Emitir a cobrança oficial de uma fatura como **Bolecode** (boleto registrado com QR Code Pix na mesma emissão) e dar baixa automática quando a família paga, por código de barras ou por Pix.
+
+- **Dentro**: assistente de configuração na tela com segredos cifrados no banco, autenticação (OAuth2 + mTLS), emissão de Bolecode, consulta do boleto, baixa (cancelamento) do boleto quando a fatura é cancelada, webhook de boleto, webhook Pix e conferência antes da baixa.
+- **Fora (fases futuras)**: Pix Automático (`itau-ng7-api-pixautomatico-v1-externo`), Pix avulso `cob`/`cobv` sem boleto, alteração de vencimento/juros/desconto de boleto já emitido, protesto/negativação, conciliação por francesa/extrato, devolução de Pix, SISPAG (contas a pagar), renovação do certificado sem clique.
+- **Não usar**: as APIs marcadas "EM DESATIVAÇÃO" no portal (`itau-ep9-gtw-pix-recebimentos-ext-v2`, `itau-ep9-gtw-pix-recebimentos-conciliacoes-v2-ext`). O Pix padrão Bacen é `itau-ep9-api-regulatorio-pix-v2-externo`.
+
+### 8.2 Pré-requisitos fora do sistema (passos manuais da escola)
+
+Sem estes itens o modo `production` não funciona; a UI deve dizer isso, sem copy de "pronto para produção".
+
+1. Conta PJ Itaú com **convênio de cobrança, carteira 109** (`id_beneficiario` = agência 4 + conta 7 + DAC 1, 12 dígitos).
+2. **Modalidade Boleto com Pix habilitada** pelo atendimento Itaú (a doc diz que o cliente precisa pedir a inclusão).
+3. **Chave Pix** da escola (de preferência o CNPJ) vinculada à conta.
+4. **Credenciais de produção**: a escola envia ao Analista de Operações Itaú a chave pública de transporte mostrada pelo assistente (8.3.1) e recebe por e-mail os valores cifrados (chave de sessão, client_id e token temporário), que cola no assistente. O sistema gera o **certificado dinâmico** e recebe o `client_secret`, que o Itaú entrega uma única vez (guia `guias/certificado-dinamico.md`).
+5. **URL pública HTTPS** para os webhooks; o webhook Pix exige **mTLS** (o servidor que recebe precisa confiar na CA do Itaú, ver 8.7).
+
+### 8.3 Modos e configuração
+
+- Variável `ITAU_MODE` = `mock` (padrão) | `sandbox` | `production`, independente de `CORA_MODE`. Valor inválido derruba a inicialização com mensagem clara (mesmo padrão da Cora).
+- **mock**: nenhuma chamada externa; a emissão devolve dados simulados e a UI mostra o selo "Simulado".
+- **sandbox**: usa as URLs de sandbox do portal (ex.: `https://sandbox.devportal.itau.com.br/itau-ep9-api-recebimentos-v1-externo/v1`). O sandbox do Itaú é um serviço virtualizado com respostas de exemplo **(a confirmar se valida regras de negócio)**; serve para testar formato, não para homologar regra.
+- **production**: hosts de produção, ex.: Bolecode `https://pix-pj.api.itau.com/recebimentos-pix/v1`, Pix `https://pix-pj.api.itau.com/regulatorio-pix/v2` **(a confirmar o host do Pix: a spec usa `pix-pj.${env}`)**, gestão de boletos `https://api.gateway.itau.com.br/cash_management/v2`.
+- **Credenciais do Itaú ficam no banco, cifradas, configuradas pelo assistente da tela** (8.3.1), não em variáveis de ambiente. No servidor fica só a chave mestra de cifragem (`APP_SECRETS_KEY`) e o `ITAU_MODE`. Diferente da Cora, que segue com `CORA_*` no ambiente até migrar para o mesmo modelo.
+- Dados por escola (tenant), em `tenant_bank_integrations` com `gateway_name = 'itau'`: `id_beneficiario`, chave Pix, espécie padrão, multa e juros padrão, situação do cadastro dos webhooks e validade do certificado (só a data, para exibir). Os segredos ficam em tabela própria (8.3.1). Exige migration nova com RLS; nunca editar migration aplicada.
+- **Adapter**: o trait `BankGateway` atual é tipado para a Cora (`CoraCreateInvoiceRequest`, `CoraMode`). O Itaú entra como adapter próprio (ex.: `services/itau_api.rs`, com mock e cliente real), sem forçar os tipos da Cora; generalizar o trait é refactor à parte.
+- **Decisão (2026-10-20, usuário): fase 1 com uma conta Itaú por instalação, e uma escola por servidor/container.** Assim a conta Itaú é, na prática, a da escola. Credenciais e dados da cobrança são configurados pela escola na tela, pelo assistente (8.3.1). O modelo multi-tenant (RLS, `TenantDb`, rotas `:tenant_id`) é mantido, com um único tenant por instalação. Se um dia várias escolas, com contas diferentes, dividirem o mesmo servidor, será preciso guardar certificado + chave privada por tenant (cifrados) ou usar o fluxo de **parceiro homologado Itaú**, em que o Itaú envia ao parceiro `client_id`/`client_secret` da escola quando ela consente nos canais do banco (webhook de "novo consentimento", `visao-geral/itau-ep9-api-recebimentos-v1-externo.md`).
+
+### 8.3.1 Assistente de conexão e guarda de segredos
+
+**Decisão (2026-10-20, usuário):** a escola configura o Itaú por um assistente na tela de Integrações. As chaves privadas são **geradas no servidor e nunca saem dele**; nenhum arquivo de chave passa pelo navegador.
+
+**Passos do assistente** (papel `admin`; cada passo grava `audit_logs` com tenant, usuário, ação e horário, sem valores secretos):
+
+1. **Dados da cobrança**: agência, conta e DAC (formam o `id_beneficiario`, validado com 12 dígitos), chave Pix, espécie padrão, multa e juros padrão. Pode ser salvo antes das credenciais.
+2. **Chave de transporte**: o servidor gera um par RSA 2048 e mostra a **chave pública** (PEM) com botão de copiar e a orientação de enviá-la ao Analista de Operações Itaú. A chave privada de transporte fica cifrada no banco. Gerar de novo invalida a anterior (com confirmação).
+3. **Valores do e-mail do Itaú**: o admin cola a chave de sessão cifrada, o client_id cifrado e o token temporário cifrado. O servidor:
+   - decifra a chave de sessão com a chave privada de transporte (RSA) e, com ela, o client_id e o token (AES-256-CBC, IV zero, como no guia);
+   - gera a **chave do certificado** (RSA 2048) e o CSR SHA-512 com `CN=<client_id>`, `OU=<razão social da escola>`, `L`, `ST` e `C=BR`;
+   - chama `POST https://sts.itau.com.br/seguranca/v1/certificado/solicitacao` com `Bearer <token temporário>` e o CSR em `text/plain`;
+   - grava, cifrados, o certificado, a chave do certificado, o client_id e o `client_secret` devolvido. O token temporário e a chave de sessão não são guardados; a chave de transporte é apagada depois do sucesso.
+   Erro em qualquer etapa não grava nada pela metade e mostra a causa em linguagem simples (ex.: "token temporário expirado: peça um novo ao Itaú").
+4. **Testar conexão**: pede um token OAuth com o certificado novo e mostra "Conectado" ou o erro. Só depois disso o botão de ativar fica disponível.
+5. **Registrar avisos de pagamento**: cadastra os webhooks de boleto (8.6) e Pix (8.7), gerando as credenciais do webhook de boleto. Mostra a situação de cada um.
+
+**Sandbox**: o portal cria credenciais de sandbox direto na página da API. Em `ITAU_MODE=sandbox` o assistente aceita client_id e client_secret colados, sem certificado **(a confirmar se o sandbox exige mTLS)**.
+
+**Renovação do certificado**: a partir de 30 dias antes do vencimento a tela mostra "Renovar certificado". O servidor gera chave e CSR novos e chama `POST /seguranca/v1/certificado/renovacao` com o certificado atual (mTLS) e um token válido do STS **(a confirmar qual token o Itaú aceita)**. O certificado antigo só é substituído depois do sucesso. Renovação automática sem clique fica para fase futura.
+
+**Guarda dos segredos:**
+- Tabela nova, ex.: `tenant_gateway_secrets` (`tenant_id`, `gateway_name`, `tipo`: `transporte_chave` | `cert` | `cert_chave` | `client_id` | `client_secret` | `webhook_client_secret_hash`, `ciphertext`, `nonce`, `key_version`, `created_at`, `created_by`), com RLS `ENABLE` + `FORCE` + política por `tenant_id`.
+- Cifragem **AES-256-GCM** com nonce aleatório por valor e a chave mestra `APP_SECRETS_KEY` (32 bytes, base64) do ambiente; `key_version` permite trocar a chave mestra recifrando os valores. O secret do webhook de boleto é gerado pelo sistema e guardado só como hash.
+- Sem `APP_SECRETS_KEY` o backend sobe normalmente, mas o assistente e a emissão Itaú respondem com mensagem clara ("chave de cifragem não configurada no servidor"), nunca guardam segredo em claro.
+- Segredos **nunca** voltam em resposta de API, nunca vão para log ou `audit_logs`, e só são decifrados em memória no momento da chamada ao Itaú. A API devolve apenas presença (sim/não), client_id mascarado e a validade do certificado.
+- Perder a `APP_SECRETS_KEY` torna os segredos ilegíveis: a escola refaz o assistente. Isso precisa constar no guia de instalação, junto com o backup da chave.
+
+### 8.4 Autenticação no Itaú
+
+- Token: `POST https://sts.itau.com.br/as/token.oauth2`, `grant_type=client_credentials`, com **mTLS** (certificado dinâmico + chave privada). O token vale **300 s**; o cliente guarda em cache e renova antes de vencer (ex.: aos 240 s). **(A confirmar)**: a spec de `cash_management` declara `tokenUrl` `https://sts.itau.com.br/api/oauth/token`; usar o do guia e validar no primeiro teste.
+- Toda chamada leva `Authorization: Bearer <token>`, a mesma conexão mTLS e `x-itau-correlationID` (UUID por requisição, gravado no log da operação). Algumas rotas pedem também `x-itau-apikey` = `client_id`.
+- Escopos do Bolecode: `cob.write`, `cobv.write`, `payments/pix.read`. Webhook Pix: `webhook.read`/`webhook.write`. Consulta Pix: `pix.read`.
+- **Certificado dinâmico**: validade de 365 dias, renovável de 30 dias antes até 1 dia antes do vencimento (`POST https://sts.itau.com.br/seguranca/v1/certificado/renovacao` com novo CSR). A tela mostra a data de expiração lida do certificado, alerta quando faltarem menos de 30 dias e oferece a renovação por clique (8.3.1).
+- **Confiança TLS de saída**: o host antigo `secure.api.itau` usa a raiz GlobalSign Root R3; o novo `pix-pj.itau.com` usa Amazon Root CA 1. O cliente HTTP precisa confiar nas duas raízes.
+
+### 8.5 Emissão do Bolecode
+
+`POST /api/v1/financeiro/faturas/:id/itau` (papéis `admin`/`financeiro`), análogo ao endpoint da Cora. Chama `POST /boletos-pix` do Itaú.
+
+**Validação antes de enviar (nada é enviado se falhar; erro 400 com orientação, nunca valor inventado):**
+- Pagador: nome (até 100), CPF (11) ou CNPJ (14) do responsável financeiro (ou legal), como na Cora.
+- **Endereço completo é obrigatório no Itaú** (diferente da Cora): logradouro com número/complemento (até 150), bairro (100), cidade (100), UF (2 letras maiúsculas), CEP (8 dígitos).
+- **Caracteres**: o Itaú recusa colchetes, dois-pontos, `<`, `>`, `&`, `;`, aspas simples e duplas, crase, parênteses, `#`, `*`, `/`, `|` e palavras como `http`/`javascript`. Os campos de texto só aceitam letras (com os acentos listados na spec), números, espaço, `-`, `.` e `,`. O sistema normaliza (remove os proibidos, troca acentos fora da lista) e mostra no erro o campo que não pôde ser corrigido.
+- Valor e datas na fatura; vencimento não pode estar no passado.
+
+**Mapeamento fatura → Bolecode:**
+
+| Campo Itaú | Origem |
+|---|---|
+| `etapa_processo_boleto` | `efetivacao` (o sistema pode usar `simulacao` para validar sem emitir) |
+| `beneficiario.id_beneficiario` | configuração da escola |
+| `dado_boleto.descricao_instrumento_cobranca` | `boleto_pix` |
+| `dado_boleto.tipo_boleto` | `a vista` |
+| `dado_boleto.codigo_carteira` | `109` |
+| `dado_boleto.codigo_especie` | `04` (ME, Mensalidade Escolar) para parcelas de contrato; avulsa usa o padrão configurado **(a confirmar com o gerente)** |
+| `dado_boleto.codigo_tipo_vencimento` | `3` (data informada) |
+| `dados_individuais_boleto[0].numero_nosso_numero` | sequência própria por escola, 8 dígitos; não pode repetir enquanto o boleto estiver ativo ou nos 45 dias após baixa/liquidação |
+| `dados_individuais_boleto[0].texto_seu_numero` | identificador curto da fatura (até 10, letras/números) |
+| `dados_individuais_boleto[0].data_vencimento` / `valor_titulo` | `faturas.data_vencimento` / `faturas.valor` (string `\d+\.\d{2}`) |
+| `multa` | `codigo_tipo_multa = 02` + `percentual_multa` = `faturas.multa_percentual` (formato `\d+\.\d{5}`); `03` (isento) se zero |
+| `juros` | `codigo_tipo_juros = 90` (percentual mensal) + `percentual_juros` = `faturas.juros_mora_mes_percentual`; `05` (isento) se zero |
+| `desconto` | `codigo_tipo_desconto = 00`: o desconto de grupo familiar já vem aplicado no valor da parcela |
+| `recebimento_divergente` | `03` (não aceita valor diferente) |
+| `dados_qrcode.chave` / `tipo_cobranca` | chave Pix da escola / `cob` |
+
+**Resposta e persistência:**
+- `200`: grava `gateway_name='itau'`, `gateway_invoice_id` = `id_boleto_individual`, `gateway_digitable_line` = `numero_linha_digitavel`, `gateway_pix_code` = `dados_qrcode.emv`, e em colunas novas `codigo_barras`, `nosso_numero` e `gateway_txid` = `dados_qrcode.txid` (começa com `BL`). O QR (`base64`) não é guardado; a UI gera a imagem a partir do EMV.
+- `202` ("operação em andamento"): a fatura fica com emissão pendente; o sistema consulta o boleto depois (API de detalhe, `itau-ep9-gtw-boletoscash-boletoscash-v2-ext-aws`) até obter linha digitável e EMV, sem emitir de novo.
+- `400`/`422`: devolve ao usuário a mensagem do Itaú traduzida por campo; nada é gravado como emitido.
+- **Idempotência**: o Itaú não documenta header de idempotência no Bolecode. Repetição é evitada pelo `nosso_numero` único: se a fatura já tem `nosso_numero`, o sistema consulta em vez de emitir; se o Itaú recusar por número duplicado, consulta o existente.
+- Fatura já emitida devolve a emissão existente; fatura paga devolve 409; `ITAU_MODE=mock` devolve dados simulados marcados como tal.
+- **QR após o vencimento**: o Bolecode usa `cob` (Pix imediato). Pix agendado exige `cobv` e adesão à parte; o comportamento do QR depois do vencimento (expira ou cobra encargos) é **(a confirmar)**. Até lá a UI avisa que, vencido, o pagamento deve ser pelo código de barras.
+
+**Cancelamento**: ao cancelar uma fatura emitida no Itaú, o sistema pede `PATCH /boletos/{id_boleto}/baixa` (`cash_management/v2`). Se o Itaú recusar, a fatura não é cancelada e o erro aparece.
+
+### 8.6 Webhook de boleto (pagamento por código de barras)
+
+Cobre boletos e Bolecodes **pagos pelo código de barras**.
+
+- **Cadastro**: ao ativar a integração, o sistema chama `POST /notificacoes_boletos` (`boletos/v3`) com `webhook_url` = `https://<host>/webhooks/itau/:tenant_id/boletos`, `webhook_oauth_url` = `https://<host>/webhooks/itau/:tenant_id/oauth/token`, `webhook_client_id`/`webhook_client_secret` **gerados pelo sistema** para aquela escola, `valor_minimo = 0.00` e `tipos_notificacoes = [BAIXA_OPERACIONAL, BAIXA_EFETIVA]`.
+- **Autenticação**: o Itaú primeiro pede um token OAuth2 (client credentials) no nosso `webhook_oauth_url` e depois chama o `webhook_url` com `Bearer`. O sistema implementa esse emissor de token: guarda só o hash do secret, compara em tempo constante, emite token curto (ex.: 5 min) e responde em JSON (a doc avisa: JSON, não HTML).
+- **Payload**: lista `boletos[]`, um evento por chamada, com `idBoleto`, `numeroNossoNumero`, `tipoLiquidacao` (`06` liquidação normal, `95` baixa operacional), `tipoCobranca` (`boleto`/`bolecode`), `valorPagoTotalCobranca`, `valorCreditado`, `dataInclusaoPagamento`, `dataCredito`.
+- **Regra de baixa**: `BAIXA_EFETIVA` (liquidação, `06`) dá baixa na fatura, com `valorPagoTotalCobranca` como valor pago. `BAIXA_OPERACIONAL` só registra "pagamento informado" em `webhook_events` e `audit_logs`, sem mudar o status. A fatura é localizada por `gateway_invoice_id`/`nosso_numero` do tenant da rota.
+
+### 8.7 Webhook Pix (Bolecode pago pelo QR)
+
+- **Cadastro**: `PUT /webhook/{chave}` (`regulatorio-pix/v2`) com a chave Pix da escola e `webhookUrl` = `https://<host>/webhooks/itau/:tenant_id`. O Itaú **acrescenta `/pix`**, então a rota recebida é `/webhooks/itau/:tenant_id/pix`. Pix recebido por agência/conta digitada não é notificado.
+- **Autenticação**: **mTLS**. O Itaú apresenta certificado de cliente emitido pela CA dele (pacote `ca_cert` no portal); o proxy reverso ou o load balancer que termina o TLS precisa exigir e validar esse certificado. Em AWS o DNS deve ser registro A/AAAA, não CNAME. Isso é requisito de infraestrutura, não do backend.
+- **Payload**: lista `pix[]` com `endToEndId`, `txid`, `valor`, `horario` e, em cobrança com vencimento, `componentesValor`. A fatura é localizada pelo `txid` (`BL…`) gravado na emissão **(a confirmar no primeiro teste que o Pix do Bolecode chega por este webhook com esse txid)**.
+- **Prazo de resposta**: até **5 s**. O backend grava o aviso e responde 200; a confirmação e a baixa rodam fora da requisição.
+
+### 8.8 Regras comuns aos dois webhooks
+
+- Rotas públicas sem usuário logado: abrem a conexão com `crate::db::acquire_tenant(&state.pool, tenant_id)`, nunca `state.pool` direto. Ao implementar, incluir `webhooks_itau.rs` na lista de exceções do `AGENTS.md`.
+- **Nenhum aviso dá baixa sozinho.** Mesmo com OAuth (boleto) ou mTLS (Pix), o sistema confirma no Itaú antes: Pix via `GET /pix/{e2eid}`; boleto via consulta do boleto (situação paga). O valor usado na conferência é o da consulta.
+- Idempotência e anti-replay em `webhook_events` com `gateway_name = 'itau'` e `event_id` = `endToEndId` (Pix) ou `idBoleto:tipoLiquidacao:dataInclusaoPagamento` (boleto).
+- Como o aviso é confirmado depois de responder, ele fica gravado como pendente e é reprocessado até ser confirmado ou dar erro definitivo. Diferente da Cora, não dá para depender de um novo aviso: o Itaú não reenvia o que já recebeu 200.
+- Baixa, registro do evento e `audit_logs` numa única transação com RLS, como no webhook da Cora. Valor divergente gera `audit_logs` (`acao = 'webhook_valor_divergente'`) sem baixar.
+- Juros/multa pagos a mais por atraso não são divergência: o valor esperado considera os encargos calculados para a data do pagamento.
+
+### 8.9 UI
+
+- Aba Integrações: cartão "Itaú" com liga/desliga, modo (Simulado / Teste / Produção, vindo do `ITAU_MODE`), o assistente da 8.3.1 em passos, credenciais presentes (sim/não), client_id mascarado, validade do certificado com botão de renovar e situação dos dois webhooks. Ativar só fica disponível depois do teste de conexão bem-sucedido. Em `mock` o cartão avisa que nada é enviado ao banco. A tela é só do papel `admin`; `gestor` vê o estado sem editar.
+- Fatura: botão "Emitir boleto Itaú" (quando ativo), com linha digitável, Pix copia e cola e QR. Portal da família: a 2ª via mostra o Bolecode quando a fatura foi emitida no Itaú, senão mantém o Pix local com o aviso atual.
+- Chamadas novas de API entram no `FinanceiroSection.tsx` (padrão B12).
+
+### 8.10 Testes exigidos na implementação
+
+- Montagem do payload a partir da fatura (multa/juros/isento, formatos `\d+\.\d{2}` e `\d+\.\d{5}`, normalização de caracteres, endereço incompleto recusado).
+- Respostas 200, 202 e 422 do Itaú contra um simulador HTTP local, como os testes da Cora.
+- Webhooks: token OAuth inválido, evento repetido, aviso não confirmado na consulta, valor divergente, `BAIXA_OPERACIONAL` sem baixa, isolamento entre tenants.
+- Assistente e segredos: decifrar valores no formato do guia (chave de sessão RSA + AES-256-CBC, IV zero) com dados de teste gerados no próprio teste; CSR com o `CN` certo; cifra e decifra com AES-256-GCM; nenhum segredo em resposta de API, log ou `audit_logs`; falha no meio do fluxo não grava nada; sem `APP_SECRETS_KEY` a configuração é recusada; papel não admin recebe 403.
+
+### 8.11 Limitações conhecidas (para a seção 5 quando implementar)
+
+- Validado só contra simulador e sandbox até haver credenciais de produção.
+- Uma conta Itaú por instalação (decisão da 8.3): o modelo é uma escola por servidor; se mais de uma escola for cadastrada no mesmo servidor, todas recebem na mesma conta.
+- Renovação do certificado por clique (365 dias); sem renovação automática.
+- Segredos dependem da `APP_SECRETS_KEY`: perdê-la obriga a refazer o assistente.
+- Sem conciliação de segurança (francesa/extrato) para avisos perdidos: um webhook que falhar todas as tentativas só é recuperado manualmente.
