@@ -233,9 +233,9 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
 
         // Garantir que as 70 tabelas com tenant_id estejam presentes no schema
-        if tables_with_tenant.len() != 71 {
+        if tables_with_tenant.len() != 72 {
             return Err(format!(
-                "Esperado 71 tabelas com tenant_id no schema public, encontrado {}",
+                "Esperado 72 tabelas com tenant_id no schema public, encontrado {}",
                 tables_with_tenant.len()
             ));
         }
@@ -475,6 +475,7 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
                 "tenant_gateway_secrets" => format!("INSERT INTO {tbl} (id, tenant_id, gateway_name, tipo, ciphertext, nonce) VALUES ($1, $2, 'itau', 'client_id', decode('00ff', 'hex'), decode('000000000000000000000000', 'hex'))"),
                 "tenant_bank_integrations" => format!("INSERT INTO {tbl} (id, tenant_id, gateway_name, client_id, client_secret) VALUES ($1, $2, 'cora', 'client_b', 'secret_b')"),
                 "tenant_cora_config" => format!("INSERT INTO {tbl} (tenant_id, client_id, client_secret) VALUES ($2, 'cora_client_b', 'cora_secret_b') ON CONFLICT DO NOTHING"),
+                "tenant_itau_config" => format!("INSERT INTO {tbl} (id, tenant_id, agencia, conta, dac, id_beneficiario, chave_pix) VALUES ($1, $2, '1234', '1234567', '8', '123412345678', 'pix@test.com') ON CONFLICT DO NOTHING"),
                 "tenant_feature_flags" => format!("INSERT INTO {tbl} (tenant_id, feature_name, is_enabled) VALUES ($2, 'modulo_nutricao', true) ON CONFLICT DO NOTHING"),
                 "turma_alunos" => format!("INSERT INTO {tbl} (id, tenant_id, turma_id, aluno_id) VALUES ($1, $2, '{turma_b_id}', '{aluno_b_id}')"),
                 "turma_disciplinas" => format!("INSERT INTO {tbl} (id, tenant_id, turma_id, disciplina_id, carga_horaria_semanal) VALUES ($1, $2, '{turma_b_id}', '{disciplina_b_id}', 4)"),
@@ -709,6 +710,8 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
             email_mode: escolar_backend::config::EmailMode::Simulado,
             app_public_url: "http://localhost:3000".to_string(),
             app_secrets_key: None,
+            itau_mode: escolar_backend::config::ItauMode::Mock,
+            itau_sts_base_url: None,
         },
         message_hub: escolar_backend::realtime::MessageHub::new(),
         ip_rate_limiter: escolar_backend::middleware::security::IpRateLimiter::default(),

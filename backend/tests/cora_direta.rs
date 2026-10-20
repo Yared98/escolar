@@ -254,6 +254,8 @@ async fn run_checks(pool: &PgPool, sim_url: &str, sim_state: &SimState) -> Resul
         email_mode: EmailMode::Simulado,
         app_public_url: "http://localhost:3000".to_string(),
         app_secrets_key: None,
+        itau_mode: escolar_backend::config::ItauMode::Mock,
+        itau_sts_base_url: None,
     };
 
     let app_state = AppState {

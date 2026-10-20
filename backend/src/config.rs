@@ -20,6 +20,38 @@ impl std::fmt::Display for CoraMode {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ItauMode {
+    Mock,
+    Sandbox,
+    Production,
+}
+
+impl std::fmt::Display for ItauMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ItauMode::Mock => write!(f, "mock"),
+            ItauMode::Sandbox => write!(f, "sandbox"),
+            ItauMode::Production => write!(f, "production"),
+        }
+    }
+}
+
+pub fn parse_itau_mode(val: Option<&str>) -> Result<ItauMode, String> {
+    match val {
+        Some(s) if !s.trim().is_empty() => match s.trim().to_lowercase().as_str() {
+            "mock" => Ok(ItauMode::Mock),
+            "sandbox" => Ok(ItauMode::Sandbox),
+            "production" => Ok(ItauMode::Production),
+            _ => Err(format!(
+                "Configuração inválida: ITAU_MODE='{s}'. Valores permitidos: mock, sandbox, production."
+            )),
+        },
+        _ => Ok(ItauMode::Mock),
+    }
+}
+
 pub fn parse_cora_mode(val: Option<&str>) -> Result<CoraMode, String> {
     match val {
         Some(s) if !s.trim().is_empty() => match s.trim().to_lowercase().as_str() {
@@ -126,6 +158,8 @@ pub struct Config {
     pub email_mode: EmailMode,
     pub app_public_url: String,
     pub app_secrets_key: Option<ChaveMestra>,
+    pub itau_mode: ItauMode,
+    pub itau_sts_base_url: Option<String>,
 }
 
 impl Config {
@@ -151,6 +185,12 @@ impl Config {
                 .cora_key_file
                 .as_ref()
                 .is_some_and(|s| !s.trim().is_empty())
+    }
+
+    pub fn itau_sts_url(&self) -> &str {
+        self.itau_sts_base_url
+            .as_deref()
+            .unwrap_or("https://sts.itau.com.br")
     }
 
     pub fn is_production(&self) -> bool {
@@ -268,6 +308,10 @@ impl Config {
         let app_public_url =
             env::var("APP_PUBLIC_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
         let app_secrets_key = parse_app_secrets_key(env::var("APP_SECRETS_KEY").ok().as_deref())?;
+        let itau_mode = parse_itau_mode(env::var("ITAU_MODE").ok().as_deref())?;
+        let itau_sts_base_url = env::var("ITAU_STS_BASE_URL")
+            .ok()
+            .filter(|s| !s.trim().is_empty());
 
         Ok(Config {
             database_url,
@@ -289,6 +333,8 @@ impl Config {
             email_mode,
             app_public_url,
             app_secrets_key,
+            itau_mode,
+            itau_sts_base_url,
         })
     }
 }
@@ -315,6 +361,8 @@ impl std::fmt::Debug for Config {
             .field("email_mode", &self.email_mode)
             .field("app_public_url", &self.app_public_url)
             .field("app_secrets_key", &self.app_secrets_key)
+            .field("itau_mode", &self.itau_mode)
+            .field("itau_sts_base_url", &self.itau_sts_base_url)
             .finish()
     }
 }
@@ -501,6 +549,8 @@ impl Default for Config {
             email_mode: EmailMode::Simulado,
             app_public_url: "http://localhost:3000".to_string(),
             app_secrets_key: None,
+            itau_mode: ItauMode::Mock,
+            itau_sts_base_url: None,
         }
     }
 }
@@ -559,6 +609,8 @@ mod tests {
             email_mode: EmailMode::Simulado,
             app_public_url: "http://localhost:3000".to_string(),
             app_secrets_key: None,
+            itau_mode: ItauMode::Mock,
+            itau_sts_base_url: None,
         };
 
         let debug_repr = format!("{:?}", config);

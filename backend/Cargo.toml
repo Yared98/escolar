@@ -26,6 +26,11 @@ reqwest = { version = "0.13.5", features = ["json", "rustls", "form"] }
 hmac = "0.12"
 hex = "0.4"
 subtle = "2.5"
+rsa = { version = "0.9", features = ["sha2"] }
+x509-cert = { version = "0.2", features = ["builder"] }
+aes = "0.8"
+cbc = "0.1"
+base64 = "0.22"
 
 
 [dev-dependencies]

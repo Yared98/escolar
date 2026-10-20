@@ -121,6 +121,8 @@ async fn run_revocation_checks(pool: &PgPool) -> Result<(), String> {
         email_mode: escolar_backend::config::EmailMode::Simulado,
         app_public_url: "http://localhost:3000".to_string(),
         app_secrets_key: None,
+        itau_mode: escolar_backend::config::ItauMode::Mock,
+        itau_sts_base_url: None,
     };
 
     let app_state = AppState {

@@ -176,6 +176,39 @@ pub fn create_router(state: AppState) -> Router {
             get(crate::handlers::tenant_settings::get_bank_integrations)
                 .put(crate::handlers::tenant_settings::save_bank_integration),
         )
+        // Assistente de conexão Itaú
+        .route(
+            "/tenant/integrations/itau",
+            get(crate::handlers::itau_config::obter_estado_itau),
+        )
+        .route(
+            "/tenant/integrations/itau/dados",
+            put(crate::handlers::itau_config::salvar_dados_cobranca_itau),
+        )
+        .route(
+            "/tenant/integrations/itau/chave-transporte",
+            post(crate::handlers::itau_config::gerar_chave_transporte_itau),
+        )
+        .route(
+            "/tenant/integrations/itau/credenciais",
+            post(crate::handlers::itau_config::configurar_credenciais_producao_itau),
+        )
+        .route(
+            "/tenant/integrations/itau/credenciais-sandbox",
+            post(crate::handlers::itau_config::configurar_credenciais_sandbox_itau),
+        )
+        .route(
+            "/tenant/integrations/itau/testar",
+            post(crate::handlers::itau_config::testar_conexao_itau),
+        )
+        .route(
+            "/tenant/integrations/itau/ativar",
+            post(crate::handlers::itau_config::ativar_integracao_itau),
+        )
+        .route(
+            "/tenant/integrations/itau/renovar",
+            post(crate::handlers::itau_config::renovar_certificado_itau),
+        )
         .route(
             "/secretaria/turmas/:turma_id/renumerar-chamada",
             post(renumerar_chamada_turma),
