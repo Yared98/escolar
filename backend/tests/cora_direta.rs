@@ -253,6 +253,7 @@ async fn run_checks(pool: &PgPool, sim_url: &str, sim_state: &SimState) -> Resul
         cora_base_url: Some(sim_url.to_string()),
         email_mode: EmailMode::Simulado,
         app_public_url: "http://localhost:3000".to_string(),
+        app_secrets_key: None,
     };
 
     let app_state = AppState {

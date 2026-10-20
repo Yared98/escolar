@@ -68,6 +68,42 @@ pub fn parse_email_mode(val: Option<&str>, is_production: bool) -> Result<EmailM
     }
 }
 
+const MENSAGEM_APP_SECRETS_KEY: &str = "Configuração inválida: APP_SECRETS_KEY deve ter 64 caracteres hexadecimais (gere com: openssl rand -hex 32).";
+
+#[derive(Clone)]
+pub struct ChaveMestra([u8; 32]);
+
+impl ChaveMestra {
+    pub fn from_hex(valor: &str) -> Result<Self, String> {
+        if valor.len() != 64 || !valor.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return Err(MENSAGEM_APP_SECRETS_KEY.to_string());
+        }
+        let mut bytes = [0u8; 32];
+        for (i, byte) in bytes.iter_mut().enumerate() {
+            *byte = u8::from_str_radix(&valor[i * 2..i * 2 + 2], 16)
+                .map_err(|_| MENSAGEM_APP_SECRETS_KEY.to_string())?;
+        }
+        Ok(Self(bytes))
+    }
+
+    pub fn bytes(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
+impl std::fmt::Debug for ChaveMestra {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ChaveMestra(***)")
+    }
+}
+
+pub fn parse_app_secrets_key(val: Option<&str>) -> Result<Option<ChaveMestra>, String> {
+    match val.map(str::trim) {
+        Some(s) if !s.is_empty() => ChaveMestra::from_hex(s).map(Some),
+        _ => Ok(None),
+    }
+}
+
 #[derive(Clone)]
 pub struct Config {
     pub database_url: String,
@@ -89,6 +125,7 @@ pub struct Config {
     pub cora_base_url: Option<String>,
     pub email_mode: EmailMode,
     pub app_public_url: String,
+    pub app_secrets_key: Option<ChaveMestra>,
 }
 
 impl Config {
@@ -230,6 +267,7 @@ impl Config {
         let email_mode = parse_email_mode(env::var("EMAIL_MODE").ok().as_deref(), is_production)?;
         let app_public_url =
             env::var("APP_PUBLIC_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
+        let app_secrets_key = parse_app_secrets_key(env::var("APP_SECRETS_KEY").ok().as_deref())?;
 
         Ok(Config {
             database_url,
@@ -250,6 +288,7 @@ impl Config {
             cora_base_url,
             email_mode,
             app_public_url,
+            app_secrets_key,
         })
     }
 }
@@ -275,6 +314,7 @@ impl std::fmt::Debug for Config {
             .field("cora_base_url", &self.cora_base_url)
             .field("email_mode", &self.email_mode)
             .field("app_public_url", &self.app_public_url)
+            .field("app_secrets_key", &self.app_secrets_key)
             .finish()
     }
 }
@@ -460,6 +500,7 @@ impl Default for Config {
             cora_base_url: None,
             email_mode: EmailMode::Simulado,
             app_public_url: "http://localhost:3000".to_string(),
+            app_secrets_key: None,
         }
     }
 }
@@ -517,6 +558,7 @@ mod tests {
             cora_base_url: None,
             email_mode: EmailMode::Simulado,
             app_public_url: "http://localhost:3000".to_string(),
+            app_secrets_key: None,
         };
 
         let debug_repr = format!("{:?}", config);
@@ -558,6 +600,36 @@ mod tests {
     fn test_email_mode_invalido_prod_erro() {
         let err = parse_email_mode(Some("smtp"), true).unwrap_err();
         assert!(err.contains("EMAIL_MODE='smtp'"));
+    }
+
+    #[test]
+    fn test_app_secrets_key_ausente_ou_vazia_e_none() {
+        assert!(parse_app_secrets_key(None).unwrap().is_none());
+        assert!(parse_app_secrets_key(Some("")).unwrap().is_none());
+        assert!(parse_app_secrets_key(Some("   ")).unwrap().is_none());
+    }
+
+    #[test]
+    fn test_app_secrets_key_hex_valida_e_some() {
+        let hex = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
+        let chave = parse_app_secrets_key(Some(hex)).unwrap().expect("chave");
+        assert_eq!(chave.bytes()[0], 0x00);
+        assert_eq!(chave.bytes()[1], 0x11);
+        assert_eq!(chave.bytes()[31], 0xff);
+        assert_eq!(format!("{:?}", chave), "ChaveMestra(***)");
+    }
+
+    #[test]
+    fn test_app_secrets_key_invalida_nao_mostra_valor() {
+        let curta = "a".repeat(63);
+        let err = parse_app_secrets_key(Some(&curta)).unwrap_err();
+        assert!(err.contains("APP_SECRETS_KEY deve ter 64 caracteres hexadecimais"));
+        assert!(!err.contains(&curta));
+
+        let nao_hex = format!("{}g", "a".repeat(63));
+        let err = parse_app_secrets_key(Some(&nao_hex)).unwrap_err();
+        assert!(err.contains("APP_SECRETS_KEY deve ter 64 caracteres hexadecimais"));
+        assert!(!err.contains(&nao_hex));
     }
 
     #[test]

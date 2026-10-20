@@ -131,6 +131,7 @@ async fn run_cora_integration_checks(pool: &PgPool) -> Result<(), String> {
 
         email_mode: EmailMode::Simulado,
         app_public_url: "http://localhost:3000".to_string(),
+        app_secrets_key: None,
     };
 
     let app_state = AppState {

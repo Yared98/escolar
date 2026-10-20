@@ -233,9 +233,9 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
 
         // Garantir que as 70 tabelas com tenant_id estejam presentes no schema
-        if tables_with_tenant.len() != 70 {
+        if tables_with_tenant.len() != 71 {
             return Err(format!(
-                "Esperado 70 tabelas com tenant_id no schema public, encontrado {}",
+                "Esperado 71 tabelas com tenant_id no schema public, encontrado {}",
                 tables_with_tenant.len()
             ));
         }
@@ -472,6 +472,7 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
                 "simulados_itens" => format!("INSERT INTO {tbl} (id, tenant_id, simulado_id, numero_item, parametro_a, parametro_b, parametro_c, gabarito_correto) VALUES ($1, $2, '{simulado_tri_b_id}', 2, 1.1, 0.1, 0.2, 'B') ON CONFLICT DO NOTHING"),
                 "simulados_respostas" => format!("INSERT INTO {tbl} (id, tenant_id, simulado_id, aluno_id, respostas_marcadas) VALUES ($1, $2, '{simulado_tri_b_id}', '{aluno_b_id}', '[{{\"numero\": 1, \"resposta\": \"A\"}}]'::jsonb)"),
                 "simulados_tri" => format!("INSERT INTO {tbl} (id, tenant_id, titulo, disciplina, data_aplicacao) VALUES ($1, $2, 'Simulado B2', 'ciencias', CURRENT_DATE) ON CONFLICT DO NOTHING"),
+                "tenant_gateway_secrets" => format!("INSERT INTO {tbl} (id, tenant_id, gateway_name, tipo, ciphertext, nonce) VALUES ($1, $2, 'itau', 'client_id', decode('00ff', 'hex'), decode('000000000000000000000000', 'hex'))"),
                 "tenant_bank_integrations" => format!("INSERT INTO {tbl} (id, tenant_id, gateway_name, client_id, client_secret) VALUES ($1, $2, 'cora', 'client_b', 'secret_b')"),
                 "tenant_cora_config" => format!("INSERT INTO {tbl} (tenant_id, client_id, client_secret) VALUES ($2, 'cora_client_b', 'cora_secret_b') ON CONFLICT DO NOTHING"),
                 "tenant_feature_flags" => format!("INSERT INTO {tbl} (tenant_id, feature_name, is_enabled) VALUES ($2, 'modulo_nutricao', true) ON CONFLICT DO NOTHING"),
@@ -707,6 +708,7 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
 
             email_mode: escolar_backend::config::EmailMode::Simulado,
             app_public_url: "http://localhost:3000".to_string(),
+            app_secrets_key: None,
         },
         message_hub: escolar_backend::realtime::MessageHub::new(),
         ip_rate_limiter: escolar_backend::middleware::security::IpRateLimiter::default(),

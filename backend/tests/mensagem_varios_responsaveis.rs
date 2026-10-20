@@ -111,6 +111,7 @@ fn app_state(pool: PgPool, material: &(String, String, String)) -> AppState {
             cora_base_url: None,
             email_mode: escolar_backend::config::EmailMode::Simulado,
             app_public_url: "http://localhost:3000".to_string(),
+            app_secrets_key: None,
         },
         message_hub: escolar_backend::realtime::MessageHub::new(),
         ip_rate_limiter: escolar_backend::middleware::security::IpRateLimiter::default(),
