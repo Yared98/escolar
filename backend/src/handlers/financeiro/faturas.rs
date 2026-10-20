@@ -1,4 +1,6 @@
 use super::*;
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
 
 pub fn calcular_crc16_pix(payload: &str) -> String {
     let mut crc: u16 = 0xFFFF;
@@ -316,12 +318,12 @@ pub async fn atualizar_fatura(
 }
 
 pub async fn deletar_fatura(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     TenantDb(mut db): TenantDb,
     Extension(active_tenant): Extension<ActiveTenant>,
     Extension(auth_user): Extension<AuthUser>,
     Path(fatura_id): Path<Uuid>,
-) -> Result<Json<Value>, AppError> {
+) -> Result<Response, AppError> {
     check_roles(&auth_user, &["admin", "financeiro"])?;
     let tenant_id = active_tenant.0;
 
@@ -337,6 +339,32 @@ pub async fn deletar_fatura(
         return Err(AppError::BadRequest(
             "Violação Fiscal: Não é permitido excluir faturas já liquidadas.".to_string(),
         ));
+    }
+
+    if fatura.gateway_name.as_deref() == Some("itau") {
+        if let Some(invoice_id) = &fatura.gateway_invoice_id {
+            if state.config.itau_mode != crate::config::ItauMode::Mock {
+                let resultado_baixa = crate::services::itau_api::baixar_boleto(
+                    &state.config,
+                    &mut db,
+                    tenant_id,
+                    invoice_id,
+                )
+                .await;
+
+                if let Err(e) = resultado_baixa {
+                    return Ok((
+                        StatusCode::BAD_GATEWAY,
+                        Json(json!({
+                            "error": format!("Itaú recusou a baixa: {}", e),
+                            "mensagem": format!("{e}"),
+                            "status": 502
+                        })),
+                    )
+                        .into_response());
+                }
+            }
+        }
     }
 
     sqlx::query("UPDATE faturas SET status = 'cancelado', updated_at = NOW() WHERE id = $1 AND tenant_id = $2")
@@ -356,9 +384,13 @@ pub async fn deletar_fatura(
     )
     .await;
 
-    Ok(Json(
-        json!({ "status": "sucesso", "mensagem": "Fatura cancelada com sucesso mantendo escrituração fiscal." }),
-    ))
+    Ok((
+        StatusCode::OK,
+        Json(
+            json!({ "status": "sucesso", "mensagem": "Fatura cancelada com sucesso mantendo escrituração fiscal." }),
+        ),
+    )
+        .into_response())
 }
 
 #[derive(serde::Deserialize)]

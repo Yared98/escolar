@@ -17,7 +17,7 @@ Não é, ainda, um ERP de cobrança bancária/fiscal completo.
 | Conciliação com matching por valor/data (OFX upload na UI) | Parcial |
 | NFS-e | Stub (número/URL simulados; sem ABRASF/prefeitura) |
 | Gateway Cora / Asaas / Pagar.me | Adapter BankGateway com CORA_MODE=mock\|sandbox\|production (apenas mock funcional no MVP; sandbox/production retornam 503); webhook Cora; exibição de modo_gateway e selo "Simulado (modo mock)" na UI |
-| Gateway Itaú (Bolecode + Pix + webhooks) | **Em implementação, não operacional**: segredos cifrados (ITAU-A) e API do assistente de conexão (ITAU-B) prontos, testados só contra simulador local; emissão, webhooks e telas pendentes (§8) |
+| Gateway Itaú (Bolecode + Pix + webhooks) | **Em implementação, não operacional**: segredos cifrados (ITAU-A), API do assistente de conexão (ITAU-B) e emissão backend de Bolecode/baixa (ITAU-C) prontos, testados só contra simulador local; webhooks e telas pendentes (§8) |
 | Boleto registrado Febraban / cartão recorrente | Não operacional |
 | CNAB 240/400 | Ausente |
 | Plano de contas | Schema apenas |
@@ -71,7 +71,7 @@ Portal da família: Mensalidades (2ª via Pix com filtros e confirmação de pag
 
 ## 5. Limitações MVP (estado real)
 
-- **Integração Itaú (Assistente de Conexão - Card ITAU-B)**: A API do assistente de conexão está implementada no backend com 8 rotas (`/api/v1/tenant/integrations/itau`), suporte a geração de par de transporte RSA 2048, decifragem de credenciais (RSA PKCS#1 v1.5 + AES-256-CBC IV zero), geração de CSR SHA-512 e solicitação/renovação de certificado dinâmico via STS do Itaú. Todos os passos foram testados e validados contra simulador HTTP local e testes unitários/integrados. A conexão contra os servidores reais de produção/sandbox do Itaú depende de credenciais concedidas pelo banco e configuração de `ITAU_MODE=production` ou `ITAU_MODE=sandbox`. A interface visual (UI) do assistente será entregue no Card ITAU-F.
+- **Integração Itaú (Card ITAU-B e ITAU-C)**: A API do assistente de conexão (ITAU-B) e o cliente HTTP com emissão de Bolecode, consulta e pedido de baixa no cancelamento de faturas (ITAU-C) estão implementados no backend. Suporta geração de par de transporte RSA 2048, decifragem de credenciais (RSA PKCS#1 v1.5 + AES-256-CBC IV zero), CSR SHA-512, emissão mTLS com token OAuth2 em cache, reserva sequencial de `nosso_numero` e validação estrita de endereço/pagador. Todos os fluxos foram testados e validados contra simulador HTTP local e testes de integração. A operação contra os servidores reais do Itaú depende de credenciais concedidas pelo banco e configuração de `ITAU_MODE=production` ou `ITAU_MODE=sandbox`. Os webhooks de notificação (ITAU-D) e as telas visuais (ITAU-F) serão entregues nos cards seguintes.
 
 - **Integração Cora**: a conexão real está implementada e usa mTLS com certificado + chave privada, mas **não foi testada contra a API real da Cora por falta de credenciais**. O token, a emissão, a consulta e a simulação de pagamento foram verificados apenas contra um simulador HTTP local nos testes de integração.
 - **Uma conta Cora por instalação**: `CORA_CLIENT_ID`/`CORA_CERT_FILE`/`CORA_KEY_FILE` são variáveis de ambiente do servidor, portanto uma única conta Cora serve a todas as escolas (tenants) da instalação. Suporte a múltiplas contas por tenant exigiria armazenar certificados no banco (fora do escopo deste card).

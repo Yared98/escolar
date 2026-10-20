@@ -193,6 +193,40 @@ impl Config {
             .unwrap_or("https://sts.itau.com.br")
     }
 
+    pub fn itau_recebimentos_url(&self) -> String {
+        if let Ok(base) = env::var("ITAU_API_BASE_URL") {
+            if !base.trim().is_empty() {
+                return base;
+            }
+        }
+        match self.itau_mode {
+            ItauMode::Mock | ItauMode::Production => {
+                "https://pix-pj.api.itau.com/recebimentos-pix/v1".to_string()
+            }
+            ItauMode::Sandbox => {
+                "https://sandbox.devportal.itau.com.br/itau-ep9-api-recebimentos-v1-externo/v1"
+                    .to_string()
+            }
+        }
+    }
+
+    pub fn itau_cash_management_url(&self) -> String {
+        if let Ok(base) = env::var("ITAU_API_BASE_URL") {
+            if !base.trim().is_empty() {
+                return base;
+            }
+        }
+        match self.itau_mode {
+            ItauMode::Mock | ItauMode::Production => {
+                "https://api.gateway.itau.com.br/cash_management/v2".to_string()
+            }
+            ItauMode::Sandbox => {
+                "https://sandbox.devportal.itau.com.br/itau-ep9-gtw-cash-management-ext-v2/v2"
+                    .to_string()
+            }
+        }
+    }
+
     pub fn is_production(&self) -> bool {
         self.environment.to_lowercase() == "production"
     }
@@ -312,7 +346,6 @@ impl Config {
         let itau_sts_base_url = env::var("ITAU_STS_BASE_URL")
             .ok()
             .filter(|s| !s.trim().is_empty());
-
         Ok(Config {
             database_url,
             jwt_private_pem,
