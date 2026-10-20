@@ -40,6 +40,8 @@ export { type AgingRange } from './financeiro/types';
 import { NovoFornecedorModal } from './financeiro/NovoFornecedorModal';
 import { NovaFaturaModal } from './financeiro/NovaFaturaModal';
 import { PixModal } from './financeiro/PixModal';
+import { BoletoItauModal } from './financeiro/BoletoItauModal';
+import { ItauEstadoView } from './integracoes/ItauIntegrationCard';
 import { NovaDespesaModal } from './financeiro/NovaDespesaModal';
 import { ReceberPanel } from './financeiro/ReceberPanel';
 import { PagarPanel } from './financeiro/PagarPanel';
@@ -103,6 +105,9 @@ export function FinanceiroSection() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [bankingMode, setBankingMode] = useState<'mock' | 'sandbox' | 'production' | null>(null);
   const [bankingLoaded, setBankingLoaded] = useState(false);
+  const [itauConfig, setItauConfig] = useState<ItauEstadoView | null>(null);
+  const [boletoItauModalFatura, setBoletoItauModalFatura] = useState<Fatura | null>(null);
+  const itauHabilitado = Boolean(itauConfig?.ativo || itauConfig?.modo === 'mock');
 
   // Estados específicos da Aba Cobrança (régua e logs)
   const [logCanalFilter, setLogCanalFilter] = useState<'todos' | 'whatsapp' | 'email'>('todos');
@@ -171,6 +176,7 @@ export function FinanceiroSection() {
       setNfseLista(nfseData || []);
       setReguaLogs(logsData || []);
       setAlunosOpcoes(alunosPage.items || []);
+      apiFetch<ItauEstadoView>('/tenant/integrations/itau').then(setItauConfig).catch(() => setItauConfig(null));
     } catch (err: unknown) {
       setFaturas([]);
       setDespesas([]);
@@ -198,6 +204,7 @@ export function FinanceiroSection() {
       })
       .catch(() => setBankingMode('mock'))
       .finally(() => setBankingLoaded(true));
+    apiFetch<ItauEstadoView>('/tenant/integrations/itau').then(setItauConfig).catch(() => setItauConfig(null));
   }, []);
 
   // Métricas agregadas do Aging Operacional de Contas a Receber (AR)
@@ -594,6 +601,31 @@ export function FinanceiroSection() {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
+  const handleEmitirItau = async (fatura: Fatura) => {
+    setToastMessage('Solicitando emissão de boleto Itaú...');
+    try {
+      const res = await apiFetch<Fatura & { status?: string; mensagem?: string; simulado?: boolean }>(
+        `/financeiro/faturas/${fatura.id}/itau`,
+        { method: 'POST', body: JSON.stringify({}) }
+      );
+      if (res.mensagem === 'emissão em andamento' || (!res.gateway_invoice_id && !res.gateway_digitable_line)) {
+        setToastMessage('Emissão em andamento; tente de novo em instantes');
+        void loadFinanceiroData();
+        return;
+      }
+      setFaturas((prev) => prev.map((f) => (f.id === res.id ? { ...f, ...res } : f)));
+      setBoletoItauModalFatura(res);
+      setToastMessage('Boleto Itaú emitido com sucesso.');
+    } catch (err: unknown) {
+      setToastMessage(err instanceof Error ? err.message : 'Não foi possível emitir pelo Itaú.');
+    }
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  const handleAbrirBoletoItau = (fatura: Fatura) => {
+    setBoletoItauModalFatura(fatura);
+  };
+
   return (
     <section id="financeiro" className="bg-white dark:bg-salvia-900 border border-salvia-200 dark:border-salvia-800 rounded-2xl p-6 shadow-sm">
       {/* Header */}
@@ -714,6 +746,9 @@ export function FinanceiroSection() {
           podeUsarCora={!!podeUsarCora}
           handleEmitirCora={handleEmitirCora}
           handleSimularPagamentoCora={handleSimularPagamentoCora}
+          itauHabilitado={itauHabilitado}
+          handleEmitirItau={handleEmitirItau}
+          handleAbrirBoletoItau={handleAbrirBoletoItau}
         />
       )}
 
@@ -764,7 +799,7 @@ export function FinanceiroSection() {
 
       {activeSubTab === 'banking' &&
         (podeConfigurarBanco ? (
-          <BankingIntegrations />
+          <BankingIntegrations userRole={user?.role} />
         ) : (
           <p className="text-sm text-slate-600 dark:text-slate-300 bg-salvia-50 dark:bg-salvia-950/40 border border-salvia-200 dark:border-salvia-800 rounded-xl p-4">
             A conexão com o banco é configurada pela gestão da escola.
@@ -776,6 +811,14 @@ export function FinanceiroSection() {
         <BiPanel
           dre={dre}
           handleOFXUpload={handleOFXUpload}
+        />
+      )}
+
+      {boletoItauModalFatura && (
+        <BoletoItauModal
+          fatura={boletoItauModalFatura}
+          onClose={() => setBoletoItauModalFatura(null)}
+          modo={itauConfig?.modo}
         />
       )}
 

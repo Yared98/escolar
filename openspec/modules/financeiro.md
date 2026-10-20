@@ -17,7 +17,7 @@ Não é, ainda, um ERP de cobrança bancária/fiscal completo.
 | Conciliação com matching por valor/data (OFX upload na UI) | Parcial |
 | NFS-e | Stub (número/URL simulados; sem ABRASF/prefeitura) |
 | Gateway Cora / Asaas / Pagar.me | Adapter BankGateway com CORA_MODE=mock\|sandbox\|production (apenas mock funcional no MVP; sandbox/production retornam 503); webhook Cora; exibição de modo_gateway e selo "Simulado (modo mock)" na UI |
-| Gateway Itaú (Bolecode + Pix + webhooks) | **Em implementação, não operacional**: segredos cifrados (ITAU-A), API do assistente de conexão (ITAU-B) e emissão backend de Bolecode/baixa (ITAU-C) prontos, testados só contra simulador local; webhooks e telas pendentes (§8) |
+| Gateway Itaú (Bolecode + Pix + webhooks) | **Em implementação, não operacional**: backend (ITAU-A segredos cifrados, ITAU-B API de conexão, ITAU-C emissão/baixa) e frontend (ITAU-F telas: assistente em Integrações, emissão/visualização de Bolecode em Receber e 2ª via no Portal) implementados; webhooks de baixa e testes com credenciais reais pendentes (§8) |
 | Boleto registrado Febraban / cartão recorrente | Não operacional |
 | CNAB 240/400 | Ausente |
 | Plano de contas | Schema apenas |
@@ -97,7 +97,7 @@ Organização após o refactor B12 (só moveu código, sem mudança de regra):
 
 ## 8. Integração Itaú: Bolecode + Pix + webhooks (planejada)
 
-> **Estado: especificação, sem código.** Nada desta seção está implementado. Fonte: documentação do Itaú for Developers copiada em `docs/reference/itau/` (specs OpenAPI em `openapi/`, visões gerais em `visao-geral/`, guias em `guias/`), extraída em 2026-10-20. Itens marcados **(a confirmar)** dependem do primeiro teste com credenciais reais ou do gerente Itaú.
+> **Estado: backend e frontend implementados (ITAU-A, B, C, F); webhooks pendentes.** As telas do assistente de conexão (`BankingIntegrations.tsx` / `ItauIntegrationCard.tsx`), emissão e modal de Bolecode no Contas a Receber (`FinanceiroSection.tsx`, `ReceberPanel.tsx`, `BoletoItauModal.tsx`) e 2ª via no Portal da Família (`PortalAlunoSection.tsx`, `FinanceiroTab.tsx`, `PixModal.tsx`) estão integradas. Testado contra simulador mock local; homologação com sandbox/produção Itaú depende de credenciais reais e webhooks de baixa. Fonte: documentação do Itaú for Developers copiada em `docs/reference/itau/` (specs OpenAPI em `openapi/`, visões gerais em `visao-geral/`, guias em `guias/`), extraída em 2026-10-20. Itens marcados **(a confirmar)** dependem do primeiro teste com credenciais reais ou do gerente Itaú.
 
 ### 8.1 Objetivo e escopo
 
@@ -231,8 +231,9 @@ Cobre boletos e Bolecodes **pagos pelo código de barras**.
 
 ### 8.9 UI
 
-- Aba Integrações: cartão "Itaú" com liga/desliga, modo (Simulado / Teste / Produção, vindo do `ITAU_MODE`), o assistente da 8.3.1 em passos, credenciais presentes (sim/não), client_id mascarado, validade do certificado com botão de renovar e situação dos dois webhooks. Ativar só fica disponível depois do teste de conexão bem-sucedido. Em `mock` o cartão avisa que nada é enviado ao banco. A tela é só do papel `admin`; `gestor` vê o estado sem editar.
-- Fatura: botão "Emitir boleto Itaú" (quando ativo), com linha digitável, Pix copia e cola e QR. Portal da família: a 2ª via mostra o Bolecode quando a fatura foi emitida no Itaú, senão mantém o Pix local com o aviso atual.
+- Aba Integrações: cartão "Itaú" com liga/desliga, modo (Simulado / Teste / Produção, vindo do `ITAU_MODE`), o assistente da 8.3.1 em 6 passos, credenciais presentes (sim/não), client_id mascarado, validade do certificado com botão de renovar e situação dos dois webhooks. Ativar só fica disponível depois do teste de conexão bem-sucedido. Em `mock` o cartão avisa que nada é enviado ao banco. A tela é só do papel `admin`; `gestor` vê o estado sem editar.
+- Fatura: botão "Emitir boleto Itaú" (quando ativo) orquestrado no `FinanceiroSection.tsx` (padrão B12), abrindo modal `BoletoItauModal` com linha digitável, Pix copia e cola, QR e código de barras; botão vira "Ver boleto Itaú" quando já emitido; tratamento de 202 com aviso de emissão em andamento e modal com badge "Simulado" em modo mock.
+- Portal da família: a 2ª via mostra o Bolecode quando a fatura foi emitida no Itaú (`gateway_name === 'itau'` e linha digitável presente), senão mantém o Pix local com o aviso atual.
 - Chamadas novas de API entram no `FinanceiroSection.tsx` (padrão B12).
 
 ### 8.10 Testes exigidos na implementação

@@ -28,7 +28,7 @@ export function FinanceiroTab({
         <div>
           <h3 className="text-sm font-bold text-slate-900 dark:text-salvia-50">Faturas e Mensalidades Escolares</h3>
           <p className="text-xs text-salvia-600 dark:text-salvia-400">
-            Consulte as mensalidades e emita a 2ª via do código Pix para pagamento e conferência escolar.
+            Consulte as mensalidades e emita a 2ª via do código Pix ou Bolecode para pagamento e conferência escolar.
           </p>
         </div>
 
@@ -173,7 +173,11 @@ export function FinanceiroTab({
                     className="bg-salvia-700 hover:bg-salvia-800 text-white dark:bg-salvia-600 dark:hover:bg-salvia-500 px-3.5 py-2 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all shadow-sm"
                   >
                     <QrCode className="w-3.5 h-3.5" />
-                    <span>Pagar com Pix</span>
+                    <span>
+                      {fat.gateway_name === 'itau' && (fat.gateway_digitable_line || fat.linha_digitavel)
+                        ? 'Ver Bolecode'
+                        : 'Pagar com Pix'}
+                    </span>
                   </button>
                 )}
               </div>
