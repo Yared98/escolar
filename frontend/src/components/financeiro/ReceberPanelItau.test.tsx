@@ -16,7 +16,7 @@ const faturaAberta: Fatura = {
   id: 'fat-1',
   descricao: 'Mensalidade Abril',
   valor: 500.0,
-  data_vencimento: '2026-04-10',
+  data_vencimento: '2099-04-10',
   metodo_pagamento: 'pix',
   status: 'pendente',
   gateway_name: null,
@@ -107,5 +107,38 @@ describe('ReceberPanel - Integração Itaú', () => {
     expect(btnVer).toBeInTheDocument();
     fireEvent.click(btnVer);
     expect(handleAbrirBoletoItau).toHaveBeenCalledWith(faturaItau);
+  });
+
+  it('não oferece emitir boleto Itaú para fatura vencida ou cancelada', () => {
+    const vencida: Fatura = { ...faturaAberta, id: 'fat-3', data_vencimento: '2000-01-10', status: 'atrasado' };
+    const cancelada: Fatura = { ...faturaAberta, id: 'fat-4', status: 'cancelado' };
+    render(
+      <ReceberPanel
+        agingFilter={null}
+        setAgingFilter={vi.fn()}
+        handleToggleAgingFilter={vi.fn()}
+        agingStats={defaultStats}
+        statusFilter="todos"
+        setStatusFilter={vi.fn()}
+        searchQuery=""
+        setSearchQuery={vi.fn()}
+        setShowNovaFaturaModal={vi.fn()}
+        faturasFiltradas={[vencida, cancelada]}
+        calcularDiasAtrasoFatura={vi.fn().mockReturnValue(0)}
+        handleBaixaManual={vi.fn()}
+        setPixModalFatura={vi.fn()}
+        handleEmitirNfse={vi.fn()}
+        bankingMode="mock"
+        bankingLoaded={true}
+        podeUsarCora={false}
+        handleEmitirCora={vi.fn()}
+        handleSimularPagamentoCora={vi.fn()}
+        itauHabilitado={true}
+        handleEmitirItau={vi.fn()}
+        handleAbrirBoletoItau={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByText('Emitir boleto Itaú')).not.toBeInTheDocument();
   });
 });

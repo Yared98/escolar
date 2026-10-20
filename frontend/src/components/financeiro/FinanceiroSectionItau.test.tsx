@@ -13,7 +13,7 @@ const mockFatura: any = {
   id: 'fat-101',
   descricao: 'Mensalidade Maio/2026',
   valor: 900.0,
-  data_vencimento: '2026-05-10',
+  data_vencimento: '2099-05-10',
   metodo_pagamento: 'pix',
   status: 'pendente',
   gateway_name: null,

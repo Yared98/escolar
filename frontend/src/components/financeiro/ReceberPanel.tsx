@@ -65,6 +65,8 @@ export function ReceberPanel({
   handleAbrirBoletoItau,
 }: ReceberPanelProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const agora = new Date();
+  const hojeIso = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`;
 
   const handleCopyPixCode = (fatura: Fatura) => {
     const code = fatura.gateway_pix_code || fatura.qr_code_pix;
@@ -402,7 +404,9 @@ export function ReceberPanel({
                               <span>Ver boleto Itaú</span>
                             </button>
                           ) : (
-                            fatura.status !== 'pago' && (
+                            // O Itaú não aceita emissão com vencimento no passado (spec §8.5).
+                            fatura.status === 'pendente' &&
+                            fatura.data_vencimento.slice(0, 10) >= hojeIso && (
                               <button
                                 onClick={() => handleEmitirItau?.(fatura)}
                                 className="px-2.5 py-2 min-h-[44px] bg-salvia-700 dark:bg-salvia-500 hover:bg-salvia-800 text-white rounded-lg text-[11px] font-semibold transition-all inline-flex items-center space-x-1"

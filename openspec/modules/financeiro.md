@@ -132,7 +132,7 @@ Sem estes itens o modo `production` não funciona; a UI deve dizer isso, sem cop
 
 **Decisão (2026-10-20, usuário):** a escola configura o Itaú por um assistente na tela de Integrações. As chaves privadas são **geradas no servidor e nunca saem dele**; nenhum arquivo de chave passa pelo navegador.
 
-**Passos do assistente** (papel `admin`; cada passo grava `audit_logs` com tenant, usuário, ação e horário, sem valores secretos):
+**Passos do assistente** (só a gestão: `admin`/`gestor`, como na Cora; cada passo grava `audit_logs` com tenant, usuário, ação e horário, sem valores secretos):
 
 1. **Dados da cobrança**: agência, conta e DAC (formam o `id_beneficiario`, validado com 12 dígitos), chave Pix, espécie padrão, multa e juros padrão. Pode ser salvo antes das credenciais.
 2. **Chave de transporte**: o servidor gera um par RSA 2048 e mostra a **chave pública** (PEM) com botão de copiar e a orientação de enviá-la ao Analista de Operações Itaú. A chave privada de transporte fica cifrada no banco. Gerar de novo invalida a anterior (com confirmação).
@@ -231,7 +231,7 @@ Cobre boletos e Bolecodes **pagos pelo código de barras**.
 
 ### 8.9 UI
 
-- Aba Integrações: cartão "Itaú" com liga/desliga, modo (Simulado / Teste / Produção, vindo do `ITAU_MODE`), o assistente da 8.3.1 em 6 passos, credenciais presentes (sim/não), client_id mascarado, validade do certificado com botão de renovar e situação dos dois webhooks. Ativar só fica disponível depois do teste de conexão bem-sucedido. Em `mock` o cartão avisa que nada é enviado ao banco. A tela é só do papel `admin`; `gestor` vê o estado sem editar.
+- Aba Integrações: cartão "Itaú" com liga/desliga, modo (Simulado / Teste / Produção, vindo do `ITAU_MODE`), o assistente da 8.3.1 em 6 passos, credenciais presentes (sim/não), client_id mascarado, validade do certificado com botão de renovar e situação dos dois webhooks. Ativar só fica disponível depois do teste de conexão bem-sucedido. Em `mock` o cartão avisa que nada é enviado ao banco. A configuração é da gestão (`admin`/`gestor`, mesma regra do `rbac::eh_gestao` e da Cora); os demais papéis não veem a aba Integrações.
 - Fatura: botão "Emitir boleto Itaú" (quando ativo) orquestrado no `FinanceiroSection.tsx` (padrão B12), abrindo modal `BoletoItauModal` com linha digitável, Pix copia e cola, QR e código de barras; botão vira "Ver boleto Itaú" quando já emitido; tratamento de 202 com aviso de emissão em andamento e modal com badge "Simulado" em modo mock.
 - Portal da família: a 2ª via mostra o Bolecode quando a fatura foi emitida no Itaú (`gateway_name === 'itau'` e linha digitável presente), senão mantém o Pix local com o aviso atual.
 - Chamadas novas de API entram no `FinanceiroSection.tsx` (padrão B12).
@@ -249,4 +249,7 @@ Cobre boletos e Bolecodes **pagos pelo código de barras**.
 - Uma conta Itaú por instalação (decisão da 8.3): o modelo é uma escola por servidor; se mais de uma escola for cadastrada no mesmo servidor, todas recebem na mesma conta.
 - Renovação do certificado por clique (365 dias); sem renovação automática.
 - Segredos dependem da `APP_SECRETS_KEY`: perdê-la obriga a refazer o assistente.
+- **QR Code não é escaneável**: o modal do Bolecode e a 2ª via do portal mostram um ícone de QR, como o Pix local já fazia; o projeto não tem biblioteca de QR. O pagamento por Pix funciona pelo copia e cola. Gerar o QR real a partir do EMV exige uma dependência nova no frontend.
+- **Papel `financeiro` não vê o botão do Itaú**: a tela decide pelo estado da integração (`GET /tenant/integrations/itau`), que só a gestão lê; a rota de emissão aceita o financeiro. Mesmo comportamento da Cora.
+- O botão de emitir só aparece em fatura pendente e ainda não vencida (o Itaú recusa vencimento no passado).
 - Sem conciliação de segurança (francesa/extrato) para avisos perdidos: um webhook que falhar todas as tentativas só é recuperado manualmente.

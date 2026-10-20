@@ -52,7 +52,9 @@ function useSafeRole(overrideRole?: string): string | undefined {
 
 export function ItauIntegrationCard({ userRole }: ItauIntegrationCardProps) {
   const currentRole = useSafeRole(userRole);
-  const isAdmin = currentRole === 'admin' || currentRole === 'superadmin';
+  // Mesma regra do backend (rbac::eh_gestao): a gestão da escola configura o banco.
+  const papel = (currentRole || '').toLowerCase().replace(/_/g, '');
+  const isAdmin = ['admin', 'gestor', 'superadmin', 'gestorescolar'].includes(papel);
 
   const [estado, setEstado] = useState<ItauEstadoView | null>(null);
   const [loading, setLoading] = useState(true);
@@ -528,7 +530,7 @@ export function ItauIntegrationCard({ userRole }: ItauIntegrationCardProps) {
             </div>
           </div>
           <p className="text-[11px] text-slate-500 italic mt-2">
-            Apenas administradores podem editar credenciais e chaves do assistente de conexão.
+            Só a gestão da escola pode editar credenciais e chaves do assistente de conexão.
           </p>
         </div>
       )}

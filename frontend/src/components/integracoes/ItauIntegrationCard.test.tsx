@@ -48,15 +48,28 @@ describe('ItauIntegrationCard', () => {
     });
   });
 
-  it('esconde edição e passos do assistente para o papel gestor (somente leitura)', async () => {
+  it('mostra o assistente para a gestão com a grafia do seed (GestorEscolar)', async () => {
     vi.spyOn(apiModule, 'apiFetch').mockResolvedValue(mockEstadoOk);
 
-    render(<ItauIntegrationCard userRole="gestor" />);
+    render(<ItauIntegrationCard userRole="GestorEscolar" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Assistente de Conexão com o Itaú')).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByText('Só a gestão da escola pode editar credenciais e chaves do assistente de conexão.')
+    ).not.toBeInTheDocument();
+  });
+
+  it('esconde edição e passos do assistente para papel fora da gestão (somente leitura)', async () => {
+    vi.spyOn(apiModule, 'apiFetch').mockResolvedValue(mockEstadoOk);
+
+    render(<ItauIntegrationCard userRole="secretaria" />);
 
     await waitFor(() => {
       expect(screen.getByText('Dados configurados da cobrança')).toBeInTheDocument();
       expect(
-        screen.getByText('Apenas administradores podem editar credenciais e chaves do assistente de conexão.')
+        screen.getByText('Só a gestão da escola pode editar credenciais e chaves do assistente de conexão.')
       ).toBeInTheDocument();
     });
 
