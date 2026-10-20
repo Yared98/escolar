@@ -577,7 +577,10 @@ pub async fn emitir_bolecode(
         });
     }
 
-    if status == StatusCode::UNPROCESSABLE_ENTITY || status == StatusCode::BAD_REQUEST {
+    if status == StatusCode::UNPROCESSABLE_ENTITY
+        || status == StatusCode::BAD_REQUEST
+        || status == StatusCode::CONFLICT
+    {
         let parsed: Value =
             serde_json::from_str(&text).unwrap_or_else(|_| json!({ "mensagem": text }));
         return Ok(RespostaEmissao::Rejeitado {

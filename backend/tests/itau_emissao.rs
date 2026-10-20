@@ -57,12 +57,18 @@ struct SimulatorState {
     last_payload: Arc<Mutex<Option<Value>>>,
     correlation_ids: Arc<Mutex<Vec<String>>>,
     fail_422: Arc<Mutex<bool>>,
+    fail_500: Arc<Mutex<bool>>,
+    fail_duplicado: Arc<Mutex<bool>>,
     return_202: Arc<Mutex<bool>>,
+    consultar_not_found: Arc<Mutex<bool>>,
+    consultar_not_found_once: Arc<Mutex<bool>>,
+    consultar_retorno_custom: Arc<Mutex<Option<Value>>>,
     fail_baixa: Arc<Mutex<bool>>,
     baixa_called: Arc<Mutex<bool>>,
     baixa_ids: Arc<Mutex<Vec<String>>>,
     emitir_count: Arc<Mutex<u32>>,
     consultar_count: Arc<Mutex<u32>>,
+    emitted_nosso_numeros: Arc<Mutex<Vec<String>>>,
 }
 
 async fn sim_oauth_token() -> (StatusCode, Json<Value>) {
@@ -91,6 +97,44 @@ async fn sim_boletos_pix(
     *state.last_payload.lock().unwrap() = Some(payload.clone());
     *state.emitir_count.lock().unwrap() += 1;
 
+    let nosso_numero = payload
+        .pointer("/dado_boleto/dados_individuais_boleto/0/numero_nosso_numero")
+        .and_then(|v| v.as_str())
+        .unwrap_or("00000001")
+        .to_string();
+
+    state
+        .emitted_nosso_numeros
+        .lock()
+        .unwrap()
+        .push(nosso_numero.clone());
+
+    if *state.fail_500.lock().unwrap() {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({
+                "codigo": "500",
+                "mensagem": "Erro interno do servidor Itaú simulado"
+            })),
+        );
+    }
+
+    if *state.fail_duplicado.lock().unwrap() {
+        return (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            Json(json!({
+                "codigo": "422",
+                "mensagem": "Boleto com nosso_numero já existente para o beneficiário",
+                "campos": [
+                    {
+                        "campo": "numero_nosso_numero",
+                        "mensagem": "já cadastrado"
+                    }
+                ]
+            })),
+        );
+    }
+
     if *state.fail_422.lock().unwrap() {
         return (
             StatusCode::UNPROCESSABLE_ENTITY,
@@ -116,11 +160,6 @@ async fn sim_boletos_pix(
             })),
         );
     }
-
-    let nosso_numero = payload
-        .pointer("/dado_boleto/dados_individuais_boleto/0/numero_nosso_numero")
-        .and_then(|v| v.as_str())
-        .unwrap_or("00000001");
 
     (
         StatusCode::OK,
@@ -156,6 +195,25 @@ async fn sim_consultar_boletos(
     }
 
     *state.consultar_count.lock().unwrap() += 1;
+
+    if *state.consultar_not_found_once.lock().unwrap() {
+        *state.consultar_not_found_once.lock().unwrap() = false;
+        return (
+            StatusCode::NOT_FOUND,
+            Json(json!({ "mensagem": "Boleto não encontrado" })),
+        );
+    }
+
+    if *state.consultar_not_found.lock().unwrap() {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(json!({ "mensagem": "Boleto não encontrado" })),
+        );
+    }
+
+    if let Some(custom) = state.consultar_retorno_custom.lock().unwrap().clone() {
+        return (StatusCode::OK, Json(custom));
+    }
 
     (
         StatusCode::OK,
@@ -385,6 +443,9 @@ async fn test_itau_emissao_suite_completa() {
     let fatura_2_id = Uuid::new_v4();
     let fatura_3_id = Uuid::new_v4();
     let fatura_4_id = Uuid::new_v4();
+    let fatura_5_id = Uuid::new_v4();
+    let fatura_6_id = Uuid::new_v4();
+    let fatura_7_id = Uuid::new_v4();
     let fatura_incompleta_id = Uuid::new_v4();
     let fatura_paga_id = Uuid::new_v4();
 
@@ -394,18 +455,24 @@ async fn test_itau_emissao_suite_completa() {
         r#"
         INSERT INTO faturas (id, tenant_id, aluno_id, descricao, valor, data_vencimento, metodo_pagamento, status, multa_percentual, juros_mora_mes_percentual)
         VALUES
-            ($1, $7, $8, 'Mensalidade 01/26', 750.00, $9, 'boleto', 'pendente', 2.0, 1.0),
-            ($2, $7, $8, 'Mensalidade 02/26', 800.00, $9, 'boleto', 'pendente', 2.0, 1.0),
-            ($3, $7, $8, 'Mensalidade 03/26', 850.00, $9, 'boleto', 'pendente', 2.0, 1.0),
-            ($4, $7, $8, 'Mensalidade 04/26', 900.00, $9, 'boleto', 'pendente', 2.0, 1.0),
-            ($5, $7, $10, 'Mensalidade Incompleta', 500.00, $9, 'boleto', 'pendente', 2.0, 1.0),
-            ($6, $7, $8, 'Mensalidade Paga', 600.00, $9, 'boleto', 'pago', 2.0, 1.0)
+            ($1, $10, $11, 'Mensalidade 01/26', 750.00, $12, 'boleto', 'pendente', 2.0, 1.0),
+            ($2, $10, $11, 'Mensalidade 02/26', 800.00, $12, 'boleto', 'pendente', 2.0, 1.0),
+            ($3, $10, $11, 'Mensalidade 03/26', 850.00, $12, 'boleto', 'pendente', 2.0, 1.0),
+            ($4, $10, $11, 'Mensalidade 04/26', 900.00, $12, 'boleto', 'pendente', 2.0, 1.0),
+            ($5, $10, $11, 'Mensalidade 05/26', 950.00, $12, 'boleto', 'pendente', 2.0, 1.0),
+            ($6, $10, $11, 'Mensalidade 06/26', 1000.00, $12, 'boleto', 'pendente', 2.0, 1.0),
+            ($7, $10, $11, 'Mensalidade 07/26', 1050.00, $12, 'boleto', 'pendente', 2.0, 1.0),
+            ($8, $10, $13, 'Mensalidade Incompleta', 500.00, $12, 'boleto', 'pendente', 2.0, 1.0),
+            ($9, $10, $11, 'Mensalidade Paga', 600.00, $12, 'boleto', 'pago', 2.0, 1.0)
         "#
     )
     .bind(fatura_1_id)
     .bind(fatura_2_id)
     .bind(fatura_3_id)
     .bind(fatura_4_id)
+    .bind(fatura_5_id)
+    .bind(fatura_6_id)
+    .bind(fatura_7_id)
     .bind(fatura_incompleta_id)
     .bind(fatura_paga_id)
     .bind(tenant_a)
@@ -683,15 +750,17 @@ async fn test_itau_emissao_suite_completa() {
     let resp4 = app.clone().oneshot(req4).await.unwrap();
     assert_eq!(resp4.status(), StatusCode::UNPROCESSABLE_ENTITY);
 
-    // Verifica que fatura 4 não foi gravada como emitida
-    let fatura_4_db: (Option<String>, Option<String>) =
-        sqlx::query_as("SELECT gateway_name, gateway_invoice_id FROM faturas WHERE id = $1")
+    // Verifica que fatura 4 não foi gravada como emitida (sem nosso_numero/gateway_name depois)
+    let fatura_4_db: (Option<String>, Option<String>, Option<String>, bool) =
+        sqlx::query_as("SELECT gateway_name, gateway_invoice_id, nosso_numero, gateway_emissao_pendente FROM faturas WHERE id = $1")
             .bind(fatura_4_id)
             .fetch_one(&pool)
             .await
             .unwrap();
     assert!(fatura_4_db.0.is_none());
     assert!(fatura_4_db.1.is_none());
+    assert!(fatura_4_db.2.is_none());
+    assert!(!fatura_4_db.3);
     *sim_state.fail_422.lock().unwrap() = false;
 
     // =========================================================================
@@ -752,6 +821,199 @@ async fn test_itau_emissao_suite_completa() {
         .execute(&pool)
         .await
         .unwrap();
+
+    // =========================================================================
+    // Caso 8b: Integração ativa sem chave Pix → 409 e simulador NÃO recebe chamada
+    // =========================================================================
+    sqlx::query("UPDATE tenant_itau_config SET chave_pix = NULL WHERE tenant_id = $1")
+        .bind(tenant_a)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let emitir_count_antes_sem_pix = *sim_state.emitir_count.lock().unwrap();
+    let consultar_count_antes_sem_pix = *sim_state.consultar_count.lock().unwrap();
+
+    let req_sem_pix = Request::builder()
+        .method("POST")
+        .uri(format!("/api/v1/financeiro/faturas/{fatura_5_id}/itau"))
+        .header(header::AUTHORIZATION, format!("Bearer {token_a}"))
+        .header("X-Tenant-ID", tenant_a.to_string())
+        .body(Body::empty())
+        .unwrap();
+    let resp_sem_pix = app.clone().oneshot(req_sem_pix).await.unwrap();
+    assert_eq!(resp_sem_pix.status(), StatusCode::CONFLICT);
+    let body_sem_pix = axum::body::to_bytes(resp_sem_pix.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let str_sem_pix = String::from_utf8_lossy(&body_sem_pix);
+    assert!(
+        str_sem_pix.contains(
+            "Preencha agência, conta e chave Pix na configuração do Itaú antes de emitir."
+        ),
+        "Mensagem esperada para chave Pix ausente, recebido: {str_sem_pix}"
+    );
+    assert_eq!(
+        *sim_state.emitir_count.lock().unwrap(),
+        emitir_count_antes_sem_pix,
+        "Simulador não deve ser chamado quando chave Pix está ausente"
+    );
+    assert_eq!(
+        *sim_state.consultar_count.lock().unwrap(),
+        consultar_count_antes_sem_pix,
+        "Simulador de consulta não deve ser chamado quando chave Pix está ausente"
+    );
+
+    // Restaura chave_pix
+    sqlx::query("UPDATE tenant_itau_config SET chave_pix = '12345678000190' WHERE tenant_id = $1")
+        .bind(tenant_a)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    // =========================================================================
+    // Caso 8c: Simulador devolve 500 na emissão → fatura fica pendente com nosso_numero;
+    // nova chamada consulta, não acha (404), reemite com o MESMO número;
+    // sequência não pula na próxima fatura
+    // =========================================================================
+    *sim_state.fail_500.lock().unwrap() = true;
+
+    let req5 = Request::builder()
+        .method("POST")
+        .uri(format!("/api/v1/financeiro/faturas/{fatura_5_id}/itau"))
+        .header(header::AUTHORIZATION, format!("Bearer {token_a}"))
+        .header("X-Tenant-ID", tenant_a.to_string())
+        .body(Body::empty())
+        .unwrap();
+    let resp5 = app.clone().oneshot(req5).await.unwrap();
+    assert_eq!(resp5.status(), StatusCode::BAD_GATEWAY);
+    let body_bytes5 = axum::body::to_bytes(resp5.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let str5 = String::from_utf8_lossy(&body_bytes5);
+    assert!(
+        str5.contains("não foi possível confirmar a emissão; tente de novo para consultar"),
+        "Mensagem de 502 esperada, recebido: {str5}"
+    );
+
+    // Confere no banco: fatura 5 gravada ANTES como pendente com nosso_numero
+    let fatura_5_db: (Option<String>, Option<String>, bool) = sqlx::query_as(
+        "SELECT gateway_name, nosso_numero, gateway_emissao_pendente FROM faturas WHERE id = $1",
+    )
+    .bind(fatura_5_id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(fatura_5_db.0.as_deref(), Some("itau"));
+    let nosso_num_fatura_5 = fatura_5_db
+        .1
+        .expect("nosso_numero deve ter sido gravado antes da chamada");
+    assert_eq!(nosso_num_fatura_5, "00000005");
+    assert!(fatura_5_db.2, "gateway_emissao_pendente deve ser true");
+
+    // Desliga 500 e ativa consulta 404 (não achou)
+    *sim_state.fail_500.lock().unwrap() = false;
+    *sim_state.consultar_not_found.lock().unwrap() = true;
+    sim_state.emitted_nosso_numeros.lock().unwrap().clear();
+
+    // Segunda chamada na fatura 5: consulta -> não acha -> reemite com o MESMO nosso_numero
+    let req5_reemit = Request::builder()
+        .method("POST")
+        .uri(format!("/api/v1/financeiro/faturas/{fatura_5_id}/itau"))
+        .header(header::AUTHORIZATION, format!("Bearer {token_a}"))
+        .header("X-Tenant-ID", tenant_a.to_string())
+        .body(Body::empty())
+        .unwrap();
+    let resp5_reemit = app.clone().oneshot(req5_reemit).await.unwrap();
+    assert_eq!(resp5_reemit.status(), StatusCode::OK);
+    let body_bytes5_reemit = axum::body::to_bytes(resp5_reemit.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json5: Value = serde_json::from_slice(&body_bytes5_reemit).unwrap();
+    assert_eq!(json5["nosso_numero"], "00000005");
+    assert_eq!(json5["gateway_emissao_pendente"], false);
+
+    // Confere que no simulador a reemissão enviou exatamente o mesmo nosso_numero
+    let emitted_numbers = sim_state.emitted_nosso_numeros.lock().unwrap().clone();
+    assert_eq!(emitted_numbers, vec!["00000005".to_string()]);
+
+    *sim_state.consultar_not_found.lock().unwrap() = false;
+
+    // Próxima emissão (fatura 6): sequência NÃO pulou número
+    let req6 = Request::builder()
+        .method("POST")
+        .uri(format!("/api/v1/financeiro/faturas/{fatura_6_id}/itau"))
+        .header(header::AUTHORIZATION, format!("Bearer {token_a}"))
+        .header("X-Tenant-ID", tenant_a.to_string())
+        .body(Body::empty())
+        .unwrap();
+    let resp6 = app.clone().oneshot(req6).await.unwrap();
+    assert_eq!(resp6.status(), StatusCode::OK);
+    let body_bytes6 = axum::body::to_bytes(resp6.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json6: Value = serde_json::from_slice(&body_bytes6).unwrap();
+    assert_eq!(
+        json6["nosso_numero"], "00000006",
+        "A sequência não deve pular número"
+    );
+
+    // =========================================================================
+    // Caso 8d: Na reemissão, Itaú responde que número já existe → consulta de novo e grava
+    // =========================================================================
+    sqlx::query(
+        "UPDATE faturas SET gateway_name = 'itau', nosso_numero = '00000007', gateway_emissao_pendente = true WHERE id = $1",
+    )
+    .bind(fatura_7_id)
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    *sim_state.consultar_not_found_once.lock().unwrap() = true;
+    *sim_state.fail_duplicado.lock().unwrap() = true;
+    *sim_state.consultar_retorno_custom.lock().unwrap() = Some(json!({
+        "data": [
+            {
+                "id_boleto": "boleto_duplicado_recuperado_777",
+                "dado_boleto": {
+                    "dados_individuais_boleto": [
+                        {
+                            "numero_linha_digitavel": "34193333333333333333333333333333333333333333333",
+                            "codigo_barras": "34193333333333333333333333333333333333333333",
+                            "numero_nosso_numero": "00000007"
+                        }
+                    ]
+                },
+                "dados_qrcode": {
+                    "txid": "BL3333333333333333333333333333333",
+                    "emv": "00020126580014br.gov.bcb.pix0136duplicado520400005303986540512.345802BR5925Escola6009SAOPAULO62070503***63041D3A"
+                }
+            }
+        ]
+    }));
+
+    let req7 = Request::builder()
+        .method("POST")
+        .uri(format!("/api/v1/financeiro/faturas/{fatura_7_id}/itau"))
+        .header(header::AUTHORIZATION, format!("Bearer {token_a}"))
+        .header("X-Tenant-ID", tenant_a.to_string())
+        .body(Body::empty())
+        .unwrap();
+    let resp7 = app.clone().oneshot(req7).await.unwrap();
+    assert_eq!(resp7.status(), StatusCode::OK);
+    let body_bytes7 = axum::body::to_bytes(resp7.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let json7: Value = serde_json::from_slice(&body_bytes7).unwrap();
+    assert_eq!(json7["nosso_numero"], "00000007");
+    assert_eq!(
+        json7["gateway_invoice_id"],
+        "boleto_duplicado_recuperado_777"
+    );
+    assert_eq!(json7["gateway_emissao_pendente"], false);
+
+    *sim_state.fail_duplicado.lock().unwrap() = false;
+    *sim_state.consultar_retorno_custom.lock().unwrap() = None;
 
     // =========================================================================
     // Caso 9: Cancelar fatura emitida chama baixa no Itaú
