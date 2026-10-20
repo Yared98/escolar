@@ -117,15 +117,8 @@ fn token_cache() -> &'static Mutex<HashMap<Uuid, (String, Instant)>> {
 }
 
 pub fn normalizar_texto(texto: &str, max_len: usize) -> String {
-    let mut s = texto.to_string();
-    for word in &["javascript", "http", "alert"] {
-        while let Some(pos) = s.to_lowercase().find(word) {
-            s.drain(pos..pos + word.len());
-        }
-    }
-
-    let mut filtrado = String::with_capacity(s.len());
-    for c in s.chars() {
+    let mut filtrado = String::with_capacity(texto.len());
+    for c in texto.chars() {
         match c {
             'ü' => filtrado.push('u'),
             'Ü' => filtrado.push('U'),
@@ -136,6 +129,14 @@ pub fn normalizar_texto(texto: &str, max_len: usize) -> String {
                 filtrado.push(c)
             }
             _ => {}
+        }
+    }
+
+    // Depois do filtro só restam ASCII e acentos com o mesmo tamanho em maiúscula e minúscula,
+    // então a posição achada na versão minúscula vale para a original.
+    for word in &["javascript", "http", "alert"] {
+        while let Some(pos) = filtrado.to_lowercase().find(word) {
+            filtrado.drain(pos..pos + word.len());
         }
     }
 
@@ -886,7 +887,7 @@ pub async fn baixar_boleto(
         Ok(())
     } else {
         let text = resp.text().await.unwrap_or_default();
-        tracing::error!(status = %status, body = %text, "Itaú recusou pedido de baixa");
+        tracing::error!(status = %status, "Itaú recusou pedido de baixa");
         Err(ItauApiError::BadGateway(format!(
             "Itaú recusou baixa (status {status}): {text}"
         )))
@@ -902,6 +903,13 @@ mod tests {
         let entrada = "Colégio http://site.com alert javascript alert";
         let res = normalizar_texto(entrada, 100);
         assert_eq!(res, "Colégio site.com");
+    }
+
+    #[test]
+    fn test_normalizar_texto_unicode_que_muda_de_tamanho_nao_quebra() {
+        // 'İ' e 'ẞ' mudam de tamanho em bytes ao passar para minúscula.
+        let res = normalizar_texto("İstanbul ẞtraße HTTP Ana", 100);
+        assert_eq!(res, "stanbul trae Ana");
     }
 
     #[test]
