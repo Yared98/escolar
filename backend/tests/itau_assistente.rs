@@ -626,6 +626,11 @@ async fn test_itau_assistente_fluxo_completo() {
         );
         let csr_recebido = sim_state.received_csr.lock().unwrap().clone().unwrap();
         assert!(csr_recebido.contains("-----BEGIN CERTIFICATE REQUEST-----"));
+        let csr = <x509_cert::request::CertReq as x509_cert::der::DecodePem>::from_pem(
+            csr_recebido.as_bytes(),
+        )
+        .unwrap();
+        assert!(csr.info.subject.to_string().contains(client_id_raw));
     }
 
     // 9. Conferir estado após sucesso na rota 4:

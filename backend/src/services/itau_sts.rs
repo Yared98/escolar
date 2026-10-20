@@ -314,7 +314,7 @@ pub async fn solicitar_certificado_sts(
     let text = resp.text().await.unwrap_or_default();
 
     if !status.is_success() {
-        tracing::error!(status = %status, body = %text, "STS do Itaú recusou solicitação de certificado");
+        tracing::error!(status = %status, "STS do Itaú recusou solicitação de certificado");
         if status.as_u16() == 403 {
             return Err(Err((
                 axum::http::StatusCode::BAD_GATEWAY,
@@ -398,7 +398,7 @@ pub async fn testar_conexao_oauth(
     let status = resp.status();
     if !status.is_success() {
         let text = resp.text().await.unwrap_or_default();
-        tracing::error!(status = %status, body = %text, "STS do Itaú recusou teste de conexão OAuth");
+        tracing::error!(status = %status, "STS do Itaú recusou teste de conexão OAuth");
         return Err((
             axum::http::StatusCode::BAD_GATEWAY,
             format!("Falha ao autenticar no Itaú (status {}): {}", status, text),
@@ -524,7 +524,7 @@ pub async fn renovar_certificado_sts(
     let text = resp.text().await.unwrap_or_default();
 
     if !status.is_success() {
-        tracing::error!(status = %status, body = %text, "STS do Itaú recusou renovação de certificado");
+        tracing::error!(status = %status, "STS do Itaú recusou renovação de certificado");
         return Err((
             axum::http::StatusCode::BAD_GATEWAY,
             format!(
