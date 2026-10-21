@@ -232,10 +232,10 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?;
 
-        // Garantir que as tabelas com tenant_id estejam presentes no schema (73 tabelas)
-        if tables_with_tenant.len() != 73 {
+        // Garantir que as tabelas com tenant_id estejam presentes no schema (74 tabelas)
+        if tables_with_tenant.len() != 74 {
             return Err(format!(
-                "Esperado 73 tabelas com tenant_id no schema public, encontrado {}",
+                "Esperado 74 tabelas com tenant_id no schema public, encontrado {}",
                 tables_with_tenant.len()
             ));
         }
@@ -476,6 +476,7 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
                 "tenant_gateway_secrets" => format!("INSERT INTO {tbl} (id, tenant_id, gateway_name, tipo, ciphertext, nonce) VALUES ($1, $2, 'itau', 'client_id', decode('00ff', 'hex'), decode('000000000000000000000000', 'hex'))"),
                 "tenant_bank_integrations" => format!("INSERT INTO {tbl} (id, tenant_id, gateway_name, client_id, client_secret) VALUES ($1, $2, 'cora', 'client_b', 'secret_b')"),
                 "tenant_cora_config" => format!("INSERT INTO {tbl} (tenant_id, client_id, client_secret) VALUES ($2, 'cora_client_b', 'cora_secret_b') ON CONFLICT DO NOTHING"),
+                "tenant_branding" => format!("INSERT INTO {tbl} (tenant_id, cor_primaria, cor_destaque) VALUES ($2, '#2d5338', '#f59e0b') ON CONFLICT DO NOTHING"),
                 "tenant_itau_config" => format!("INSERT INTO {tbl} (id, tenant_id, agencia, conta, dac, id_beneficiario, chave_pix) VALUES ($1, $2, '1234', '1234567', '8', '123412345678', 'pix@test.com') ON CONFLICT DO NOTHING"),
                 "tenant_feature_flags" => format!("INSERT INTO {tbl} (tenant_id, feature_name, is_enabled) VALUES ($2, 'modulo_nutricao', true) ON CONFLICT DO NOTHING"),
                 "turma_alunos" => format!("INSERT INTO {tbl} (id, tenant_id, turma_id, aluno_id) VALUES ($1, $2, '{turma_b_id}', '{aluno_b_id}')"),

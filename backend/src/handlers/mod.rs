@@ -16,6 +16,7 @@ pub mod professor;
 pub mod recuperacao_senha;
 pub mod regulatorio_ia;
 pub mod secretaria;
+pub mod tenant_branding;
 pub mod tenant_settings;
 pub mod usuarios;
 pub mod virada_ano;
