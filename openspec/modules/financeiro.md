@@ -249,8 +249,8 @@ Cobre boletos e Bolecodes **pagos pelo código de barras**.
 - Uma conta Itaú por instalação (decisão da 8.3): o modelo é uma escola por servidor; se mais de uma escola for cadastrada no mesmo servidor, todas recebem na mesma conta.
 - Renovação do certificado por clique (365 dias); sem renovação automática.
 - Segredos dependem da `APP_SECRETS_KEY`: perdê-la obriga a refazer o assistente.
-- **QR Code não é escaneável**: o modal do Bolecode e a 2ª via do portal mostram um ícone de QR, como o Pix local já fazia; o projeto não tem biblioteca de QR. O pagamento por Pix funciona pelo copia e cola. Gerar o QR real a partir do EMV exige uma dependência nova no frontend.
-- **Papel `financeiro` não vê o botão do Itaú**: a tela decide pelo estado da integração (`GET /tenant/integrations/itau`), que só a gestão lê; a rota de emissão aceita o financeiro. Mesmo comportamento da Cora.
+- **QR Code escaneável implementado (Card ITAU-G2)**: o componente `QrCodePix` renderiza o QR real SVG a partir do EMV (`qrcode.react@4`) no Bolecode, Pix local e 2ª via do portal da família; sem EMV, não desenha nada e exibe apenas o copia e cola.
+- **Papel `financeiro` vê o botão do Itaú (Card ITAU-G2)**: `FinanceiroSection.tsx` agora consulta `GET /financeiro/integracoes/status` (rota acessível ao papel financeiro), exibindo os botões quando `itau.ativo || itau.modo === 'mock'`, e usando `cora.modo` e `cora.disponivel`.
 - O botão de emitir só aparece em fatura pendente e ainda não vencida (o Itaú recusa vencimento no passado).
 - Sem conciliação de segurança (francesa/extrato) para avisos perdidos: um webhook que falhar todas as tentativas só é recuperado manualmente.
 
@@ -261,7 +261,7 @@ Plano aprovado pelo usuário em 2026-10-21 para tratar as limitações da 8.11. 
 | Card | Entrega | Depende de | Liga quando |
 |---|---|---|---|
 | ITAU-G1 | Backend: letra base nos acentos fora da lista do Itaú; status mínimo das integrações para o financeiro | — | ao integrar |
-| ITAU-G2 | Frontend: QR Code escaneável a partir do EMV (Bolecode, Pix local e 2ª via); botão do Itaú para o financeiro pelo status mínimo | contrato do G1 | ao integrar |
+| ITAU-G2 | Frontend: QR Code escaneável a partir do EMV (Bolecode, Pix local e 2ª via); botão do Itaú para o financeiro pelo status mínimo | contrato do G1 | implementado (2026-10-21) |
 | ITAU-H | Renovação automática do certificado dinâmico com alerta de falha para a gestão | — | `ITAU_RENOVACAO_AUTOMATICA=true`, depois de uma renovação real por clique dar certo |
 | ITAU-I | Conciliação diária de Pix e boletos liquidados (recupera avisos perdidos) | ITAU-H (ordem de migrations) | `ITAU_CONCILIACAO_DIARIA=true`, depois do teste no sandbox confirmar os formatos |
 
@@ -270,9 +270,9 @@ Plano aprovado pelo usuário em 2026-10-21 para tratar as limitações da 8.11. 
 - Dois perfis, como no OpenAPI: **nome do pagador** só letras, espaço e os acentos aceitos (`^[a-zA-Z\s…]+$`, sem dígito, hífen, ponto ou vírgula; hífen vira espaço); **endereço e demais textos** também aceitam dígitos, espaço, `-`, `.` e `,`.
 - `GET /api/v1/financeiro/integracoes/status` (papéis `admin`, `gestor`, `financeiro`): devolve só `{ itau: { modo, ativo }, cora: { modo, disponivel } }`, sem client_id, chave Pix, conta ou datas. As rotas de Integrações continuam só da gestão.
 
-**G2 — QR Code real e botão para o financeiro**
-- Dependência nova no frontend: `qrcode.react` (SVG). Componente `QrCodePix` recebe o EMV e desenha o QR; usado no modal do Bolecode, no `financeiro/PixModal.tsx` e no `portal_aluno/PixModal.tsx`. Sem EMV, não desenha nada e mostra só o copia e cola (nunca ícone fingindo QR).
-- `FinanceiroSection.tsx` decide o botão do Itaú (e o da Cora) pelo status mínimo do G1.
+**G2 — QR Code real e botão para o financeiro (implementado em 2026-10-21)**
+- Dependência nova no frontend: `qrcode.react@4` (SVG). Componente `QrCodePix` recebe o EMV e desenha o QR; usado no modal do Bolecode (`BoletoItauModal`), no `financeiro/PixModal.tsx` e no `portal_aluno/PixModal.tsx`. Sem EMV, não desenha nada e mostra só o copia e cola (nunca ícone fingindo QR).
+- `FinanceiroSection.tsx` decide o botão do Itaú (e o da Cora) pelo status mínimo do G1 (`GET /financeiro/integracoes/status`).
 - Conferência no navegador a 375px da 2ª via no portal da família.
 
 **H — renovação automática do certificado**

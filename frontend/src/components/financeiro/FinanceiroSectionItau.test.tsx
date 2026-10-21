@@ -19,31 +19,114 @@ const mockFatura: any = {
   gateway_name: null,
 };
 
-const mockItauConfig = {
-  modo: 'mock',
-  ativo: false,
-  agencia: '0057',
-  conta: '1234567',
-  dac: '8',
-  id_beneficiario: '005712345678',
-  chave_pix: 'escola@exemplo.com.br',
-  especie_padrao: '04',
-  multa_padrao_percentual: 2.0,
-  juros_padrao_percentual: 1.0,
-  ultimo_teste_ok_em: null,
-  has_client_id: false,
-  client_id_mascarado: null,
-  has_client_secret: false,
-  has_certificado: false,
-  certificado_valido_ate: null,
-  pode_renovar: false,
-  has_chave_transporte: false,
-  chave_cifragem_configurada: true,
+const mockStatusAtivo = {
+  itau: {
+    modo: 'production',
+    ativo: true,
+  },
+  cora: {
+    modo: 'sandbox',
+    disponivel: true,
+  },
 };
 
-describe('FinanceiroSection - Emissão Itaú', () => {
+const mockStatusMock = {
+  itau: {
+    modo: 'mock',
+    ativo: false,
+  },
+  cora: {
+    modo: 'mock',
+    disponivel: false,
+  },
+};
+
+describe('FinanceiroSection - Status de Integrações e Emissão Itaú', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('papel financeiro com itau.ativo=true vê o botão "Emitir boleto Itaú"', async () => {
+    vi.spyOn(authModule, 'useAuth').mockReturnValue({
+      user: { id: 'usr-fin', tenant_id: 't-1', name: 'Operador Financeiro', email: 'fin@escola.com', role: 'financeiro' },
+      token: 'tok-123',
+      tenant: { id: 't-1', name: 'Escola Teste', slug: 'escola', status: 'ativo' },
+      isOnline: true,
+      login: vi.fn(),
+      logout: vi.fn(),
+      setTenantId: vi.fn(),
+      switchRole: vi.fn(),
+      setUser: vi.fn(),
+    });
+
+    vi.spyOn(apiModule, 'apiFetch').mockImplementation((endpoint: string) => {
+      if (endpoint === '/financeiro/faturas') return Promise.resolve([mockFatura]);
+      if (endpoint === '/financeiro/integracoes/status') return Promise.resolve(mockStatusAtivo);
+      return Promise.resolve([] as any);
+    });
+
+    render(<FinanceiroSection />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Emitir boleto Itaú')).toBeInTheDocument();
+    });
+  });
+
+  it('com falha na consulta de status não vê o botão do Itaú e não quebra a tela', async () => {
+    vi.spyOn(authModule, 'useAuth').mockReturnValue({
+      user: { id: 'usr-fin', tenant_id: 't-1', name: 'Operador Financeiro', email: 'fin@escola.com', role: 'financeiro' },
+      token: 'tok-123',
+      tenant: { id: 't-1', name: 'Escola Teste', slug: 'escola', status: 'ativo' },
+      isOnline: true,
+      login: vi.fn(),
+      logout: vi.fn(),
+      setTenantId: vi.fn(),
+      switchRole: vi.fn(),
+      setUser: vi.fn(),
+    });
+
+    vi.spyOn(apiModule, 'apiFetch').mockImplementation((endpoint: string) => {
+      if (endpoint === '/financeiro/faturas') return Promise.resolve([mockFatura]);
+      if (endpoint === '/financeiro/integracoes/status') return Promise.reject(new Error('Falha de rede'));
+      return Promise.resolve([] as any);
+    });
+
+    render(<FinanceiroSection />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Mensalidade Maio/2026')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Emitir boleto Itaú')).not.toBeInTheDocument();
+  });
+
+  it('em modo mock (itau.modo = "mock") o botão também fica habilitado', async () => {
+    vi.spyOn(authModule, 'useAuth').mockReturnValue({
+      user: { id: 'usr-fin', tenant_id: 't-1', name: 'Operador Financeiro', email: 'fin@escola.com', role: 'financeiro' },
+      token: 'tok-123',
+      tenant: { id: 't-1', name: 'Escola Teste', slug: 'escola', status: 'ativo' },
+      isOnline: true,
+      login: vi.fn(),
+      logout: vi.fn(),
+      setTenantId: vi.fn(),
+      switchRole: vi.fn(),
+      setUser: vi.fn(),
+    });
+
+    vi.spyOn(apiModule, 'apiFetch').mockImplementation((endpoint: string) => {
+      if (endpoint === '/financeiro/faturas') return Promise.resolve([mockFatura]);
+      if (endpoint === '/financeiro/integracoes/status') return Promise.resolve(mockStatusMock);
+      return Promise.resolve([] as any);
+    });
+
+    render(<FinanceiroSection />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Emitir boleto Itaú')).toBeInTheDocument();
+    });
+  });
+
+  it('trata resposta 202 ("emissão em andamento") exibindo aviso apropriado', async () => {
     vi.spyOn(authModule, 'useAuth').mockReturnValue({
       user: { id: 'usr-1', tenant_id: 't-1', name: 'Admin', email: 'admin@escola.com', role: 'admin' },
       token: 'tok-123',
@@ -55,12 +138,10 @@ describe('FinanceiroSection - Emissão Itaú', () => {
       switchRole: vi.fn(),
       setUser: vi.fn(),
     });
-  });
 
-  it('trata resposta 202 ("emissão em andamento") exibindo aviso apropriado', async () => {
     vi.spyOn(apiModule, 'apiFetch').mockImplementation((endpoint: string, options?: any) => {
       if (endpoint === '/financeiro/faturas') return Promise.resolve([mockFatura]);
-      if (endpoint === '/tenant/integrations/itau') return Promise.resolve(mockItauConfig);
+      if (endpoint === '/financeiro/integracoes/status') return Promise.resolve(mockStatusMock);
       if (endpoint.includes('/itau') && options?.method === 'POST') {
         // Backend responde 202 com status: 'pendente'
         return Promise.resolve({
@@ -88,9 +169,21 @@ describe('FinanceiroSection - Emissão Itaú', () => {
   });
 
   it('abre modal com linha digitável e Pix quando emissão retorna 200 OK', async () => {
+    vi.spyOn(authModule, 'useAuth').mockReturnValue({
+      user: { id: 'usr-1', tenant_id: 't-1', name: 'Admin', email: 'admin@escola.com', role: 'admin' },
+      token: 'tok-123',
+      tenant: { id: 't-1', name: 'Escola Teste', slug: 'escola', status: 'ativo' },
+      isOnline: true,
+      login: vi.fn(),
+      logout: vi.fn(),
+      setTenantId: vi.fn(),
+      switchRole: vi.fn(),
+      setUser: vi.fn(),
+    });
+
     vi.spyOn(apiModule, 'apiFetch').mockImplementation((endpoint: string, options?: any) => {
       if (endpoint === '/financeiro/faturas') return Promise.resolve([mockFatura]);
-      if (endpoint === '/tenant/integrations/itau') return Promise.resolve(mockItauConfig);
+      if (endpoint === '/financeiro/integracoes/status') return Promise.resolve(mockStatusMock);
       if (endpoint.includes('/itau') && options?.method === 'POST') {
         return Promise.resolve({
           ...mockFatura,

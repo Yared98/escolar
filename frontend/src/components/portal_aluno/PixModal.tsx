@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { QrCode, X, Check, Copy, Landmark, AlertTriangle, Barcode } from 'lucide-react';
+import { QrCodePix } from '../QrCodePix';
 import type { FaturaData } from './types';
 
 export interface PixModalProps {
@@ -83,12 +84,16 @@ export function PixModal({
         </div>
 
         {/* QR Code */}
-        <div className="bg-salvia-50 dark:bg-salvia-950 border border-salvia-200 dark:border-salvia-800 rounded-2xl p-6 text-center space-y-2">
-          <QrCode className="w-32 h-32 text-slate-900 dark:text-salvia-100 mx-auto" />
-          <p className="text-[11px] text-salvia-600 dark:text-salvia-400">
-            Abra o aplicativo do seu banco e aponte a câmera para o QR Code acima.
-          </p>
-        </div>
+        {pixCode && (
+          <div className="bg-salvia-50 dark:bg-salvia-950 border border-salvia-200 dark:border-salvia-800 rounded-2xl p-6 text-center space-y-2">
+            <div className="bg-white p-3 rounded-xl border border-salvia-200 shadow-sm inline-block">
+              <QrCodePix emv={pixCode} tamanho={160} className="mx-auto" />
+            </div>
+            <p className="text-[11px] text-salvia-600 dark:text-salvia-400">
+              Aponte a câmera do aplicativo do seu banco para o QR Code acima para pagar via Pix.
+            </p>
+          </div>
+        )}
 
         {/* Nota informativa */}
         {isItau ? (

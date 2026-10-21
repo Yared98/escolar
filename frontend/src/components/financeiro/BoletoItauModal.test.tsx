@@ -38,6 +38,34 @@ describe('BoletoItauModal', () => {
     ).toBeInTheDocument();
   });
 
+  it('com EMV: exibe o QR Code SVG com aria-label e o texto da câmera', () => {
+    const onClose = vi.fn();
+    render(<BoletoItauModal fatura={mockFatura} onClose={onClose} />);
+
+    const qr = screen.getByLabelText('QR Code Pix');
+    expect(qr).toBeInTheDocument();
+    expect(qr.tagName.toLowerCase()).toBe('svg');
+    expect(
+      screen.getByText(/Aponte a câmera do aplicativo do seu banco para o QR Code acima para pagar via Pix/i)
+    ).toBeInTheDocument();
+  });
+
+  it('sem EMV: não exibe o QR Code SVG nem o texto da câmera', () => {
+    const onClose = vi.fn();
+    const faturaSemPix: Fatura = {
+      ...mockFatura,
+      gateway_pix_code: undefined,
+      qr_code_pix: undefined,
+    };
+    render(<BoletoItauModal fatura={faturaSemPix} onClose={onClose} />);
+
+    expect(screen.queryByLabelText('QR Code Pix')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Aponte a câmera/i)
+    ).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue(mockFatura.gateway_digitable_line!)).toBeInTheDocument();
+  });
+
   it('exibe o selo "Simulado" quando em modo mock ou fatura.simulado = true', () => {
     const onClose = vi.fn();
     render(<BoletoItauModal fatura={{ ...mockFatura, simulado: true }} onClose={onClose} modo="mock" />);
