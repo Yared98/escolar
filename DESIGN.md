@@ -155,4 +155,4 @@ A aplicação dinâmica das variáveis e logotipo da escola no frontend é reali
 
 ### Gerador de tema e validador de contraste (`src/lib/tema.ts`)
 
-A função `gerarTema(tema)` calcula as escalas `--brand-*` e `--accent-*` a partir de uma cor primária e de destaque usando o espaço perceptual OKLCH, preservando as mesmas luminâncias relativas (WCAG 2.x) da paleta Sálvia de referência. Isso garante que qualquer par de contraste aprovado na paleta padrão permaneça conforme as diretrizes de acessibilidade (WCAG AA ≥ 4,5:1), o que é auditado por `validarTema(tema)`.
+A função `gerarTema(tema)` calcula as escalas `--brand-*` e `--accent-*` a partir de uma cor primária e de destaque usando o espaço perceptual OKLCH, preservando as mesmas luminâncias relativas (WCAG 2.x) da paleta Sálvia de referência. Isso garante que qualquer par de contraste aprovado na paleta padrão permaneça conforme as diretrizes de acessibilidade (WCAG AA ≥ 4,5:1), o que é auditado por `validarTema(tema)`. O painel em Configurações > Identidade visual (`/configuracoes?tab=identidade`) permite personalizar o tema com pré-visualização instantânea nos modos claro e escuro.

@@ -34,6 +34,7 @@ const VALID_ROUTES: NavRoute[] = [
   'nutricao',
   'pessoas',
   'conformidade',
+  'configuracoes',
   'agenda',
   'portal_aluno',
   'calendario',
@@ -366,7 +367,7 @@ function DashboardContent() {
                 {activeRoute === 'pedagogico' && <PedagocioNutricaoSection />}
                 {activeRoute === 'nutricao' && <PedagocioNutricaoSection />}
                 {activeRoute === 'academico' && <AcademicoSection />}
-                {(activeRoute === 'pessoas' || activeRoute === 'conformidade') && <AdministrativoSection />}
+                {(activeRoute === 'pessoas' || activeRoute === 'conformidade' || activeRoute === 'configuracoes') && <AdministrativoSection />}
                 {activeRoute === 'agenda' && <AgendaDigitalSection />}
                 {activeRoute === 'portal_aluno' && <PortalAlunoSection />}
                 {activeRoute === 'calendario' && <CalendarioEscolarSection />}

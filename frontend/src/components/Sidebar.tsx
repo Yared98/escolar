@@ -39,6 +39,8 @@ import {
   Building,
   ClipboardList,
   Lock,
+  Settings,
+  Palette,
 } from 'lucide-react';
 
 export type NavRoute =
@@ -50,6 +52,7 @@ export type NavRoute =
   | 'nutricao'
   | 'pessoas'
   | 'conformidade'
+  | 'configuracoes'
   | 'agenda'
   | 'portal_aluno'
   | 'calendario'
@@ -190,6 +193,15 @@ export const MENU_ITEMS: NavItem[] = [
     ],
   },
   {
+    id: 'configuracoes',
+    label: 'Configurações',
+    icon: Settings,
+    defaultTab: 'identidade',
+    subItems: [
+      { id: 'conf-identidade', label: 'Identidade visual', tabKey: 'identidade', icon: Palette },
+    ],
+  },
+  {
     id: 'ia_evasao',
     label: 'Risco de evasão',
     icon: Brain,
@@ -248,6 +260,7 @@ export const isRouteAllowed = (route: NavRoute, role?: string): boolean => {
       return normalized === 'nutricionista';
     case 'pessoas':
     case 'conformidade':
+    case 'configuracoes':
       return false;
     case 'calendario':
       return true;
