@@ -4,5 +4,6 @@ pub mod email;
 pub mod faturamento;
 pub mod itau_api;
 pub mod itau_avisos;
+pub mod itau_renovacao;
 pub mod itau_sts;
 pub mod secrets;

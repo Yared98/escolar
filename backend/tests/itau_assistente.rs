@@ -325,6 +325,7 @@ async fn test_itau_assistente_fluxo_completo() {
     let (priv_key_pem, pub_key_pem, pub_x) = development_signing_material();
 
     let config_prod = Config {
+        itau_renovacao_automatica: false,
         database_url: database_url_for(&admin_url, &db_name),
         jwt_private_pem: priv_key_pem.clone(),
         jwt_public_pem: pub_key_pem.clone(),

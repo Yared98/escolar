@@ -247,7 +247,7 @@ Cobre boletos e Bolecodes **pagos pelo código de barras**.
 
 - Validado só contra simulador e sandbox até haver credenciais de produção.
 - Uma conta Itaú por instalação (decisão da 8.3): o modelo é uma escola por servidor; se mais de uma escola for cadastrada no mesmo servidor, todas recebem na mesma conta.
-- Renovação do certificado por clique (365 dias); sem renovação automática.
+- Renovação do certificado por clique ou automática (ITAU_RENOVACAO_AUTOMATICA=true, janela 1 a 30 dias antes do vencimento).
 - Segredos dependem da `APP_SECRETS_KEY`: perdê-la obriga a refazer o assistente.
 - **QR Code escaneável (resolvido em ITAU-G2)**: o componente `QrCodePix` (`qrcode.react` 4) desenha o QR a partir do EMV no Bolecode, no Pix local e na 2ª via do portal; sem EMV não desenha nada e mostra só o copia e cola.
 - **Papel `financeiro` vê o botão do Itaú (resolvido em ITAU-G1 + G2)**: `GET /api/v1/financeiro/integracoes/status` devolve só `itau{modo,ativo}` e `cora{modo,disponivel}`; o `FinanceiroSection.tsx` decide os botões por ele. Em sandbox/produção sem credenciais da Cora o botão da Cora não aparece.
@@ -261,10 +261,9 @@ Plano aprovado pelo usuário em 2026-10-21 para tratar as limitações da 8.11. 
 
 | Card | Entrega | Depende de | Liga quando |
 |---|---|---|---|
-- **QR Code escaneável (resolvido em ITAU-G2)**: o componente `QrCodePix` (`qrcode.react` 4) desenha o QR a partir do EMV no Bolecode, no Pix local e na 2ª via do portal; sem EMV não desenha nada e mostra só o copia e cola.
-- **Papel `financeiro` vê o botão do Itaú (resolvido em ITAU-G1 + G2)**: `GET /api/v1/financeiro/integracoes/status` devolve só `itau{modo,ativo}` e `cora{modo,disponivel}`; o `FinanceiroSection.tsx` decide os botões por ele. Em sandbox/produção sem credenciais da Cora o botão da Cora não aparece.
-- **Acentos (resolvido em ITAU-G1)**: aceita exatamente o conjunto do OpenAPI do Itaú; fora dele vira letra base (`ü→u`, `ß→ss`...); o nome do pagador tem perfil próprio (só letras e acentos aceitos, hífen vira espaço, sem dígito ou pontuação).
-| ITAU-H | Renovação automática do certificado dinâmico com alerta de falha para a gestão | — | `ITAU_RENOVACAO_AUTOMATICA=true`, depois de uma renovação real por clique dar certo |
+| ITAU-G1 | Backend: letra base nos acentos fora da lista do Itaú; status mínimo das integrações para o financeiro | — | entregue (2026-10-21) |
+| ITAU-G2 | Frontend: QR Code escaneável a partir do EMV (Bolecode, Pix local e 2ª via); botão do Itaú para o financeiro pelo status mínimo | contrato do G1 | entregue (2026-10-21) |
+| ITAU-H | Renovação automática do certificado dinâmico com alerta de falha para a gestão | — | entregue (2026-10-21); liga com `ITAU_RENOVACAO_AUTOMATICA=true` depois de uma renovação real por clique dar certo |
 | ITAU-I | Conciliação diária de Pix e boletos liquidados (recupera avisos perdidos) | ITAU-H (ordem de migrations) | `ITAU_CONCILIACAO_DIARIA=true`, depois do teste no sandbox confirmar os formatos |
 
 **G1 — texto do boleto e status para o financeiro (concluído)**
@@ -277,7 +276,7 @@ Plano aprovado pelo usuário em 2026-10-21 para tratar as limitações da 8.11. 
 - `FinanceiroSection.tsx` decide o botão do Itaú (e o da Cora) pelo status mínimo do G1 (`GET /financeiro/integracoes/status`).
 - Conferência no navegador a 375px da 2ª via no portal da família.
 
-**H — renovação automática do certificado**
+**H — renovação automática do certificado (entregue)**
 - Tarefa diária (como o reprocessador de avisos), só com `ITAU_MODE=production` e `ITAU_RENOVACAO_AUTOMATICA=true` (padrão `false`): renova quando faltarem 30 dias ou menos e mais de 1 dia, usando a mesma função da renovação por clique (certificado antigo só é trocado após sucesso).
 - Registra `renovacao_ultima_tentativa_em` e `renovacao_ultimo_erro` em `tenant_itau_config`; `audit_logs` `itau_renovacao_automatica` (sucesso ou falha, sem segredos).
 - Falha: notificação para os usuários da gestão (mesmo padrão de inserção direta de `regulatorio_ia/evasao`), no máximo uma por dia, e alerta no cartão do Itaú com o erro em linguagem simples. Nova tentativa no dia seguinte.

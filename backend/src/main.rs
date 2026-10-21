@@ -138,6 +138,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         escolar_backend::services::itau_avisos::iniciar_reprocessador_avisos(state.clone());
     }
 
+    if config.itau_mode == escolar_backend::config::ItauMode::Production
+        && config.itau_renovacao_automatica
+    {
+        escolar_backend::services::itau_renovacao::iniciar_renovador(state.clone());
+    }
+
     let app = create_router(state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], config.port));

@@ -171,6 +171,7 @@ async fn test_webhook_itau_pix_suite_completa() {
     let chave_mestra = ChaveMestra::from_hex(TEST_SECRETS_HEX).expect("chave de teste válida");
 
     let config = Config {
+        itau_renovacao_automatica: false,
         database_url: database_url_for(&admin_url, &db_name),
         jwt_private_pem: jwt_private.clone(),
         jwt_public_pem: jwt_public,

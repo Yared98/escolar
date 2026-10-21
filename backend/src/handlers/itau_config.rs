@@ -90,6 +90,9 @@ pub struct ItauEstadoView {
     pub chave_cifragem_configurada: bool,
     pub webhook_boleto_registrado_em: Option<DateTime<Utc>>,
     pub webhook_pix_registrado_em: Option<DateTime<Utc>>,
+    pub renovacao_automatica_ligada: bool,
+    pub renovacao_ultima_tentativa_em: Option<DateTime<Utc>>,
+    pub renovacao_ultimo_erro: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -153,6 +156,8 @@ type ItauConfigTuple = (
     Option<DateTime<Utc>>,
     Option<DateTime<Utc>>,
     Option<DateTime<Utc>>,
+    Option<DateTime<Utc>>,
+    Option<String>,
 );
 
 /// 1. GET /tenant/integrations/itau
@@ -169,7 +174,8 @@ pub async fn obter_estado_itau(
         r#"
         SELECT agencia, conta, dac, id_beneficiario, chave_pix,
                especie_padrao, multa_padrao_percentual::float8, juros_padrao_percentual::float8,
-               ativo, ultimo_teste_ok_em, webhook_boleto_registrado_em, webhook_pix_registrado_em
+               ativo, ultimo_teste_ok_em, webhook_boleto_registrado_em, webhook_pix_registrado_em,
+               renovacao_ultima_tentativa_em, renovacao_ultimo_erro
         FROM tenant_itau_config
         WHERE tenant_id = $1
         "#,
@@ -191,10 +197,12 @@ pub async fn obter_estado_itau(
         ultimo_teste_ok_em,
         webhook_boleto_registrado_em,
         webhook_pix_registrado_em,
+        renovacao_ultima_tentativa_em,
+        renovacao_ultimo_erro,
     ) = match config_row {
-        Some((ag, cc, d, id_b, pix, esp, multa, juros, at, ult, wb, wp)) => {
-            (ag, cc, d, id_b, pix, esp, multa, juros, at, ult, wb, wp)
-        }
+        Some((ag, cc, d, id_b, pix, esp, multa, juros, at, ult, wb, wp, ren_tent, ren_err)) => (
+            ag, cc, d, id_b, pix, esp, multa, juros, at, ult, wb, wp, ren_tent, ren_err,
+        ),
         None => (
             None,
             None,
@@ -205,6 +213,8 @@ pub async fn obter_estado_itau(
             2.0,
             1.0,
             false,
+            None,
+            None,
             None,
             None,
             None,
@@ -278,6 +288,9 @@ pub async fn obter_estado_itau(
         chave_cifragem_configurada,
         webhook_boleto_registrado_em,
         webhook_pix_registrado_em,
+        renovacao_automatica_ligada: state.config.itau_renovacao_automatica,
+        renovacao_ultima_tentativa_em,
+        renovacao_ultimo_erro,
     }))
 }
 
@@ -805,25 +818,22 @@ pub async fn ativar_integracao_itau(
     Ok(Json(json!({ "ok": true, "ativo": dto.ativo })))
 }
 
-/// 8. POST /tenant/integrations/itau/renovar
-pub async fn renovar_certificado_itau(
-    State(state): State<AppState>,
-    TenantDb(mut db): TenantDb,
-    Extension(active_tenant): Extension<ActiveTenant>,
-    Extension(auth_user): Extension<AuthUser>,
-) -> Result<Json<Value>, ItauHandlerError> {
-    check_roles(&auth_user, &["admin"])?;
+pub async fn renovar_certificado(
+    state: &AppState,
+    conn: &mut sqlx::PgConnection,
+    tenant_id: Uuid,
+    origem: &str,
+) -> Result<DateTime<Utc>, AppError> {
     if state.config.itau_mode == ItauMode::Mock {
-        return Err(AppError::BadRequest(MSG_MOCK_BLOQUEIO.into()).into());
+        return Err(AppError::BadRequest(MSG_MOCK_BLOQUEIO.into()));
     }
     let chave_mestra = secrets::exigir_chave(&state.config)?;
-    let tenant_id = active_tenant.0;
 
-    let cert_bytes = secrets::ler(&mut db, chave_mestra, tenant_id, "itau", TipoSegredo::Cert)
+    let cert_bytes = secrets::ler(conn, chave_mestra, tenant_id, "itau", TipoSegredo::Cert)
         .await?
         .ok_or_else(|| AppError::BadRequest("Certificado atual não encontrado".into()))?;
     let cert_key_bytes = secrets::ler(
-        &mut db,
+        conn,
         chave_mestra,
         tenant_id,
         "itau",
@@ -833,17 +843,12 @@ pub async fn renovar_certificado_itau(
     .ok_or_else(|| {
         AppError::BadRequest("Chave privada do certificado atual não encontrada".into())
     })?;
-    let client_id_bytes = secrets::ler(
-        &mut db,
-        chave_mestra,
-        tenant_id,
-        "itau",
-        TipoSegredo::ClientId,
-    )
-    .await?
-    .ok_or_else(|| AppError::BadRequest("Client ID não encontrado".into()))?;
+    let client_id_bytes =
+        secrets::ler(conn, chave_mestra, tenant_id, "itau", TipoSegredo::ClientId)
+            .await?
+            .ok_or_else(|| AppError::BadRequest("Client ID não encontrado".into()))?;
     let client_secret_bytes = secrets::ler(
-        &mut db,
+        conn,
         chave_mestra,
         tenant_id,
         "itau",
@@ -862,17 +867,23 @@ pub async fn renovar_certificado_itau(
         .map_err(|_| AppError::InternalServerError("Client Secret corrompido".into()))?;
 
     let validade = parse_certificado_validade(&cert_pem)?;
-    if !pode_renovar_certificado(Some(validade)) {
+    if origem == "automatica" {
+        let falta = validade - Utc::now();
+        if falta <= chrono::Duration::days(1) || falta > chrono::Duration::days(30) {
+            return Err(AppError::BadRequest(
+                "Certificado fora da janela de renovação automática".into(),
+            ));
+        }
+    } else if !pode_renovar_certificado(Some(validade)) {
         return Err(AppError::BadRequest(
             "Certificado só pode ser renovado quando faltarem 30 dias ou menos para a expiração."
                 .into(),
-        )
-        .into());
+        ));
     }
 
     let tenant_name: String = sqlx::query_scalar("SELECT name FROM tenants WHERE id = $1")
         .bind(tenant_id)
-        .fetch_one(&mut *db)
+        .fetch_one(&mut *conn)
         .await
         .unwrap_or_else(|_| "Escola".to_string());
 
@@ -883,7 +894,14 @@ pub async fn renovar_certificado_itau(
         &cert_pem,
         &cert_key_pem,
     )
-    .await?;
+    .await
+    .map_err(|(status, msg)| {
+        if status == axum::http::StatusCode::BAD_GATEWAY {
+            AppError::ServiceUnavailable(msg)
+        } else {
+            AppError::BadRequest(msg)
+        }
+    })?;
 
     let (_nova_cert_priv_rsa, nova_cert_priv_pem, novo_csr_pem) =
         gerar_chave_e_csr_sha512(&client_id, &tenant_name)?;
@@ -895,9 +913,18 @@ pub async fn renovar_certificado_itau(
         &cert_pem,
         &cert_key_pem,
     )
-    .await?;
+    .await
+    .map_err(|(status, msg)| {
+        if status == axum::http::StatusCode::BAD_GATEWAY {
+            AppError::ServiceUnavailable(msg)
+        } else {
+            AppError::BadRequest(msg)
+        }
+    })?;
 
-    let mut tx = db.begin().await?;
+    let nova_validade = parse_certificado_validade(&novo_cert_pem)?;
+
+    let mut tx = conn.begin().await?;
 
     secrets::salvar(
         &mut tx,
@@ -906,7 +933,7 @@ pub async fn renovar_certificado_itau(
         "itau",
         TipoSegredo::Cert,
         novo_cert_pem.as_bytes(),
-        Some(auth_user.id),
+        None,
     )
     .await?;
 
@@ -917,11 +944,26 @@ pub async fn renovar_certificado_itau(
         "itau",
         TipoSegredo::CertChave,
         nova_cert_priv_pem.as_bytes(),
-        Some(auth_user.id),
+        None,
     )
     .await?;
 
     tx.commit().await?;
+
+    Ok(nova_validade)
+}
+
+/// 8. POST /tenant/integrations/itau/renovar
+pub async fn renovar_certificado_itau(
+    State(state): State<AppState>,
+    TenantDb(mut db): TenantDb,
+    Extension(active_tenant): Extension<ActiveTenant>,
+    Extension(auth_user): Extension<AuthUser>,
+) -> Result<Json<Value>, ItauHandlerError> {
+    check_roles(&auth_user, &["admin"])?;
+    let tenant_id = active_tenant.0;
+
+    let _nova_validade = renovar_certificado(&state, &mut db, tenant_id, "manual").await?;
 
     log_audit(
         &mut *db,

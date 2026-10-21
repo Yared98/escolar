@@ -160,6 +160,7 @@ pub struct Config {
     pub app_secrets_key: Option<ChaveMestra>,
     pub itau_mode: ItauMode,
     pub itau_sts_base_url: Option<String>,
+    pub itau_renovacao_automatica: bool,
 }
 
 impl Config {
@@ -369,6 +370,12 @@ impl Config {
         let itau_sts_base_url = env::var("ITAU_STS_BASE_URL")
             .ok()
             .filter(|s| !s.trim().is_empty());
+        let itau_renovacao_automatica = env::var("ITAU_RENOVACAO_AUTOMATICA")
+            .map(|v| {
+                let s = v.trim().to_lowercase();
+                s == "true" || s == "1" || s == "yes"
+            })
+            .unwrap_or(false);
         Ok(Config {
             database_url,
             jwt_private_pem,
@@ -389,6 +396,7 @@ impl Config {
             email_mode,
             app_public_url,
             app_secrets_key,
+            itau_renovacao_automatica,
             itau_mode,
             itau_sts_base_url,
         })
@@ -419,6 +427,7 @@ impl std::fmt::Debug for Config {
             .field("app_secrets_key", &self.app_secrets_key)
             .field("itau_mode", &self.itau_mode)
             .field("itau_sts_base_url", &self.itau_sts_base_url)
+            .field("itau_renovacao_automatica", &self.itau_renovacao_automatica)
             .finish()
     }
 }
@@ -605,6 +614,7 @@ impl Default for Config {
             email_mode: EmailMode::Simulado,
             app_public_url: "http://localhost:3000".to_string(),
             app_secrets_key: None,
+            itau_renovacao_automatica: false,
             itau_mode: ItauMode::Mock,
             itau_sts_base_url: None,
         }
@@ -665,6 +675,7 @@ mod tests {
             email_mode: EmailMode::Simulado,
             app_public_url: "http://localhost:3000".to_string(),
             app_secrets_key: None,
+            itau_renovacao_automatica: false,
             itau_mode: ItauMode::Mock,
             itau_sts_base_url: None,
         };

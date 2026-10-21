@@ -35,6 +35,9 @@ export interface ItauEstadoView {
   pode_renovar: boolean;
   has_chave_transporte: boolean;
   chave_cifragem_configurada: boolean;
+  renovacao_automatica_ligada?: boolean;
+  renovacao_ultima_tentativa_em?: string | null;
+  renovacao_ultimo_erro?: string | null;
 }
 
 export interface ItauIntegrationCardProps {
@@ -441,6 +444,12 @@ export function ItauIntegrationCard({ userRole }: ItauIntegrationCardProps) {
               </span>
             )}
           </div>
+          <div className="mt-1.5 text-[10px] text-slate-500">
+            Renovação automática:{" "}
+            <span className={estado.renovacao_automatica_ligada ? "text-emerald-600 dark:text-emerald-400 font-semibold" : "text-slate-600 dark:text-slate-400"}>
+              {estado.renovacao_automatica_ligada ? "ligada" : "desligada"}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -463,6 +472,15 @@ export function ItauIntegrationCard({ userRole }: ItauIntegrationCardProps) {
           <span>
             <strong>Modo simulado:</strong> nada é enviado ao banco. O sistema gera dados simulados para validação das regras de negócio e telas.
           </span>
+        </div>
+      )}
+
+      {estado.renovacao_ultimo_erro && (
+        <div className="rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/30 p-3 text-xs text-rose-800 dark:text-rose-200 flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+          <div>
+            <span>{`A renovação automática falhou: ${estado.renovacao_ultimo_erro}. Renove pelo botão abaixo antes do vencimento.`}</span>
+          </div>
         </div>
       )}
 
