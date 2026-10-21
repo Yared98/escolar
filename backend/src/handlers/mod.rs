@@ -20,3 +20,4 @@ pub mod tenant_settings;
 pub mod usuarios;
 pub mod virada_ano;
 pub mod webhooks_cora;
+pub mod webhooks_itau;

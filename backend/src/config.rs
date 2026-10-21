@@ -227,6 +227,29 @@ impl Config {
         }
     }
 
+    pub fn itau_webhook_base_url(&self) -> Option<String> {
+        env::var("ITAU_WEBHOOK_BASE_URL")
+            .ok()
+            .filter(|s| !s.trim().is_empty())
+    }
+
+    pub fn itau_boletos_v3_url(&self) -> String {
+        if let Ok(base) = env::var("ITAU_API_BASE_URL") {
+            if !base.trim().is_empty() {
+                return base;
+            }
+        }
+        match self.itau_mode {
+            ItauMode::Mock | ItauMode::Production => {
+                "https://boletos.cloud.itau.com.br/boletos/v3".to_string()
+            }
+            ItauMode::Sandbox => {
+                "https://sandbox.devportal.itau.com.br/itau-ep9-gtw-boletos-boletos-v3-ext-aws/v3"
+                    .to_string()
+            }
+        }
+    }
+
     pub fn is_production(&self) -> bool {
         self.environment.to_lowercase() == "production"
     }

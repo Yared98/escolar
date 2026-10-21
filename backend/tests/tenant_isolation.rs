@@ -232,10 +232,10 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?;
 
-        // Garantir que as 70 tabelas com tenant_id estejam presentes no schema
-        if tables_with_tenant.len() != 72 {
+        // Garantir que as tabelas com tenant_id estejam presentes no schema (73 tabelas)
+        if tables_with_tenant.len() != 73 {
             return Err(format!(
-                "Esperado 72 tabelas com tenant_id no schema public, encontrado {}",
+                "Esperado 73 tabelas com tenant_id no schema public, encontrado {}",
                 tables_with_tenant.len()
             ));
         }
@@ -472,6 +472,7 @@ async fn run_checks(pool: &PgPool) -> Result<(), String> {
                 "simulados_itens" => format!("INSERT INTO {tbl} (id, tenant_id, simulado_id, numero_item, parametro_a, parametro_b, parametro_c, gabarito_correto) VALUES ($1, $2, '{simulado_tri_b_id}', 2, 1.1, 0.1, 0.2, 'B') ON CONFLICT DO NOTHING"),
                 "simulados_respostas" => format!("INSERT INTO {tbl} (id, tenant_id, simulado_id, aluno_id, respostas_marcadas) VALUES ($1, $2, '{simulado_tri_b_id}', '{aluno_b_id}', '[{{\"numero\": 1, \"resposta\": \"A\"}}]'::jsonb)"),
                 "simulados_tri" => format!("INSERT INTO {tbl} (id, tenant_id, titulo, disciplina, data_aplicacao) VALUES ($1, $2, 'Simulado B2', 'ciencias', CURRENT_DATE) ON CONFLICT DO NOTHING"),
+                "gateway_avisos" => format!("INSERT INTO {tbl} (id, tenant_id, gateway_name, tipo, event_id, payload) VALUES ($1, $2, 'itau', 'boleto', 'evt_isolation_test_b', '{{\"teste\": true}}'::jsonb)"),
                 "tenant_gateway_secrets" => format!("INSERT INTO {tbl} (id, tenant_id, gateway_name, tipo, ciphertext, nonce) VALUES ($1, $2, 'itau', 'client_id', decode('00ff', 'hex'), decode('000000000000000000000000', 'hex'))"),
                 "tenant_bank_integrations" => format!("INSERT INTO {tbl} (id, tenant_id, gateway_name, client_id, client_secret) VALUES ($1, $2, 'cora', 'client_b', 'secret_b')"),
                 "tenant_cora_config" => format!("INSERT INTO {tbl} (tenant_id, client_id, client_secret) VALUES ($2, 'cora_client_b', 'cora_secret_b') ON CONFLICT DO NOTHING"),

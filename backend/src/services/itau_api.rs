@@ -897,6 +897,264 @@ pub async fn baixar_boleto(
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SituacaoBoleto {
+    pub situacao: String,
+    pub esta_pago: bool,
+    pub valor_pago: Option<f64>,
+}
+
+pub async fn consultar_situacao_boleto(
+    config: &Config,
+    conn: &mut PgConnection,
+    tenant_id: Uuid,
+    id_beneficiario: &str,
+    nosso_numero: &str,
+) -> Result<Option<SituacaoBoleto>, ItauApiError> {
+    if config.itau_mode == ItauMode::Mock {
+        return Ok(Some(SituacaoBoleto {
+            situacao: "Pago".to_string(),
+            esta_pago: true,
+            valor_pago: None,
+        }));
+    }
+
+    let token = obter_token(config, conn, tenant_id).await?;
+
+    let chave_mestra = secrets::exigir_chave(config)?;
+    let client_id_bytes =
+        secrets::ler(conn, chave_mestra, tenant_id, "itau", TipoSegredo::ClientId)
+            .await?
+            .ok_or_else(|| {
+                ItauApiError::App(AppError::BadRequest("client_id não configurado".into()))
+            })?;
+    let client_id = String::from_utf8(client_id_bytes)
+        .map_err(|_| ItauApiError::App(AppError::BadRequest("client_id inválido".into())))?;
+
+    let (cert_pem, key_pem) = if config.itau_mode == ItauMode::Production {
+        let c_bytes = secrets::ler(conn, chave_mestra, tenant_id, "itau", TipoSegredo::Cert)
+            .await?
+            .ok_or_else(|| {
+                ItauApiError::App(AppError::BadRequest("Certificado não encontrado".into()))
+            })?;
+        let k_bytes = secrets::ler(
+            conn,
+            chave_mestra,
+            tenant_id,
+            "itau",
+            TipoSegredo::CertChave,
+        )
+        .await?
+        .ok_or_else(|| {
+            ItauApiError::App(AppError::BadRequest(
+                "Chave do certificado não encontrada".into(),
+            ))
+        })?;
+        (
+            Some(String::from_utf8_lossy(&c_bytes).to_string()),
+            Some(String::from_utf8_lossy(&k_bytes).to_string()),
+        )
+    } else {
+        (None, None)
+    };
+
+    let client = montar_cliente_http(config, cert_pem.as_deref(), key_pem.as_deref())?;
+    let url = format!(
+        "{}/boletos?id_beneficiario={}&codigo_carteira=109&nosso_numero={}&view=specific",
+        config.itau_cash_management_url().trim_end_matches('/'),
+        id_beneficiario,
+        nosso_numero
+    );
+    let correlation_id = Uuid::new_v4().to_string();
+
+    let resp = client
+        .get(&url)
+        .header("Authorization", format!("Bearer {token}"))
+        .header("x-itau-apikey", &client_id)
+        .header("x-itau-correlationID", &correlation_id)
+        .send()
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "falha de conexão ao consultar boleto no Itaú");
+            ItauApiError::BadGateway(format!("Não foi possível consultar boleto no Itaú: {e}"))
+        })?;
+
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+
+    if status == StatusCode::NOT_FOUND || status == StatusCode::NO_CONTENT {
+        return Ok(None);
+    }
+
+    if !status.is_success() {
+        return Err(ItauApiError::BadGateway(format!(
+            "Itaú retornou erro na consulta (status {status}): {text}"
+        )));
+    }
+
+    let parsed: Value = serde_json::from_str(&text).map_err(|_| {
+        ItauApiError::BadGateway("Resposta de consulta com formato inválido".into())
+    })?;
+
+    let item = if let Some(arr) = parsed.as_array() {
+        arr.first().cloned()
+    } else if let Some(arr) = parsed.get("data").and_then(|d| d.as_array()) {
+        arr.first().cloned()
+    } else {
+        Some(parsed.clone())
+    };
+
+    let Some(item) = item else {
+        return Ok(None);
+    };
+
+    let situacao = item
+        .pointer("/dado_boleto/dados_individuais_boleto/0/situacao_geral_boleto")
+        .and_then(|v| v.as_str())
+        .or_else(|| {
+            item.pointer("/dados_individuais_boleto/0/situacao_geral_boleto")
+                .and_then(|v| v.as_str())
+        })
+        .or_else(|| item.get("situacao_geral_boleto").and_then(|v| v.as_str()))
+        .or_else(|| item.get("status").and_then(|v| v.as_str()))
+        .or_else(|| item.get("situacao").and_then(|v| v.as_str()))
+        .unwrap_or("Em Aberto")
+        .to_string();
+
+    let s_lower = situacao.to_lowercase();
+    let esta_pago = s_lower == "pago"
+        || s_lower == "liquidado"
+        || s_lower == "liquidada"
+        || s_lower.contains("pago")
+        || s_lower.contains("liquidad");
+
+    let valor_pago = item
+        .pointer("/dado_boleto/dados_individuais_boleto/0/pagamentos/0/valor_pago_total_cobranca")
+        .or_else(|| {
+            item.pointer("/dados_individuais_boleto/0/pagamentos/0/valor_pago_total_cobranca")
+        })
+        .or_else(|| item.pointer("/dados_individuais_boleto/0/valor_pago_total_cobranca"))
+        .or_else(|| item.pointer("/pagamentos/0/valor_pago_total_cobranca"))
+        .or_else(|| item.get("valor_pago_total_cobranca"))
+        .or_else(|| item.get("valor_pago"))
+        .or_else(|| item.get("valorPagoTotalCobranca"))
+        .and_then(|v| {
+            if let Some(s) = v.as_str() {
+                s.trim().parse::<f64>().ok()
+            } else {
+                v.as_f64()
+            }
+        });
+
+    Ok(Some(SituacaoBoleto {
+        situacao,
+        esta_pago,
+        valor_pago,
+    }))
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn cadastrar_webhook_boletos(
+    config: &Config,
+    conn: &mut PgConnection,
+    tenant_id: Uuid,
+    id_beneficiario: &str,
+    webhook_url: &str,
+    webhook_oauth_url: &str,
+    webhook_client_id: &str,
+    webhook_client_secret: &str,
+) -> Result<(), ItauApiError> {
+    if config.itau_mode == ItauMode::Mock {
+        return Err(ItauApiError::App(AppError::BadRequest(
+            "Modo simulado ativo: cadastro de webhook no Itaú não disponível.".into(),
+        )));
+    }
+
+    let token = obter_token(config, conn, tenant_id).await?;
+
+    let chave_mestra = secrets::exigir_chave(config)?;
+    let client_id_bytes =
+        secrets::ler(conn, chave_mestra, tenant_id, "itau", TipoSegredo::ClientId)
+            .await?
+            .ok_or_else(|| {
+                ItauApiError::App(AppError::BadRequest("client_id não configurado".into()))
+            })?;
+    let client_id = String::from_utf8(client_id_bytes)
+        .map_err(|_| ItauApiError::App(AppError::BadRequest("client_id inválido".into())))?;
+
+    let (cert_pem, key_pem) = if config.itau_mode == ItauMode::Production {
+        let c_bytes = secrets::ler(conn, chave_mestra, tenant_id, "itau", TipoSegredo::Cert)
+            .await?
+            .ok_or_else(|| {
+                ItauApiError::App(AppError::BadRequest("Certificado não encontrado".into()))
+            })?;
+        let k_bytes = secrets::ler(
+            conn,
+            chave_mestra,
+            tenant_id,
+            "itau",
+            TipoSegredo::CertChave,
+        )
+        .await?
+        .ok_or_else(|| {
+            ItauApiError::App(AppError::BadRequest(
+                "Chave do certificado não encontrada".into(),
+            ))
+        })?;
+        (
+            Some(String::from_utf8_lossy(&c_bytes).to_string()),
+            Some(String::from_utf8_lossy(&k_bytes).to_string()),
+        )
+    } else {
+        (None, None)
+    };
+
+    let client = montar_cliente_http(config, cert_pem.as_deref(), key_pem.as_deref())?;
+    let url = format!(
+        "{}/notificacoes_boletos",
+        config.itau_boletos_v3_url().trim_end_matches('/')
+    );
+    let correlation_id = Uuid::new_v4().to_string();
+
+    let payload = json!({
+        "data": {
+            "id_beneficiario": id_beneficiario,
+            "webhook_url": webhook_url,
+            "webhook_client_id": webhook_client_id,
+            "webhook_client_secret": webhook_client_secret,
+            "webhook_oauth_url": webhook_oauth_url,
+            "valor_minimo": "0.00",
+            "tipos_notificacoes": ["BAIXA_OPERACIONAL", "BAIXA_EFETIVA"]
+        }
+    });
+
+    let resp = client
+        .post(&url)
+        .header("Authorization", format!("Bearer {token}"))
+        .header("x-itau-apikey", &client_id)
+        .header("x-itau-correlationID", &correlation_id)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "falha de conexão ao cadastrar webhook de boletos no Itaú");
+            ItauApiError::BadGateway(format!(
+                "Não foi possível conectar ao Itaú para cadastrar webhook: {e}"
+            ))
+        })?;
+
+    let status = resp.status();
+    if status.is_success() || status == StatusCode::ACCEPTED || status == StatusCode::NO_CONTENT {
+        Ok(())
+    } else {
+        let text = resp.text().await.unwrap_or_default();
+        tracing::error!(status = %status, "Itaú recusou cadastro de webhook");
+        Err(ItauApiError::BadGateway(format!(
+            "Itaú recusou cadastro de webhook (status {status}): {text}"
+        )))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

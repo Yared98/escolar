@@ -134,6 +134,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ip_rate_limiter: escolar_backend::middleware::security::IpRateLimiter::default(),
     };
 
+    if config.itau_mode != escolar_backend::config::ItauMode::Mock {
+        escolar_backend::services::itau_avisos::iniciar_reprocessador_avisos(state.clone());
+    }
+
     let app = create_router(state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], config.port));

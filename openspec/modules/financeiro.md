@@ -17,7 +17,7 @@ Não é, ainda, um ERP de cobrança bancária/fiscal completo.
 | Conciliação com matching por valor/data (OFX upload na UI) | Parcial |
 | NFS-e | Stub (número/URL simulados; sem ABRASF/prefeitura) |
 | Gateway Cora / Asaas / Pagar.me | Adapter BankGateway com CORA_MODE=mock\|sandbox\|production (apenas mock funcional no MVP; sandbox/production retornam 503); webhook Cora; exibição de modo_gateway e selo "Simulado (modo mock)" na UI |
-| Gateway Itaú (Bolecode + Pix + webhooks) | **Em implementação, não operacional**: segredos cifrados (ITAU-A), API do assistente de conexão (ITAU-B) e emissão backend de Bolecode/baixa (ITAU-C) prontos, testados só contra simulador local; webhooks e telas pendentes (§8) |
+| Gateway Itaú (Bolecode + Pix + webhooks) | **Em implementação, não operacional**: segredos cifrados (ITAU-A), API do assistente de conexão (ITAU-B), emissão backend de Bolecode/baixa (ITAU-C) e webhook de boleto/fila assíncrona (ITAU-D) prontos, testados só contra simulador local; webhook Pix e telas pendentes (§8) |
 | Boleto registrado Febraban / cartão recorrente | Não operacional |
 | CNAB 240/400 | Ausente |
 | Plano de contas | Schema apenas |
