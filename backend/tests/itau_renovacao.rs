@@ -255,6 +255,7 @@ async fn test_itau_renovacao_ciclo_completo() {
     let chave_mestra = ChaveMestra::from_hex(TEST_SECRETS_HEX).unwrap();
 
     let config_prod = Config {
+        itau_renovacao_automatica: true,
         database_url: database_url_for(&admin_url, &db_name),
         jwt_private_pem: priv_key_pem.clone(),
         jwt_public_pem: pub_key_pem.clone(),
@@ -277,7 +278,6 @@ async fn test_itau_renovacao_ciclo_completo() {
         itau_mode: ItauMode::Production,
         itau_sts_base_url: Some(sim_url.clone()),
     };
-    config_prod.set_itau_renovacao_automatica(true);
 
     let state_prod = AppState {
         pool: pool.clone(),
@@ -392,8 +392,8 @@ async fn test_itau_renovacao_ciclo_completo() {
     );
 
     // 4. Cenário: Flag desligada -> nada acontece
-    let config_desligada = config_prod.clone();
-    config_desligada.set_itau_renovacao_automatica(false);
+    let mut config_desligada = config_prod.clone();
+    config_desligada.itau_renovacao_automatica = false;
     let state_desligada = AppState {
         pool: pool.clone(),
         config: config_desligada,
@@ -449,8 +449,6 @@ async fn test_itau_renovacao_ciclo_completo() {
         0,
         "não deve chamar STS em modo Mock"
     );
-
-    config_prod.set_itau_renovacao_automatica(true);
     // 6. Cenário: Simulador falha -> certificado antigo continua, erro gravado, uma notificação por usuário da gestão
     *sim_state.fail_renovacao.lock().unwrap() = true;
     executar_ciclo_renovacao(&state_prod).await.unwrap();

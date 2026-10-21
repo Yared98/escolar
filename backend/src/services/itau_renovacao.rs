@@ -10,7 +10,7 @@ use crate::services::secrets::{self, TipoSegredo};
 /// Roda a cada 24 horas, com a primeira execução 1 minuto após subir.
 /// Só inicia se `itau_mode == Production` e `itau_renovacao_automatica == true`.
 pub fn iniciar_renovador(state: AppState) {
-    if state.config.itau_mode != ItauMode::Production || !state.config.itau_renovacao_automatica() {
+    if state.config.itau_mode != ItauMode::Production || !state.config.itau_renovacao_automatica {
         return;
     }
     tokio::spawn(async move {
@@ -27,7 +27,7 @@ pub fn iniciar_renovador(state: AppState) {
 
 /// Executa um ciclo completo de renovação automática para todos os tenants.
 pub async fn executar_ciclo_renovacao(state: &AppState) -> Result<(), AppError> {
-    if state.config.itau_mode != ItauMode::Production || !state.config.itau_renovacao_automatica() {
+    if state.config.itau_mode != ItauMode::Production || !state.config.itau_renovacao_automatica {
         return Ok(());
     }
 

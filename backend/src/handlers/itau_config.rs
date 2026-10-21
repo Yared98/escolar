@@ -288,7 +288,7 @@ pub async fn obter_estado_itau(
         chave_cifragem_configurada,
         webhook_boleto_registrado_em,
         webhook_pix_registrado_em,
-        renovacao_automatica_ligada: state.config.itau_renovacao_automatica(),
+        renovacao_automatica_ligada: state.config.itau_renovacao_automatica,
         renovacao_ultima_tentativa_em,
         renovacao_ultimo_erro,
     }))
