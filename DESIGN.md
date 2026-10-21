@@ -150,6 +150,8 @@ As cores de marca não ficam mais fixas no Tailwind: cada token lê uma variáve
 
 Regras: não usar hex arbitrário (`bg-[#...]`) em componentes; usar os tokens acima. Opacidade funciona normalmente (`dark:bg-canvas-dark/80`). Cores de status (verde sucesso, âmbar aviso, vermelho erro) usam a paleta padrão do Tailwind e **não** seguem o tema da escola.
 
+A aplicação dinâmica das variáveis e logotipo da escola no frontend é realizada pelo `BrandingProvider` (`BrandingContext.tsx`), utilizando cache em `localStorage`, script anti-flash no `<head>` do `layout.tsx` e sincronização assíncrona com as rotas de branding (TEMA-T4).
+
 
 ### Gerador de tema e validador de contraste (`src/lib/tema.ts`)
 

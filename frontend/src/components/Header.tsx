@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useBranding } from '@/context/BrandingContext';
 import { perfilAmigavel } from '@/lib/perfis';
 import { apiFetch } from '@/lib/api';
 import { TrocarSenha } from '@/components/TrocarSenha';
@@ -35,7 +36,9 @@ interface NotificacaoItem {
 export function Header() {
   const { user, tenant, isOnline, logout, switchRole } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { branding } = useBranding();
   const role = user?.role || 'admin';
+  const nome = branding?.nomeExibicao ?? 'Escolar';
 
   const [notificacoes, setNotificacoes] = useState<NotificacaoItem[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -91,12 +94,21 @@ export function Header() {
       {/* Brand & Tenant Selector */}
       <div className="flex items-center space-x-4">
         <div className="flex items-center space-x-2.5">
-          <div className="p-2 bg-salvia-100 dark:bg-salvia-800 rounded-xl text-salvia-700 dark:text-salvia-300">
-            <Sprout className="w-5 h-5" />
-          </div>
+          {branding?.logoSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={branding.logoSrc}
+              alt={nome}
+              className="h-8 w-auto object-contain rounded-lg"
+            />
+          ) : (
+            <div className="p-2 bg-salvia-100 dark:bg-salvia-800 rounded-xl text-salvia-700 dark:text-salvia-300">
+              <Sprout className="w-5 h-5" />
+            </div>
+          )}
           <div className="flex flex-col">
             <span className="leading-tight font-bold text-lg text-slate-900 dark:text-salvia-50 tracking-tight">
-              Escolar
+              {nome}
             </span>
             <span className="text-[11px] text-salvia-600 dark:text-salvia-400 font-normal leading-none">
               Gestão escolar humanizada

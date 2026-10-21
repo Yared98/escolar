@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { useBranding } from '@/context/BrandingContext';
 import { apiFetch } from '@/lib/api';
 import dynamic from 'next/dynamic';
 import { Sidebar, NavRoute, MENU_ITEMS, findRouteByTab, isRouteAllowed, isRouteAuthorized } from '@/components/Sidebar';
@@ -113,6 +114,7 @@ const ProfessorSection = dynamic(() => import('@/components/ProfessorSection').t
 
 function DashboardContent() {
   const { user, login } = useAuth();
+  const { branding } = useBranding();
   const role = user?.role || 'admin';
 
   const router = useRouter();
@@ -141,7 +143,10 @@ function DashboardContent() {
   // numa instalação real os campos começam vazios.
   const modoDemo =
     process.env.NEXT_PUBLIC_MODO_DEMO === 'true' || process.env.NODE_ENV === 'development';
-  const [tenantSlug, setTenantSlug] = useState(modoDemo ? DEMO_ESCOLA : '');
+  const escolaSlugEnv = process.env.NEXT_PUBLIC_ESCOLA_SLUG?.trim();
+  const [tenantSlug, setTenantSlug] = useState(
+    modoDemo ? DEMO_ESCOLA : (escolaSlugEnv || '')
+  );
   const [email, setEmail] = useState(modoDemo ? DEMO_CONTAS[0].email : '');
   const [password, setPassword] = useState(modoDemo ? DEMO_SENHA : '');
   const [loading, setLoading] = useState(false);
@@ -402,6 +407,23 @@ function DashboardContent() {
         />
       ) : (
         <div className="w-full max-w-md mx-auto bg-white dark:bg-salvia-900 border border-salvia-200 dark:border-salvia-800 rounded-2xl p-6 sm:p-8 shadow-md">
+          {escolaSlugEnv && branding && (branding.logoSrc || branding.nomeExibicao) && (
+            <div className="flex flex-col items-center mb-6">
+              {branding.logoSrc && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={branding.logoSrc}
+                  alt={branding.nomeExibicao || 'Logo da escola'}
+                  className="h-12 w-auto object-contain mb-2 rounded-lg"
+                />
+              )}
+              {branding.nomeExibicao && (
+                <span className="text-sm font-bold text-slate-900 dark:text-salvia-50 text-center">
+                  {branding.nomeExibicao}
+                </span>
+              )}
+            </div>
+          )}
           <div className="text-center mb-6">
             <h1 className="text-xl font-bold text-slate-900 dark:text-salvia-50">Entrar</h1>
             <p className="text-xs text-salvia-600 dark:text-salvia-400 mt-1">
