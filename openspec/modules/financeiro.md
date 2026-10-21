@@ -266,7 +266,8 @@ Plano aprovado pelo usuário em 2026-10-21 para tratar as limitações da 8.11. 
 | ITAU-I | Conciliação diária de Pix e boletos liquidados (recupera avisos perdidos) | ITAU-H (ordem de migrations) | `ITAU_CONCILIACAO_DIARIA=true`, depois do teste no sandbox confirmar os formatos |
 
 **G1 — texto do boleto e status para o financeiro**
-- `normalizar_texto` troca letras acentuadas fora da lista do Itaú pela letra base (ñ→n, è→e, ï→i, ö→o, ü→u, ý→y e equivalentes maiúsculos) antes de filtrar; caracteres sem equivalente continuam removidos. Sem crate nova.
+- `normalizar_texto` passa a aceitar exatamente o conjunto do OpenAPI do Itaú (`áàâãéèêíïóôõöúçñ` e maiúsculas, hoje o código aceita menos e apagava `ñ`, `è`, `ï`, `ö`) e troca pela letra base o que estiver fora dele (`ü→u`, `ë→e`, `ì→i`, `ò→o`, `ù→u`, `ý→y`, `ä→a`, `å→a`, `æ→ae`, `ø→o`, `ß→ss` e maiúsculas); caracteres sem equivalente continuam removidos. Sem crate nova.
+- Dois perfis, como no OpenAPI: **nome do pagador** só letras, espaço e os acentos aceitos (`^[a-zA-Z\s…]+$`, sem dígito, hífen, ponto ou vírgula; hífen vira espaço); **endereço e demais textos** também aceitam dígitos, espaço, `-`, `.` e `,`.
 - `GET /api/v1/financeiro/integracoes/status` (papéis `admin`, `gestor`, `financeiro`): devolve só `{ itau: { modo, ativo }, cora: { modo, disponivel } }`, sem client_id, chave Pix, conta ou datas. As rotas de Integrações continuam só da gestão.
 
 **G2 — QR Code real e botão para o financeiro**
