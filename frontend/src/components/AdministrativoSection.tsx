@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
+import { useBranding } from '@/context/BrandingContext';
+import { PRESETS } from '@/lib/tema';
 import { Building2, ShieldCheck, CheckCircle2, Plus } from 'lucide-react';
 import {
   UsuariosPanel,
@@ -11,6 +13,10 @@ import {
   CriarUsuarioDto,
   AtualizarUsuarioDto,
 } from '@/components/administrativo/UsuariosPanel';
+import {
+  IdentidadeVisualPanel,
+  IdentidadeVisualForm,
+} from '@/components/administrativo/IdentidadeVisualPanel';
 
 interface Funcionario {
   id: string;
@@ -48,19 +54,40 @@ interface EmailSaida {
   created_at: string;
 }
 
+interface TenantBrandingResponse {
+  cor_primaria: string;
+  cor_destaque: string;
+  nome_exibicao: string;
+  tem_logo: boolean;
+  logo_url: string | null;
+  atualizado_em: string | null;
+}
+
 export function AdministrativoSection() {
   const searchParams = useSearchParams();
   const routeParam = searchParams ? searchParams.get('route') : null;
   const tabParam = searchParams ? searchParams.get('tab') : null;
-  // "usuarios" fica dentro de Pessoas: precisa ser checado antes do padrão da rota.
-  const subTab: 'entidades' | 'relatorios' | 'envios' | 'usuarios' =
-    tabParam === 'usuarios'
-      ? 'usuarios'
-      : routeParam === 'pessoas' || tabParam === 'entidades'
-        ? 'entidades'
-        : tabParam === 'relatorios'
-          ? 'relatorios'
-          : 'envios';
+  // "identidade" quando routeParam === 'configuracoes' ou tabParam === 'identidade'
+  const subTab: 'entidades' | 'relatorios' | 'envios' | 'usuarios' | 'identidade' =
+    routeParam === 'configuracoes' || tabParam === 'identidade'
+      ? 'identidade'
+      : tabParam === 'usuarios'
+        ? 'usuarios'
+        : routeParam === 'pessoas' || tabParam === 'entidades'
+          ? 'entidades'
+          : tabParam === 'relatorios'
+            ? 'relatorios'
+            : 'envios';
+
+  const { branding, aplicarBranding, recarregarBranding } = useBranding();
+  const [brandingForm, setBrandingForm] = useState<IdentidadeVisualForm>({
+    corPrimaria: PRESETS.salvia.corPrimaria,
+    corDestaque: PRESETS.salvia.corDestaque,
+    nomeExibicao: '',
+  });
+  const [brandingLoading, setBrandingLoading] = useState(false);
+  const [brandingSalvando, setBrandingSalvando] = useState(false);
+  const [brandingError, setBrandingError] = useState<string | null>(null);
 
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
   const [mensagens, setMensagens] = useState<MensagemEnvio[]>([]);
@@ -154,13 +181,141 @@ export function AdministrativoSection() {
     });
   };
 
+  const loadBrandingData = useCallback(async () => {
+    setBrandingLoading(true);
+    setBrandingError(null);
+    try {
+      const data = await apiFetch<TenantBrandingResponse>('/tenant/branding');
+      setBrandingForm({
+        corPrimaria: data.cor_primaria,
+        corDestaque: data.cor_destaque,
+        nomeExibicao: data.nome_exibicao || '',
+      });
+    } catch (err: unknown) {
+      setBrandingError(
+        err instanceof Error ? err.message : 'Não foi possível carregar a identidade visual.'
+      );
+    } finally {
+      setBrandingLoading(false);
+    }
+  }, []);
+
+  const handleSalvarBranding = async () => {
+    setBrandingSalvando(true);
+    setBrandingError(null);
+    try {
+      const resp = await apiFetch<TenantBrandingResponse>('/tenant/branding', {
+        method: 'PUT',
+        body: JSON.stringify({
+          cor_primaria: brandingForm.corPrimaria,
+          cor_destaque: brandingForm.corDestaque,
+          nome_exibicao: brandingForm.nomeExibicao.trim(),
+        }),
+      });
+      aplicarBranding({
+        corPrimaria: resp.cor_primaria,
+        corDestaque: resp.cor_destaque,
+        nomeExibicao: resp.nome_exibicao,
+        logoSrc: branding?.logoSrc ?? null,
+      });
+      await recarregarBranding();
+      setToastMsg('Identidade visual salva');
+    } catch (err: unknown) {
+      setBrandingError(
+        err instanceof Error ? err.message : 'Erro ao salvar identidade visual.'
+      );
+    } finally {
+      setBrandingSalvando(false);
+    }
+  };
+
+  const handleEnviarLogo = async (file: File) => {
+    const tiposPermitidos = ['image/png', 'image/jpeg', 'image/webp'];
+    if (!tiposPermitidos.includes(file.type)) {
+      setBrandingError('Formato de arquivo inválido. Formatos permitidos: PNG, JPEG ou WEBP.');
+      return;
+    }
+    if (file.size > 262144) {
+      setBrandingError('Arquivo muito grande. O logotipo deve ter no máximo 256 KB (262.144 bytes).');
+      return;
+    }
+    setBrandingSalvando(true);
+    setBrandingError(null);
+    try {
+      await apiFetch<TenantBrandingResponse>('/tenant/branding/logo', {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
+      });
+      await recarregarBranding();
+      setToastMsg('Logotipo atualizado com sucesso');
+    } catch (err: unknown) {
+      setBrandingError(
+        err instanceof Error ? err.message : 'Falha ao enviar logotipo.'
+      );
+    } finally {
+      setBrandingSalvando(false);
+    }
+  };
+
+  const handleRemoverLogo = async () => {
+    setBrandingSalvando(true);
+    setBrandingError(null);
+    try {
+      await apiFetch<TenantBrandingResponse>('/tenant/branding/logo', {
+        method: 'DELETE',
+      });
+      await recarregarBranding();
+      setToastMsg('Logotipo removido com sucesso');
+    } catch (err: unknown) {
+      setBrandingError(
+        err instanceof Error ? err.message : 'Falha ao remover logotipo.'
+      );
+    } finally {
+      setBrandingSalvando(false);
+    }
+  };
+
+  const handleRestaurarSalvia = () => {
+    setBrandingForm((prev) => ({
+      ...prev,
+      corPrimaria: PRESETS.salvia.corPrimaria,
+      corDestaque: PRESETS.salvia.corDestaque,
+    }));
+  };
+
+  const handleAplicarPreset = (preset: { nome: string; corPrimaria: string; corDestaque: string }) => {
+    setBrandingForm((prev) => ({
+      ...prev,
+      corPrimaria: preset.corPrimaria,
+      corDestaque: preset.corDestaque,
+    }));
+  };
+
+  const handleFormChange = (field: keyof IdentidadeVisualForm, value: string) => {
+    setBrandingForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  useEffect(() => {
+    if (!toastMsg) return;
+    const timer = setTimeout(() => setToastMsg(null), 4000);
+    return () => clearTimeout(timer);
+  }, [toastMsg]);
+
   useEffect(() => {
     if (subTab === 'usuarios') {
       loadUsuariosData();
+    } else if (subTab === 'identidade') {
+      loadBrandingData();
     } else {
       loadAdminData();
     }
-  }, [subTab, loadAdminData, loadUsuariosData]);
+  }, [subTab, loadAdminData, loadUsuariosData, loadBrandingData]);
 
   return (
     <section id="administrativo" className="bg-white dark:bg-salvia-900 border border-salvia-200 dark:border-salvia-800 rounded-2xl p-6 shadow-sm">
@@ -173,7 +328,9 @@ export function AdministrativoSection() {
                 ? 'Pessoas'
                 : subTab === 'usuarios'
                   ? 'Usuários e acessos'
-                  : 'Conformidade'}
+                  : subTab === 'identidade'
+                    ? 'Identidade visual'
+                    : 'Conformidade'}
             </span>
           </h2>
           <p className="text-xs text-salvia-600 dark:text-salvia-400 mt-0.5">
@@ -181,12 +338,43 @@ export function AdministrativoSection() {
               ? 'Corpo docente e funcionários da escola.'
               : subTab === 'usuarios'
                 ? 'Gestão de contas de acesso ao sistema.'
-                : 'Registro de envios e auditoria LGPD.'}
+                : subTab === 'identidade'
+                  ? 'Cores, logotipo e identidade visual da escola.'
+                  : 'Registro de envios e auditoria LGPD.'}
           </p>
         </div>
       </div>
+      {toastMsg && (
+        <div className="mb-4 p-3 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700/60 rounded-xl text-xs font-semibold text-emerald-900 dark:text-emerald-300 flex items-center justify-between">
+          <span>{toastMsg}</span>
+          <button
+            type="button"
+            onClick={() => setToastMsg(null)}
+            className="text-emerald-700 dark:text-emerald-400 hover:text-emerald-900 font-bold ml-2"
+          >
+            ✕
+          </button>
+        </div>
+      )}
       {loadError && (
         <p className="mb-4 text-xs font-medium text-amber-700 dark:text-amber-300">{loadError}</p>
+      )}
+
+      {/* TAB: IDENTIDADE VISUAL */}
+      {subTab === 'identidade' && (
+        <IdentidadeVisualPanel
+          form={brandingForm}
+          logoSrc={branding?.logoSrc ?? null}
+          loading={brandingLoading}
+          salvando={brandingSalvando}
+          error={brandingError}
+          onChange={handleFormChange}
+          onAplicarPreset={handleAplicarPreset}
+          onSalvar={handleSalvarBranding}
+          onEnviarLogo={handleEnviarLogo}
+          onRemoverLogo={handleRemoverLogo}
+          onRestaurar={handleRestaurarSalvia}
+        />
       )}
 
       {/* TAB 0: REGISTRO DE ENVIOS AUDITÁVEIS (EXCLUSIVO ADMIN / EMISSOR) */}

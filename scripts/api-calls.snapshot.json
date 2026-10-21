@@ -11,6 +11,7 @@
   "DELETE /secretaria/alunos/{}": 1,
   "DELETE /secretaria/turmas/{}": 1,
   "DELETE /secretaria/turmas/{}/alunos/{}": 1,
+  "DELETE /tenant/branding/logo": 1,
   "GET /academico/boletim/{}": 1,
   "GET /academico/conselho": 1,
   "GET /academico/diario": 1,
@@ -69,7 +70,7 @@
   "GET /secretaria/turmas": 5,
   "GET /secretaria/turmas/{}/alunos": 5,
   "GET /secretaria/virada-ano/previa": 1,
-  "GET /tenant/branding": 1,
+  "GET /tenant/branding": 2,
   "GET /tenant/integrations/banking": 1,
   "GET /tenant/integrations/itau": 1,
   "POST /academico/diario/sync": 1,
@@ -141,5 +142,7 @@
   "PUT /planos-aula/{}/comentario": 1,
   "PUT /secretaria/alunos/{}": 1,
   "PUT /secretaria/prontuarios/{}": 2,
+  "PUT /tenant/branding": 1,
+  "PUT /tenant/branding/logo": 1,
   "PUT /tenant/integrations/itau/dados": 1
 }

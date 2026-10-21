@@ -270,6 +270,7 @@ Todas as alterações de identidade visual registram eventos de auditoria:
   - Um script inline leve no `<head>` de `frontend/src/app/layout.tsx` é executado antes da primeira pintura pelo navegador, lendo `escolar_branding_vars` e injetando as variáveis no `document.documentElement.style`, além de aplicar a classe `dark`/`light` de `escolar_theme`. Isso previne o flash de cor verde padrão (Sálvia) e modo claro durante o carregamento.
 - **Resiliência e Fallback Fail-Safe**:
   - Se a API falhar (rede indisponível ou 404/500) ou se a resposta contiver cores hexadecimais inválidas (onde `temaParaVariaveis` lançaria exceção), o erro é capturado e registrado em `console.warn`, preservando o tema em cache ou a paleta padrão Sálvia em CSS sem quebrar a interface nem exibir dados fictícios.
+- **Painel de Gestão da Identidade Visual**: interface administrativa disponível na rota `/configuracoes` (aba `identidade`), permitindo que a gestão personalize nome de exibição, cor primária, cor de destaque e logotipo com pré-visualização instantânea (modos claro e escuro) e validação de acessibilidade WCAG AA.
 
 ### 10.5 Limitações MVP
 - O arquivo `manifest.json` e os ícones do aplicativo PWA continuam estáticos e genéricos no MVP (ícone e cor do app instalado na tela inicial), sendo a personalização visual da escola aplicada dinamicamente via tokens/CSS, título e elementos de runtime na aplicação web.
