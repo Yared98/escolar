@@ -253,3 +253,36 @@ Cobre boletos e Bolecodes **pagos pelo código de barras**.
 - **Papel `financeiro` não vê o botão do Itaú**: a tela decide pelo estado da integração (`GET /tenant/integrations/itau`), que só a gestão lê; a rota de emissão aceita o financeiro. Mesmo comportamento da Cora.
 - O botão de emitir só aparece em fatura pendente e ainda não vencida (o Itaú recusa vencimento no passado).
 - Sem conciliação de segurança (francesa/extrato) para avisos perdidos: um webhook que falhar todas as tentativas só é recuperado manualmente.
+
+### 8.12 Próximas entregas (planejadas, sem código)
+
+Plano aprovado pelo usuário em 2026-10-21 para tratar as limitações da 8.11. Pendentes por decisão do usuário, fora deste plano: teste com credenciais de sandbox e preparação de produção.
+
+| Card | Entrega | Depende de | Liga quando |
+|---|---|---|---|
+| ITAU-G1 | Backend: letra base nos acentos fora da lista do Itaú; status mínimo das integrações para o financeiro | — | ao integrar |
+| ITAU-G2 | Frontend: QR Code escaneável a partir do EMV (Bolecode, Pix local e 2ª via); botão do Itaú para o financeiro pelo status mínimo | contrato do G1 | ao integrar |
+| ITAU-H | Renovação automática do certificado dinâmico com alerta de falha para a gestão | — | `ITAU_RENOVACAO_AUTOMATICA=true`, depois de uma renovação real por clique dar certo |
+| ITAU-I | Conciliação diária de Pix e boletos liquidados (recupera avisos perdidos) | ITAU-H (ordem de migrations) | `ITAU_CONCILIACAO_DIARIA=true`, depois do teste no sandbox confirmar os formatos |
+
+**G1 — texto do boleto e status para o financeiro**
+- `normalizar_texto` troca letras acentuadas fora da lista do Itaú pela letra base (ñ→n, è→e, ï→i, ö→o, ü→u, ý→y e equivalentes maiúsculos) antes de filtrar; caracteres sem equivalente continuam removidos. Sem crate nova.
+- `GET /api/v1/financeiro/integracoes/status` (papéis `admin`, `gestor`, `financeiro`): devolve só `{ itau: { modo, ativo }, cora: { modo, disponivel } }`, sem client_id, chave Pix, conta ou datas. As rotas de Integrações continuam só da gestão.
+
+**G2 — QR Code real e botão para o financeiro**
+- Dependência nova no frontend: `qrcode.react` (SVG). Componente `QrCodePix` recebe o EMV e desenha o QR; usado no modal do Bolecode, no `financeiro/PixModal.tsx` e no `portal_aluno/PixModal.tsx`. Sem EMV, não desenha nada e mostra só o copia e cola (nunca ícone fingindo QR).
+- `FinanceiroSection.tsx` decide o botão do Itaú (e o da Cora) pelo status mínimo do G1.
+- Conferência no navegador a 375px da 2ª via no portal da família.
+
+**H — renovação automática do certificado**
+- Tarefa diária (como o reprocessador de avisos), só com `ITAU_MODE=production` e `ITAU_RENOVACAO_AUTOMATICA=true` (padrão `false`): renova quando faltarem 30 dias ou menos e mais de 1 dia, usando a mesma função da renovação por clique (certificado antigo só é trocado após sucesso).
+- Registra `renovacao_ultima_tentativa_em` e `renovacao_ultimo_erro` em `tenant_itau_config`; `audit_logs` `itau_renovacao_automatica` (sucesso ou falha, sem segredos).
+- Falha: notificação para os usuários da gestão (mesmo padrão de inserção direta de `regulatorio_ia/evasao`), no máximo uma por dia, e alerta no cartão do Itaú com o erro em linguagem simples. Nova tentativa no dia seguinte.
+- Testes com simulador: renova dentro da janela, não renova fora dela, falha mantém o certificado e gera alerta, flag desligada não faz nada.
+
+**I — conciliação diária**
+- Tarefa diária, só com integração ativa e `ITAU_CONCILIACAO_DIARIA=true` (padrão `false`).
+- Pix: `GET /pix?inicio=&fim=` dos últimos 3 dias, paginado; cada `endToEndId` sem registro em `webhook_events` entra na fila `gateway_avisos` (`tipo='pix'`), e o processamento existente confirma e dá baixa. **(A confirmar no sandbox: o OpenAPI marca `txid` como obrigatório nessa consulta.)**
+- Boletos: `GET /francesas` do mês e `GET /francesas/{id}/movimentacoes?data=` dos últimos 3 dias, filtrando liquidações; cada uma entra na fila como aviso de boleto `06` com o mesmo `event_id` do webhook (`idBoleto:06:data`), para não duplicar.
+- `audit_logs` `itau_conciliacao` com contagem de encontrados, já baixados e enfileirados; o cartão do Itaú mostra a data da última conciliação.
+- Testes com simulador: aviso perdido é recuperado, aviso já processado não duplica, fatura já paga não muda, isolamento entre tenants.
