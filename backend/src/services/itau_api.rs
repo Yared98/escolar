@@ -116,29 +116,118 @@ fn token_cache() -> &'static Mutex<HashMap<Uuid, (String, Instant)>> {
     TOKEN_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-pub fn normalizar_texto(texto: &str, max_len: usize) -> String {
-    let mut filtrado = String::with_capacity(texto.len());
-    for c in texto.chars() {
-        match c {
-            'ü' => filtrado.push('u'),
-            'Ü' => filtrado.push('U'),
-            c if c.is_ascii_alphanumeric() => filtrado.push(c),
-            ' ' | '-' | '.' | ',' => filtrado.push(c),
-            'á' | 'à' | 'ã' | 'â' | 'é' | 'ê' | 'í' | 'ó' | 'ô' | 'õ' | 'ú' | 'ç' | 'Á' | 'À'
-            | 'Ã' | 'Â' | 'É' | 'Ê' | 'Í' | 'Ó' | 'Ô' | 'Õ' | 'Ú' | 'Ç' => {
-                filtrado.push(c)
-            }
-            _ => {}
-        }
+fn trocar_letra_base(c: char) -> Option<&'static str> {
+    match c {
+        'ü' => Some("u"),
+        'Ü' => Some("U"),
+        'ë' => Some("e"),
+        'Ë' => Some("E"),
+        'ì' => Some("i"),
+        'Ì' => Some("I"),
+        'î' => Some("i"),
+        'Î' => Some("I"),
+        'ò' => Some("o"),
+        'Ò' => Some("O"),
+        'ù' => Some("u"),
+        'Ù' => Some("U"),
+        'û' => Some("u"),
+        'Û' => Some("U"),
+        'ý' => Some("y"),
+        'Ý' => Some("Y"),
+        'ÿ' => Some("y"),
+        'Ÿ' => Some("Y"),
+        'ä' => Some("a"),
+        'Ä' => Some("A"),
+        'å' => Some("a"),
+        'Å' => Some("A"),
+        'æ' => Some("ae"),
+        'Æ' => Some("AE"),
+        'ø' => Some("o"),
+        'Ø' => Some("O"),
+        'ß' => Some("ss"),
+        'ẞ' => Some("SS"),
+        _ => None,
     }
+}
 
-    // Depois do filtro só restam ASCII e acentos com o mesmo tamanho em maiúscula e minúscula,
-    // então a posição achada na versão minúscula vale para a original.
+fn eh_acento_aceito_itau(c: char) -> bool {
+    matches!(
+        c,
+        'á' | 'à'
+            | 'â'
+            | 'ã'
+            | 'é'
+            | 'è'
+            | 'ê'
+            | 'í'
+            | 'ï'
+            | 'ó'
+            | 'ô'
+            | 'õ'
+            | 'ö'
+            | 'ú'
+            | 'ç'
+            | 'ñ'
+            | 'Á'
+            | 'À'
+            | 'Â'
+            | 'Ã'
+            | 'É'
+            | 'È'
+            | 'Ê'
+            | 'Í'
+            | 'Ï'
+            | 'Ó'
+            | 'Ô'
+            | 'Õ'
+            | 'Ö'
+            | 'Ú'
+            | 'Ç'
+            | 'Ñ'
+    )
+}
+
+fn remover_palavras_proibidas(filtrado: &mut String) {
     for word in &["javascript", "http", "alert"] {
         while let Some(pos) = filtrado.to_lowercase().find(word) {
             filtrado.drain(pos..pos + word.len());
         }
     }
+}
+
+pub fn normalizar_nome(nome: &str, max_len: usize) -> String {
+    let mut filtrado = String::with_capacity(nome.len());
+    for c in nome.chars() {
+        if c == '-' {
+            filtrado.push(' ');
+        } else if let Some(base) = trocar_letra_base(c) {
+            filtrado.push_str(base);
+        } else if c.is_ascii_alphabetic() || eh_acento_aceito_itau(c) || c == ' ' {
+            filtrado.push(c);
+        }
+    }
+
+    remover_palavras_proibidas(&mut filtrado);
+
+    let palavras: Vec<&str> = filtrado.split_whitespace().collect();
+    let junta = palavras.join(" ");
+    junta.chars().take(max_len).collect()
+}
+
+pub fn normalizar_texto(texto: &str, max_len: usize) -> String {
+    let mut filtrado = String::with_capacity(texto.len());
+    for c in texto.chars() {
+        if let Some(base) = trocar_letra_base(c) {
+            filtrado.push_str(base);
+        } else if c.is_ascii_alphanumeric()
+            || eh_acento_aceito_itau(c)
+            || matches!(c, ' ' | '-' | '.' | ',')
+        {
+            filtrado.push(c);
+        }
+    }
+
+    remover_palavras_proibidas(&mut filtrado);
 
     let palavras: Vec<&str> = filtrado.split_whitespace().collect();
     let junta = palavras.join(" ");
@@ -146,7 +235,7 @@ pub fn normalizar_texto(texto: &str, max_len: usize) -> String {
 }
 
 pub fn validar_pagador(pagador: &DadosPagador) -> Result<(), AppError> {
-    let nome_limpo = normalizar_texto(&pagador.nome, 100);
+    let nome_limpo = normalizar_nome(&pagador.nome, 100);
     if nome_limpo.is_empty() {
         return Err(AppError::BadRequest(
             "Nome do responsável financeiro do aluno é obrigatório para emissão no Itaú."
@@ -223,7 +312,7 @@ pub fn montar_payload_bolecode(params: &DadosBolecodeParams) -> Result<Value, Ap
 
     let pessoa_json = if tipo_pessoa == "F" {
         json!({
-            "nome_pessoa": normalizar_texto(&params.pagador.nome, 100),
+            "nome_pessoa": normalizar_nome(&params.pagador.nome, 100),
             "tipo_pessoa": {
                 "codigo_tipo_pessoa": "F",
                 "numero_cadastro_pessoa_fisica": doc_digits
@@ -231,7 +320,7 @@ pub fn montar_payload_bolecode(params: &DadosBolecodeParams) -> Result<Value, Ap
         })
     } else {
         json!({
-            "nome_pessoa": normalizar_texto(&params.pagador.nome, 100),
+            "nome_pessoa": normalizar_nome(&params.pagador.nome, 100),
             "tipo_pessoa": {
                 "codigo_tipo_pessoa": "J",
                 "numero_cadastro_nacional_pessoa_juridica": doc_digits
@@ -1423,7 +1512,7 @@ mod tests {
     fn test_normalizar_texto_unicode_que_muda_de_tamanho_nao_quebra() {
         // 'İ' e 'ẞ' mudam de tamanho em bytes ao passar para minúscula.
         let res = normalizar_texto("İstanbul ẞtraße HTTP Ana", 100);
-        assert_eq!(res, "stanbul trae Ana");
+        assert_eq!(res, "stanbul SStrasse Ana");
     }
 
     #[test]
@@ -1561,5 +1650,76 @@ mod tests {
         };
         let err_cep = validar_pagador(&pagador_cep).unwrap_err();
         assert!(format!("{err_cep}").contains("CEP com 8 dígitos"));
+    }
+    #[test]
+    fn test_normalizar_nome_casos_card() {
+        assert_eq!(normalizar_nome("Muñoz", 100), "Muñoz");
+        assert_eq!(normalizar_nome("Müller", 100), "Muller");
+        assert_eq!(
+            normalizar_nome("Ana-Maria O'Brien 2º", 100),
+            "Ana Maria OBrien"
+        );
+        assert_eq!(normalizar_nome("José Ação", 100), "José Ação");
+    }
+
+    #[test]
+    fn test_normalizar_texto_endereco_card() {
+        assert_eq!(
+            normalizar_texto("Rua 7, nº 10 - apto 2", 100),
+            "Rua 7, n 10 - apto 2"
+        );
+        assert_eq!(normalizar_texto("José Ação", 100), "José Ação");
+        assert_eq!(normalizar_texto("Muñoz", 100), "Muñoz");
+        assert_eq!(normalizar_texto("Müller", 100), "Muller");
+    }
+
+    #[test]
+    fn test_normalizar_todas_letras_base() {
+        let minusculas = "ü ë ì î ò ù û ý ÿ ä å æ ø ß";
+        assert_eq!(
+            normalizar_nome(minusculas, 100),
+            "u e i i o u u y y a a ae o ss"
+        );
+        let maiusculas = "Ü Ë Ì Î Ò Ù Û Ý Ÿ Ä Å Æ Ø ẞ";
+        assert_eq!(
+            normalizar_nome(maiusculas, 100),
+            "U E I I O U U Y Y A A AE O SS"
+        );
+    }
+
+    #[test]
+    fn test_montar_payload_bolecode_usa_perfil_nome_em_nome_pessoa() {
+        let params = DadosBolecodeParams {
+            fatura_id: Uuid::nil(),
+            id_beneficiario: "150000052061".to_string(),
+            especie_padrao: "04".to_string(),
+            chave_pix: "12345678000190".to_string(),
+            nosso_numero: "00000001".to_string(),
+            valor: 550.00,
+            data_vencimento: Utc::now().date_naive() + chrono::Duration::days(10),
+            multa_percentual: 2.0,
+            juros_mora_mes_percentual: 1.0,
+            pagador: DadosPagador {
+                nome: "Dona Muñoz-Müller 2º".to_string(),
+                documento: "12345678901".to_string(),
+                logradouro: "Rua 7, nº 10 - apto 2".to_string(),
+                numero: None,
+                complemento: None,
+                bairro: "Centro".to_string(),
+                cidade: "São Paulo".to_string(),
+                uf: "SP".to_string(),
+                cep: "01310-100".to_string(),
+            },
+        };
+
+        let payload = montar_payload_bolecode(&params).unwrap();
+        assert_eq!(
+            payload["dado_boleto"]["pagador"]["pessoa"]["nome_pessoa"],
+            "Dona Muñoz Muller"
+        );
+        assert_eq!(
+            payload["dado_boleto"]["pagador"]["endereco"]["nome_logradouro"],
+            "Rua 7, n 10 - apto 2"
+        );
     }
 }

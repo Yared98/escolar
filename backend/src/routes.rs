@@ -55,7 +55,8 @@ use crate::{
             emitir_cora_fatura, emitir_itau_fatura, emitir_nfse, estornar_despesa,
             executar_regua_cobranca, gerar_despesa, gerar_fatura, gerar_parcelas_de_contrato,
             listar_conciliacao, listar_despesas, listar_faturas, listar_logs_regua, listar_nfse,
-            processar_conciliacao_bancaria, relatorio_dre, simular_pagamento_cora_fatura,
+            obter_status_integracoes, processar_conciliacao_bancaria, relatorio_dre,
+            simular_pagamento_cora_fatura,
         },
         frequencia::{alertas_frequencia, frequencia_hoje, relatorio_frequencia},
         notificacoes::{
@@ -262,6 +263,10 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/financeiro/faturas/:fatura_id/itau",
             post(emitir_itau_fatura),
+        )
+        .route(
+            "/financeiro/integracoes/status",
+            get(obter_status_integracoes),
         )
         .route(
             "/financeiro/despesas",
