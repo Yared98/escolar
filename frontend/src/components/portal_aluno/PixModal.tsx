@@ -1,5 +1,5 @@
-import React from 'react';
-import { QrCode, X, Check, Copy } from 'lucide-react';
+import React, { useState } from 'react';
+import { QrCode, X, Check, Copy, Landmark, AlertTriangle, Barcode } from 'lucide-react';
 import type { FaturaData } from './types';
 
 export interface PixModalProps {
@@ -15,17 +15,53 @@ export function PixModal({
   handleCopyPix,
   copiedPix,
 }: PixModalProps) {
+  const [copiouLinha, setCopiouLinha] = useState(false);
+  const [copiouCodigoBarras, setCopiouCodigoBarras] = useState(false);
+
+  const isItau =
+    pixModalFatura.gateway_name === 'itau' &&
+    Boolean(pixModalFatura.gateway_digitable_line || pixModalFatura.linha_digitavel);
+
+  const linhaDigitavel = pixModalFatura.gateway_digitable_line || pixModalFatura.linha_digitavel || '';
+  const pixCode = pixModalFatura.gateway_pix_code || pixModalFatura.qr_code_pix || '';
+  const codigoBarras = pixModalFatura.codigo_barras || '';
+
+  const handleCopiarLinha = () => {
+    if (!linhaDigitavel) return;
+    navigator.clipboard.writeText(linhaDigitavel);
+    setCopiouLinha(true);
+    setTimeout(() => setCopiouLinha(false), 2000);
+  };
+
+  const handleCopiarCodigoBarras = () => {
+    if (!codigoBarras) return;
+    navigator.clipboard.writeText(codigoBarras);
+    setCopiouCodigoBarras(true);
+    setTimeout(() => setCopiouCodigoBarras(false), 2000);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-white dark:bg-salvia-900 border border-salvia-300 dark:border-salvia-700 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+      <div className="bg-white dark:bg-salvia-900 border border-salvia-300 dark:border-salvia-700 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-2.5">
             <div className="p-2 bg-salvia-100 dark:bg-salvia-800 rounded-xl text-salvia-700 dark:text-salvia-300">
-              <QrCode className="w-5 h-5" />
+              {isItau ? <Landmark className="w-5 h-5" /> : <QrCode className="w-5 h-5" />}
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-salvia-50">2ª Via de Pagamento Pix</h3>
-              <span className="text-[10px] text-salvia-500 font-medium">Conferido pela tesouraria</span>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-salvia-50">
+                  {isItau ? '2ª Via • Bolecode Itaú' : '2ª Via de Pagamento Pix'}
+                </h3>
+                {isItau && pixModalFatura.simulado && (
+                  <span className="inline-flex items-center rounded-md bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-200">
+                    Simulado
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] text-salvia-500 font-medium">
+                {isItau ? 'Bolecode com Pix integrado' : 'Conferido pela tesouraria'}
+              </span>
             </div>
           </div>
           <button
@@ -46,7 +82,7 @@ export function PixModal({
           </span>
         </div>
 
-        {/* QR Code Graphic Mock */}
+        {/* QR Code */}
         <div className="bg-salvia-50 dark:bg-salvia-950 border border-salvia-200 dark:border-salvia-800 rounded-2xl p-6 text-center space-y-2">
           <QrCode className="w-32 h-32 text-slate-900 dark:text-salvia-100 mx-auto" />
           <p className="text-[11px] text-salvia-600 dark:text-salvia-400">
@@ -54,12 +90,54 @@ export function PixModal({
           </p>
         </div>
 
-        {/* Nota de esclarecimento sobre conciliação e geração local */}
-        <div className="p-2.5 bg-salvia-100/60 dark:bg-salvia-950/70 border border-salvia-200 dark:border-salvia-800 rounded-xl text-[11px] text-salvia-700 dark:text-salvia-300">
-          <p className="leading-snug">
-            Pix para pagar a 2ª via. A confirmação do pagamento é feita pela tesouraria da escola (a confirmação automática pelo banco ainda não está ligada).
-          </p>
-        </div>
+        {/* Nota informativa */}
+        {isItau ? (
+          <div className="p-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl text-[11px] text-amber-900 dark:text-amber-200 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <p className="leading-snug">
+              Depois do vencimento, pague pelo código de barras.
+            </p>
+          </div>
+        ) : (
+          <div className="p-2.5 bg-salvia-100/60 dark:bg-salvia-950/70 border border-salvia-200 dark:border-salvia-800 rounded-xl text-[11px] text-salvia-700 dark:text-salvia-300">
+            <p className="leading-snug">
+              Pix para pagar a 2ª via. A confirmação do pagamento é feita pela tesouraria da escola (a confirmação automática pelo banco ainda não está ligada).
+            </p>
+          </div>
+        )}
+
+        {/* Linha Digitável (Apenas quando for Bolecode Itaú) */}
+        {isItau && linhaDigitavel && (
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-salvia-600 dark:text-salvia-400 block">
+              Linha Digitável
+            </label>
+            <div className="flex items-center space-x-2">
+              <input
+                readOnly
+                value={linhaDigitavel}
+                className="w-full bg-salvia-50 dark:bg-salvia-950 border border-salvia-200 dark:border-salvia-800 rounded-xl px-3 py-2 text-[10px] font-mono text-slate-700 dark:text-salvia-300 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleCopiarLinha}
+                className="bg-salvia-700 hover:bg-salvia-800 text-white dark:bg-salvia-600 px-3 py-2 rounded-xl text-xs font-bold flex items-center space-x-1 shrink-0 transition-all shadow-sm"
+              >
+                {copiouLinha ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-300" />
+                    <span>Copiado!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copiar</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Código Copia e Cola */}
         <div className="space-y-1.5">
@@ -69,15 +147,15 @@ export function PixModal({
           <div className="flex items-center space-x-2">
             <input
               readOnly
-              value={pixModalFatura.qr_code_pix || 'Código Pix ainda não foi gerado para esta fatura.'}
+              value={pixCode || 'Código Pix ainda não foi gerado para esta fatura.'}
               className="w-full bg-salvia-50 dark:bg-salvia-950 border border-salvia-200 dark:border-salvia-800 rounded-xl px-3 py-2 text-[10px] font-mono text-slate-700 dark:text-salvia-300 focus:outline-none"
             />
             <button
-              disabled={!pixModalFatura.qr_code_pix}
+              disabled={!pixCode}
               onClick={() => {
-                if (pixModalFatura.qr_code_pix) handleCopyPix(pixModalFatura.qr_code_pix);
+                if (pixCode) handleCopyPix(pixCode);
               }}
-              className="bg-salvia-700 hover:bg-salvia-800 text-white dark:bg-salvia-600 px-3 py-2 rounded-xl text-xs font-bold flex items-center space-x-1 shrink-0 transition-all shadow-sm"
+              className="bg-salvia-700 hover:bg-salvia-800 text-white dark:bg-salvia-600 px-3 py-2 rounded-xl text-xs font-bold flex items-center space-x-1 shrink-0 transition-all shadow-sm disabled:opacity-50"
             >
               {copiedPix ? (
                 <>
@@ -93,6 +171,40 @@ export function PixModal({
             </button>
           </div>
         </div>
+
+        {/* Código de barras se houver */}
+        {isItau && codigoBarras && (
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-salvia-600 dark:text-salvia-400 flex items-center gap-1">
+              <Barcode className="w-3 h-3" />
+              <span>Código de barras</span>
+            </label>
+            <div className="flex items-center space-x-2">
+              <input
+                readOnly
+                value={codigoBarras}
+                className="w-full bg-salvia-50 dark:bg-salvia-950 border border-salvia-200 dark:border-salvia-800 rounded-xl px-3 py-2 text-[10px] font-mono text-slate-700 dark:text-salvia-300 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleCopiarCodigoBarras}
+                className="bg-salvia-700 hover:bg-salvia-800 text-white dark:bg-salvia-600 px-3 py-2 rounded-xl text-xs font-bold flex items-center space-x-1 shrink-0 transition-all shadow-sm"
+              >
+                {copiouCodigoBarras ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-300" />
+                    <span>Copiado!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copiar</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="pt-2">
           <button

@@ -15,7 +15,6 @@ export interface DisciplinaBoletim {
   frequencia_pct: number | null;
 }
 
-
 export interface PortfolioInfantil {
   id: string;
   titulo: string;
@@ -51,6 +50,11 @@ export interface FaturaData {
   metodo_pagamento: string;
   qr_code_pix?: string;
   linha_digitavel?: string;
+  gateway_name?: string | null;
+  gateway_digitable_line?: string | null;
+  gateway_pix_code?: string | null;
+  codigo_barras?: string | null;
+  simulado?: boolean;
 }
 
 export interface DiplomaData {

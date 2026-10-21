@@ -7,14 +7,21 @@ export interface Fatura {
   metodo_pagamento: string;
   status: string;
   qr_code_pix?: string;
+  linha_digitavel?: string;
   gateway_name?: string | null;
   gateway_invoice_id?: string | null;
   gateway_invoice_url?: string | null;
   gateway_pix_code?: string | null;
+  gateway_digitable_line?: string | null;
+  codigo_barras?: string | null;
+  nosso_numero?: string | null;
+  gateway_txid?: string | null;
+  gateway_emissao_pendente?: boolean;
   parcela_numero?: number | null;
   parcela_total?: number | null;
   multa_percentual?: number;
   juros_mora_mes_percentual?: number;
+  simulado?: boolean;
 }
 
 export interface Despesa {

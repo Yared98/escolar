@@ -35,6 +35,9 @@ export interface ReceberPanelProps {
   podeUsarCora: boolean;
   handleEmitirCora: (fatura: Fatura) => void;
   handleSimularPagamentoCora: (fatura: Fatura) => void;
+  itauHabilitado?: boolean;
+  handleEmitirItau?: (fatura: Fatura) => void;
+  handleAbrirBoletoItau?: (fatura: Fatura) => void;
 }
 
 export function ReceberPanel({
@@ -57,8 +60,13 @@ export function ReceberPanel({
   podeUsarCora,
   handleEmitirCora,
   handleSimularPagamentoCora,
+  itauHabilitado = false,
+  handleEmitirItau,
+  handleAbrirBoletoItau,
 }: ReceberPanelProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const agora = new Date();
+  const hojeIso = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`;
 
   const handleCopyPixCode = (fatura: Fatura) => {
     const code = fatura.gateway_pix_code || fatura.qr_code_pix;
@@ -381,6 +389,32 @@ export function ReceberPanel({
                             <span className="self-center text-[10px] font-semibold px-2 py-1 rounded-md bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200">
                               Ambiente de teste da Cora
                             </span>
+                          )}
+                        </>
+                      )}
+
+                      {itauHabilitado && (
+                        <>
+                          {fatura.gateway_name === 'itau' ? (
+                            <button
+                              onClick={() => handleAbrirBoletoItau?.(fatura)}
+                              className="px-2.5 py-2 min-h-[44px] bg-salvia-700 dark:bg-salvia-500 hover:bg-salvia-800 text-white rounded-lg text-[11px] font-semibold transition-all inline-flex items-center space-x-1"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              <span>Ver boleto Itaú</span>
+                            </button>
+                          ) : (
+                            // O Itaú não aceita emissão com vencimento no passado (spec §8.5).
+                            fatura.status === 'pendente' &&
+                            fatura.data_vencimento.slice(0, 10) >= hojeIso && (
+                              <button
+                                onClick={() => handleEmitirItau?.(fatura)}
+                                className="px-2.5 py-2 min-h-[44px] bg-salvia-700 dark:bg-salvia-500 hover:bg-salvia-800 text-white rounded-lg text-[11px] font-semibold transition-all inline-flex items-center space-x-1"
+                              >
+                                <Landmark className="w-3.5 h-3.5" />
+                                <span>Emitir boleto Itaú</span>
+                              </button>
+                            )
                           )}
                         </>
                       )}

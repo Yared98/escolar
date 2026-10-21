@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '@/lib/api';
 import { Shield, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { ItauIntegrationCard } from './integracoes/ItauIntegrationCard';
 
 interface BankIntegration {
   gateway_name: string;
@@ -15,7 +16,11 @@ interface BankIntegration {
   has_server_credentials?: boolean;
 }
 
-export function BankingIntegrations() {
+export interface BankingIntegrationsProps {
+  userRole?: string;
+}
+
+export function BankingIntegrations({ userRole }: BankingIntegrationsProps = {}) {
   const [integrations, setIntegrations] = useState<BankIntegration[]>([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
@@ -49,6 +54,7 @@ export function BankingIntegrations() {
         </div>
       )}
 
+      {/* Cartão Cora */}
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#141d17] p-4 space-y-4">
         <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
           <div className="p-2 bg-salvia-100 dark:bg-salvia-900 rounded-lg">
@@ -136,6 +142,9 @@ export function BankingIntegrations() {
           </div>
         )}
       </div>
+
+      {/* Cartão Itaú (abaixo do da Cora) */}
+      <ItauIntegrationCard userRole={userRole} />
     </div>
   );
 }

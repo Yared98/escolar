@@ -68,6 +68,7 @@
   "GET /secretaria/turmas/{}/alunos": 5,
   "GET /secretaria/virada-ano/previa": 1,
   "GET /tenant/integrations/banking": 2,
+  "GET /tenant/integrations/itau": 3,
   "POST /academico/diario/sync": 1,
   "POST /academico/fechamentos": 1,
   "POST /academico/notas/lote": 1,
@@ -99,6 +100,7 @@
   "POST /financeiro/faturas/gerar-parcelas": 1,
   "POST /financeiro/faturas/{}/cora": 1,
   "POST /financeiro/faturas/{}/cora/simular-pagamento": 1,
+  "POST /financeiro/faturas/{}/itau": 1,
   "POST /financeiro/nfse/emitir": 1,
   "POST /notificacoes/marcar-lida/{}": 1,
   "POST /notificacoes/marcar-todas-lidas": 1,
@@ -120,6 +122,12 @@
   "POST /secretaria/turmas/transferir": 1,
   "POST /secretaria/turmas/{}/renumerar-chamada": 1,
   "POST /secretaria/virada-ano/executar": 1,
+  "POST /tenant/integrations/itau/ativar": 1,
+  "POST /tenant/integrations/itau/chave-transporte": 1,
+  "POST /tenant/integrations/itau/credenciais": 1,
+  "POST /tenant/integrations/itau/credenciais-sandbox": 1,
+  "POST /tenant/integrations/itau/renovar": 1,
+  "POST /tenant/integrations/itau/testar": 1,
   "PUT /academico/conselho": 1,
   "PUT /administrativo/usuarios/{}": 1,
   "PUT /crm/leads/{}": 1,
@@ -129,5 +137,6 @@
   "PUT /planos-aula": 1,
   "PUT /planos-aula/{}/comentario": 1,
   "PUT /secretaria/alunos/{}": 1,
-  "PUT /secretaria/prontuarios/{}": 2
+  "PUT /secretaria/prontuarios/{}": 2,
+  "PUT /tenant/integrations/itau/dados": 1
 }
