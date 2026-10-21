@@ -41,7 +41,16 @@ import { NovoFornecedorModal } from './financeiro/NovoFornecedorModal';
 import { NovaFaturaModal } from './financeiro/NovaFaturaModal';
 import { PixModal } from './financeiro/PixModal';
 import { BoletoItauModal } from './financeiro/BoletoItauModal';
-import { ItauEstadoView } from './integracoes/ItauIntegrationCard';
+export interface IntegracoesStatus {
+  itau: {
+    modo: string;
+    ativo: boolean;
+  };
+  cora: {
+    modo: string;
+    disponivel: boolean;
+  };
+}
 import { NovaDespesaModal } from './financeiro/NovaDespesaModal';
 import { ReceberPanel } from './financeiro/ReceberPanel';
 import { PagarPanel } from './financeiro/PagarPanel';
@@ -103,11 +112,15 @@ export function FinanceiroSection() {
   const [reguaStatus, setReguaStatus] = useState<string | null>(null);
   const [nfseStatus, setNfseStatus] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [bankingMode, setBankingMode] = useState<'mock' | 'sandbox' | 'production' | null>(null);
-  const [bankingLoaded, setBankingLoaded] = useState(false);
-  const [itauConfig, setItauConfig] = useState<ItauEstadoView | null>(null);
+  const [integracoesStatus, setIntegracoesStatus] = useState<IntegracoesStatus | null>(null);
   const [boletoItauModalFatura, setBoletoItauModalFatura] = useState<Fatura | null>(null);
-  const itauHabilitado = Boolean(itauConfig?.ativo || itauConfig?.modo === 'mock');
+  const itauHabilitado = Boolean(
+    integracoesStatus && (integracoesStatus.itau.ativo || integracoesStatus.itau.modo === 'mock')
+  );
+  const bankingLoaded = Boolean(integracoesStatus && integracoesStatus.cora.disponivel);
+  const bankingMode = integracoesStatus?.cora.disponivel
+    ? (integracoesStatus.cora.modo as 'mock' | 'sandbox' | 'production')
+    : null;
 
   // Estados específicos da Aba Cobrança (régua e logs)
   const [logCanalFilter, setLogCanalFilter] = useState<'todos' | 'whatsapp' | 'email'>('todos');
@@ -176,7 +189,9 @@ export function FinanceiroSection() {
       setNfseLista(nfseData || []);
       setReguaLogs(logsData || []);
       setAlunosOpcoes(alunosPage.items || []);
-      apiFetch<ItauEstadoView>('/tenant/integrations/itau').then(setItauConfig).catch(() => setItauConfig(null));
+      apiFetch<IntegracoesStatus>('/financeiro/integracoes/status')
+        .then(setIntegracoesStatus)
+        .catch(() => setIntegracoesStatus(null));
     } catch (err: unknown) {
       setFaturas([]);
       setDespesas([]);
@@ -191,21 +206,6 @@ export function FinanceiroSection() {
     loadFinanceiroData();
   }, [loadFinanceiroData]);
 
-  useEffect(() => {
-    apiFetch<Array<{ gateway_name: string; modo_gateway?: string }>>('/tenant/integrations/banking')
-      .then((data) => {
-        const cora = (data || []).find((i) => i.gateway_name === 'cora');
-        const modo = cora?.modo_gateway;
-        if (modo === 'mock' || modo === 'sandbox' || modo === 'production') {
-          setBankingMode(modo);
-        } else {
-          setBankingMode('mock');
-        }
-      })
-      .catch(() => setBankingMode('mock'))
-      .finally(() => setBankingLoaded(true));
-    apiFetch<ItauEstadoView>('/tenant/integrations/itau').then(setItauConfig).catch(() => setItauConfig(null));
-  }, []);
 
   // Métricas agregadas do Aging Operacional de Contas a Receber (AR)
   const agingStats = useMemo(() => {
@@ -562,8 +562,9 @@ export function FinanceiroSection() {
 
   // Copiar código Pix
   const handleCopyPix = () => {
-    if (!pixModalFatura?.qr_code_pix) return;
-    navigator.clipboard.writeText(pixModalFatura.qr_code_pix);
+    const code = pixModalFatura?.gateway_pix_code || pixModalFatura?.qr_code_pix;
+    if (!code) return;
+    navigator.clipboard.writeText(code);
     setCopiedPix(true);
     setTimeout(() => setCopiedPix(false), 2000);
   };
@@ -818,7 +819,7 @@ export function FinanceiroSection() {
         <BoletoItauModal
           fatura={boletoItauModalFatura}
           onClose={() => setBoletoItauModalFatura(null)}
-          modo={itauConfig?.modo}
+          modo={integracoesStatus?.itau?.modo}
         />
       )}
 

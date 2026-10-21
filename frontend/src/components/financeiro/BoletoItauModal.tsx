@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, QrCode, Check, Copy, Landmark, AlertTriangle, Barcode } from 'lucide-react';
+import { X, Check, Copy, Landmark, AlertTriangle, Barcode } from 'lucide-react';
+import { QrCodePix } from '../QrCodePix';
 import { Fatura } from './types';
 
 export interface BoletoItauModalProps {
@@ -82,14 +83,16 @@ export function BoletoItauModal({ fatura, onClose, modo }: BoletoItauModalProps)
         </div>
 
         {/* QR Code Pix */}
-        <div className="bg-salvia-50 dark:bg-salvia-950 border border-salvia-200 dark:border-salvia-800 rounded-2xl p-4 text-center space-y-2">
-          <div className="bg-white p-3 rounded-xl border border-salvia-200 shadow-sm inline-block">
-            <QrCode className="w-32 h-32 text-slate-900 mx-auto" />
+        {pixCode && (
+          <div className="bg-salvia-50 dark:bg-salvia-950 border border-salvia-200 dark:border-salvia-800 rounded-2xl p-4 text-center space-y-2">
+            <div className="bg-white p-3 rounded-xl border border-salvia-200 shadow-sm inline-block">
+              <QrCodePix emv={pixCode} tamanho={160} className="mx-auto" />
+            </div>
+            <p className="text-[11px] text-salvia-600 dark:text-salvia-400">
+              Aponte a câmera do aplicativo do seu banco para o QR Code acima para pagar via Pix.
+            </p>
           </div>
-          <p className="text-[11px] text-salvia-600 dark:text-salvia-400">
-            Aponte a câmera do aplicativo do seu banco para o QR Code acima para pagar via Pix.
-          </p>
-        </div>
+        )}
 
         {/* Aviso Obrigatório */}
         <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl flex items-start gap-2.5 text-xs text-amber-900 dark:text-amber-200">

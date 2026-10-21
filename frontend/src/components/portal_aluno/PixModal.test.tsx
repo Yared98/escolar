@@ -52,6 +52,45 @@ describe('PixModal do Portal da Família', () => {
     expect(screen.getByDisplayValue(faturaItau.codigo_barras!)).toBeInTheDocument();
   });
 
+  it('com EMV: exibe o QR Code SVG com aria-label e o texto da câmera', () => {
+    render(
+      <PixModal
+        pixModalFatura={faturaItau}
+        setPixModalFatura={vi.fn()}
+        handleCopyPix={vi.fn()}
+        copiedPix={false}
+      />
+    );
+
+    const qr = screen.getByLabelText('QR Code Pix');
+    expect(qr).toBeInTheDocument();
+    expect(qr.tagName.toLowerCase()).toBe('svg');
+    expect(
+      screen.getByText(/Aponte a câmera do aplicativo do seu banco para o QR Code acima para pagar via Pix/i)
+    ).toBeInTheDocument();
+  });
+
+  it('sem EMV: não exibe o QR Code SVG nem o texto da câmera', () => {
+    const faturaSemPix: FaturaData = {
+      ...faturaItau,
+      gateway_pix_code: undefined,
+      qr_code_pix: undefined,
+    };
+
+    render(
+      <PixModal
+        pixModalFatura={faturaSemPix}
+        setPixModalFatura={vi.fn()}
+        handleCopyPix={vi.fn()}
+        copiedPix={false}
+      />
+    );
+
+    expect(screen.queryByLabelText('QR Code Pix')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Aponte a câmera/i)).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue(faturaItau.gateway_digitable_line!)).toBeInTheDocument();
+  });
+
   it('mantém o Pix local com o aviso da tesouraria quando a fatura não é do Itaú', () => {
     const setPixModalFatura = vi.fn();
     const handleCopyPix = vi.fn();
