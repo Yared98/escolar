@@ -85,9 +85,9 @@ pub async fn carregar_tenant_branding(
 ) -> Result<TenantBrandingView, AppError> {
     let tenant_name: String = sqlx::query_scalar("SELECT name FROM tenants WHERE id = $1")
         .bind(tenant_id)
-        .fetch_one(&mut *conn)
-        .await
-        .unwrap_or_else(|_| "Escola".to_string());
+        .fetch_optional(&mut *conn)
+        .await?
+        .unwrap_or_else(|| "Escola".to_string());
 
     let row = sqlx::query_as::<_, (String, String, Option<String>, bool, DateTime<Utc>)>(
         r#"
