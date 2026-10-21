@@ -89,6 +89,7 @@ pub struct ItauEstadoView {
     pub has_chave_transporte: bool,
     pub chave_cifragem_configurada: bool,
     pub webhook_boleto_registrado_em: Option<DateTime<Utc>>,
+    pub webhook_pix_registrado_em: Option<DateTime<Utc>>,
 }
 
 #[derive(Deserialize)]
@@ -151,6 +152,7 @@ type ItauConfigTuple = (
     bool,
     Option<DateTime<Utc>>,
     Option<DateTime<Utc>>,
+    Option<DateTime<Utc>>,
 );
 
 /// 1. GET /tenant/integrations/itau
@@ -167,7 +169,7 @@ pub async fn obter_estado_itau(
         r#"
         SELECT agencia, conta, dac, id_beneficiario, chave_pix,
                especie_padrao, multa_padrao_percentual::float8, juros_padrao_percentual::float8,
-               ativo, ultimo_teste_ok_em, webhook_boleto_registrado_em
+               ativo, ultimo_teste_ok_em, webhook_boleto_registrado_em, webhook_pix_registrado_em
         FROM tenant_itau_config
         WHERE tenant_id = $1
         "#,
@@ -188,9 +190,10 @@ pub async fn obter_estado_itau(
         ativo,
         ultimo_teste_ok_em,
         webhook_boleto_registrado_em,
+        webhook_pix_registrado_em,
     ) = match config_row {
-        Some((ag, cc, d, id_b, pix, esp, multa, juros, at, ult, wb)) => {
-            (ag, cc, d, id_b, pix, esp, multa, juros, at, ult, wb)
+        Some((ag, cc, d, id_b, pix, esp, multa, juros, at, ult, wb, wp)) => {
+            (ag, cc, d, id_b, pix, esp, multa, juros, at, ult, wb, wp)
         }
         None => (
             None,
@@ -202,6 +205,7 @@ pub async fn obter_estado_itau(
             2.0,
             1.0,
             false,
+            None,
             None,
             None,
         ),
@@ -273,6 +277,7 @@ pub async fn obter_estado_itau(
         has_chave_transporte,
         chave_cifragem_configurada,
         webhook_boleto_registrado_em,
+        webhook_pix_registrado_em,
     }))
 }
 
@@ -1066,6 +1071,115 @@ pub async fn cadastrar_webhook_boleto_itau(
         "webhook_client_id": webhook_client_id,
         "webhook_url": webhook_url,
         "webhook_oauth_url": webhook_oauth_url,
+        "registrado_em": Utc::now()
+    })))
+}
+
+/// POST /tenant/integrations/itau/webhooks/pix
+pub async fn cadastrar_webhook_pix_itau(
+    State(state): State<AppState>,
+    TenantDb(mut db): TenantDb,
+    Extension(active_tenant): Extension<ActiveTenant>,
+    Extension(auth_user): Extension<AuthUser>,
+) -> Result<Json<Value>, ItauHandlerError> {
+    check_roles(&auth_user, &["admin"])?;
+    let tenant_id = active_tenant.0;
+
+    if state.config.itau_mode == ItauMode::Mock {
+        return Err(AppError::BadRequest(
+            "Modo simulado ativo: cadastro de webhook no Itaú não disponível.".into(),
+        )
+        .into());
+    }
+
+    let webhook_base_url_owned = state.config.itau_webhook_base_url().ok_or_else(|| {
+        AppError::BadRequest(
+            "URL pública de webhook não configurada no servidor (ITAU_WEBHOOK_BASE_URL).".into(),
+        )
+    })?;
+    let webhook_base_url = webhook_base_url_owned.trim().trim_end_matches('/');
+    if webhook_base_url.is_empty() {
+        return Err(AppError::BadRequest(
+            "URL pública de webhook não configurada no servidor (ITAU_WEBHOOK_BASE_URL).".into(),
+        )
+        .into());
+    }
+
+    let has_cid = secrets::existe(&mut db, tenant_id, "itau", TipoSegredo::ClientId).await?;
+    let has_sec = secrets::existe(&mut db, tenant_id, "itau", TipoSegredo::ClientSecret).await?;
+    if !has_cid || !has_sec {
+        return Err(AppError::BadRequest(
+            "Credenciais do Itaú não configuradas para este tenant.".into(),
+        )
+        .into());
+    }
+
+    let config_row: Option<(Option<String>,)> =
+        sqlx::query_as("SELECT chave_pix FROM tenant_itau_config WHERE tenant_id = $1")
+            .bind(tenant_id)
+            .fetch_optional(&mut *db)
+            .await?;
+
+    let chave_pix = match config_row.and_then(|r| r.0) {
+        Some(s) if !s.trim().is_empty() => s,
+        _ => {
+            return Err(AppError::BadRequest(
+                "Chave Pix do Itaú não configurada para este tenant.".into(),
+            )
+            .into());
+        }
+    };
+
+    let webhook_url = format!("{webhook_base_url}/webhooks/itau/{tenant_id}");
+
+    crate::services::itau_api::cadastrar_webhook_pix(
+        &state.config,
+        &mut db,
+        tenant_id,
+        &chave_pix,
+        &webhook_url,
+    )
+    .await
+    .map_err(|e| match e {
+        crate::services::itau_api::ItauApiError::BadGateway(msg) => {
+            ItauHandlerError::BadGateway(msg)
+        }
+        crate::services::itau_api::ItauApiError::App(err) => ItauHandlerError::App(err),
+        crate::services::itau_api::ItauApiError::Rejeitado { status, corpo } => {
+            ItauHandlerError::BadGateway(format!("Itaú retornou {status}: {corpo}"))
+        }
+    })?;
+
+    sqlx::query(
+        r#"
+        UPDATE tenant_itau_config
+        SET webhook_pix_registrado_em = NOW(),
+            updated_at = NOW()
+        WHERE tenant_id = $1
+        "#,
+    )
+    .bind(tenant_id)
+    .execute(&mut *db)
+    .await?;
+
+    log_audit(
+        &mut *db,
+        tenant_id,
+        Some(auth_user.id),
+        "itau_webhook_pix_cadastrado",
+        "tenant_itau_config",
+        Some(tenant_id.to_string()),
+        Some(json!({
+            "webhook_url": webhook_url,
+            "chave_pix": chave_pix,
+        })),
+    )
+    .await;
+
+    Ok(Json(json!({
+        "status": "ok",
+        "webhook_url": webhook_url,
+        "chave_pix": chave_pix,
         "registrado_em": Utc::now()
     })))
 }

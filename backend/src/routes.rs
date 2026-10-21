@@ -214,6 +214,10 @@ pub fn create_router(state: AppState) -> Router {
             post(crate::handlers::itau_config::cadastrar_webhook_boleto_itau),
         )
         .route(
+            "/tenant/integrations/itau/webhooks/pix",
+            post(crate::handlers::itau_config::cadastrar_webhook_pix_itau),
+        )
+        .route(
             "/secretaria/turmas/:turma_id/renumerar-chamada",
             post(renumerar_chamada_turma),
         )
@@ -607,6 +611,14 @@ pub fn create_router(state: AppState) -> Router {
             "/api/webhooks/itau/:tenant_id/boletos",
             post(crate::handlers::webhooks_itau::itau_boletos_webhook_handler),
         )
+        .route(
+            "/webhooks/itau/:tenant_id/pix",
+            post(crate::handlers::webhooks_itau::itau_pix_webhook_handler),
+        )
+        .route(
+            "/api/webhooks/itau/:tenant_id/pix",
+            post(crate::handlers::webhooks_itau::itau_pix_webhook_handler),
+        )
         .route("/health", get(health_check))
         .route("/auth/register-tenant", post(register_tenant))
         .route("/auth/login", post(login))
@@ -686,6 +698,14 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/api/webhooks/itau/:tenant_id/boletos",
             post(crate::handlers::webhooks_itau::itau_boletos_webhook_handler),
+        )
+        .route(
+            "/webhooks/itau/:tenant_id/pix",
+            post(crate::handlers::webhooks_itau::itau_pix_webhook_handler),
+        )
+        .route(
+            "/api/webhooks/itau/:tenant_id/pix",
+            post(crate::handlers::webhooks_itau::itau_pix_webhook_handler),
         )
         .layer(middleware::from_fn_with_state(
             state.clone(),

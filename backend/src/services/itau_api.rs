@@ -1155,6 +1155,259 @@ pub async fn cadastrar_webhook_boletos(
     }
 }
 
+pub fn itau_regulatorio_pix_url(config: &Config) -> String {
+    if let Ok(base) = std::env::var("ITAU_API_BASE_URL") {
+        if !base.trim().is_empty() {
+            return base.trim_end_matches('/').to_string();
+        }
+    }
+    match config.itau_mode {
+        ItauMode::Mock | ItauMode::Production => {
+            "https://pix-pj.api.itau.com/regulatorio-pix/v2".to_string()
+        }
+        ItauMode::Sandbox => {
+            "https://sandbox.devportal.itau.com.br/itau-ep9-api-regulatorio-pix-v2-externo/v2"
+                .to_string()
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DetalhePix {
+    pub end_to_end_id: String,
+    pub txid: Option<String>,
+    pub valor: f64,
+    pub horario: Option<String>,
+    pub chave: Option<String>,
+}
+
+pub async fn consultar_pix(
+    config: &Config,
+    conn: &mut PgConnection,
+    tenant_id: Uuid,
+    e2eid: &str,
+) -> Result<Option<DetalhePix>, ItauApiError> {
+    if config.itau_mode == ItauMode::Mock && std::env::var("ITAU_API_BASE_URL").is_err() {
+        return Ok(None);
+    }
+
+    let token = obter_token(config, conn, tenant_id).await?;
+
+    let chave_mestra = secrets::exigir_chave(config)?;
+    let client_id_bytes =
+        secrets::ler(conn, chave_mestra, tenant_id, "itau", TipoSegredo::ClientId)
+            .await?
+            .ok_or_else(|| {
+                ItauApiError::App(AppError::BadRequest("client_id não configurado".into()))
+            })?;
+    let client_id = String::from_utf8(client_id_bytes)
+        .map_err(|_| ItauApiError::App(AppError::BadRequest("client_id inválido".into())))?;
+
+    let (cert_pem, key_pem) = if config.itau_mode == ItauMode::Production {
+        let c_bytes = secrets::ler(conn, chave_mestra, tenant_id, "itau", TipoSegredo::Cert)
+            .await?
+            .ok_or_else(|| {
+                ItauApiError::App(AppError::BadRequest("Certificado não encontrado".into()))
+            })?;
+        let k_bytes = secrets::ler(
+            conn,
+            chave_mestra,
+            tenant_id,
+            "itau",
+            TipoSegredo::CertChave,
+        )
+        .await?
+        .ok_or_else(|| {
+            ItauApiError::App(AppError::BadRequest(
+                "Chave do certificado não encontrada".into(),
+            ))
+        })?;
+        (
+            Some(String::from_utf8_lossy(&c_bytes).to_string()),
+            Some(String::from_utf8_lossy(&k_bytes).to_string()),
+        )
+    } else {
+        (None, None)
+    };
+
+    let client = montar_cliente_http(config, cert_pem.as_deref(), key_pem.as_deref())?;
+    let url = format!("{}/pix/{}", itau_regulatorio_pix_url(config), e2eid);
+    let correlation_id = Uuid::new_v4().to_string();
+
+    let resp = client
+        .get(&url)
+        .header("Authorization", format!("Bearer {token}"))
+        .header("x-itau-apikey", &client_id)
+        .header("x-itau-correlationID", &correlation_id)
+        .send()
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "falha de conexão ao consultar pix no Itaú");
+            ItauApiError::BadGateway(format!("Não foi possível consultar pix no Itaú: {e}"))
+        })?;
+
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+
+    if status == StatusCode::NOT_FOUND || status == StatusCode::NO_CONTENT {
+        return Ok(None);
+    }
+
+    if !status.is_success() {
+        return Err(ItauApiError::BadGateway(format!(
+            "Itaú retornou erro na consulta pix (status {status}): {text}"
+        )));
+    }
+
+    let parsed: Value = serde_json::from_str(&text).map_err(|_| {
+        ItauApiError::BadGateway("Resposta de consulta pix com formato inválido".into())
+    })?;
+
+    let item = if let Some(arr) = parsed.get("pix").and_then(|p| p.as_array()) {
+        arr.first().cloned()
+    } else if let Some(arr) = parsed.as_array() {
+        arr.first().cloned()
+    } else if let Some(arr) = parsed.get("data").and_then(|d| d.as_array()) {
+        arr.first().cloned()
+    } else if let Some(obj) = parsed.get("data").and_then(|d| d.as_object()) {
+        Some(Value::Object(obj.clone()))
+    } else {
+        Some(parsed.clone())
+    };
+
+    let Some(item) = item else {
+        return Ok(None);
+    };
+
+    let end_to_end_id = item
+        .get("endToEndId")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default()
+        .to_string();
+
+    let txid = item
+        .get("txid")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| s.to_string());
+
+    let valor = item
+        .get("valor")
+        .and_then(|v| {
+            if let Some(s) = v.as_str() {
+                s.trim().parse::<f64>().ok()
+            } else {
+                v.as_f64()
+            }
+        })
+        .unwrap_or(0.0);
+
+    let horario = item
+        .get("horario")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    let chave = item
+        .get("chave")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    Ok(Some(DetalhePix {
+        end_to_end_id,
+        txid,
+        valor,
+        horario,
+        chave,
+    }))
+}
+
+pub async fn cadastrar_webhook_pix(
+    config: &Config,
+    conn: &mut PgConnection,
+    tenant_id: Uuid,
+    chave_pix: &str,
+    webhook_url: &str,
+) -> Result<(), ItauApiError> {
+    if config.itau_mode == ItauMode::Mock {
+        return Err(ItauApiError::App(AppError::BadRequest(
+            "Modo simulado ativo: cadastro de webhook no Itaú não disponível.".into(),
+        )));
+    }
+
+    let token = obter_token(config, conn, tenant_id).await?;
+
+    let chave_mestra = secrets::exigir_chave(config)?;
+    let client_id_bytes =
+        secrets::ler(conn, chave_mestra, tenant_id, "itau", TipoSegredo::ClientId)
+            .await?
+            .ok_or_else(|| {
+                ItauApiError::App(AppError::BadRequest("client_id não configurado".into()))
+            })?;
+    let client_id = String::from_utf8(client_id_bytes)
+        .map_err(|_| ItauApiError::App(AppError::BadRequest("client_id inválido".into())))?;
+
+    let (cert_pem, key_pem) = if config.itau_mode == ItauMode::Production {
+        let c_bytes = secrets::ler(conn, chave_mestra, tenant_id, "itau", TipoSegredo::Cert)
+            .await?
+            .ok_or_else(|| {
+                ItauApiError::App(AppError::BadRequest("Certificado não encontrado".into()))
+            })?;
+        let k_bytes = secrets::ler(
+            conn,
+            chave_mestra,
+            tenant_id,
+            "itau",
+            TipoSegredo::CertChave,
+        )
+        .await?
+        .ok_or_else(|| {
+            ItauApiError::App(AppError::BadRequest(
+                "Chave do certificado não encontrada".into(),
+            ))
+        })?;
+        (
+            Some(String::from_utf8_lossy(&c_bytes).to_string()),
+            Some(String::from_utf8_lossy(&k_bytes).to_string()),
+        )
+    } else {
+        (None, None)
+    };
+
+    let client = montar_cliente_http(config, cert_pem.as_deref(), key_pem.as_deref())?;
+    let url = format!("{}/webhook/{}", itau_regulatorio_pix_url(config), chave_pix);
+    let correlation_id = Uuid::new_v4().to_string();
+
+    let payload = json!({
+        "webhookUrl": webhook_url
+    });
+
+    let resp = client
+        .put(&url)
+        .header("Authorization", format!("Bearer {token}"))
+        .header("x-itau-apikey", &client_id)
+        .header("x-itau-correlationID", &correlation_id)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "falha de conexão ao cadastrar webhook Pix no Itaú");
+            ItauApiError::BadGateway(format!(
+                "Não foi possível conectar ao Itaú para cadastrar webhook Pix: {e}"
+            ))
+        })?;
+
+    let status = resp.status();
+    if status.is_success() || status == StatusCode::ACCEPTED || status == StatusCode::NO_CONTENT {
+        Ok(())
+    } else {
+        let text = resp.text().await.unwrap_or_default();
+        tracing::error!(status = %status, "Itaú recusou cadastro de webhook Pix");
+        Err(ItauApiError::BadGateway(format!(
+            "Itaú recusou cadastro de webhook Pix (status {status}): {text}"
+        )))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -42,9 +42,9 @@ pub async fn processar_pendentes(state: &AppState, tenant_id: Uuid) -> Result<()
 
     let id_beneficiario = config_row.and_then(|r| r.0).unwrap_or_default();
 
-    let avisos = sqlx::query_as::<_, (Uuid, String, serde_json::Value, i32)>(
+    let avisos = sqlx::query_as::<_, (Uuid, String, String, serde_json::Value, i32)>(
         r#"
-        SELECT id, event_id, payload, tentativas
+        SELECT id, tipo, event_id, payload, tentativas
         FROM gateway_avisos
         WHERE tenant_id = $1
           AND gateway_name = 'itau'
@@ -58,7 +58,7 @@ pub async fn processar_pendentes(state: &AppState, tenant_id: Uuid) -> Result<()
     .fetch_all(&mut *db)
     .await?;
 
-    for (aviso_id, event_id, payload, tentativas) in avisos {
+    for (aviso_id, tipo, event_id, payload, tentativas) in avisos {
         let status_atual: Option<String> = sqlx::query_scalar(
             "SELECT status FROM gateway_avisos WHERE id = $1 AND tenant_id = $2",
         )
@@ -68,6 +68,296 @@ pub async fn processar_pendentes(state: &AppState, tenant_id: Uuid) -> Result<()
         .await?;
 
         if status_atual.as_deref() != Some("pendente") {
+            continue;
+        }
+
+        if tipo == "pix" {
+            let consulta_res = crate::services::itau_api::consultar_pix(
+                &state.config,
+                &mut db,
+                tenant_id,
+                &event_id,
+            )
+            .await;
+
+            let pix_detalhe = match consulta_res {
+                Ok(Some(p)) if p.end_to_end_id == event_id => p,
+                Ok(Some(_)) | Ok(None) | Err(_) => {
+                    let novas_tentativas = tentativas + 1;
+                    if novas_tentativas >= 12 {
+                        let mut tx = db.begin().await?;
+                        sqlx::query("SELECT set_config('app.current_tenant', $1, true)")
+                            .bind(tenant_id.to_string())
+                            .execute(&mut *tx)
+                            .await?;
+
+                        let res = sqlx::query(
+                            "UPDATE gateway_avisos SET status = 'descartado', tentativas = $1, ultimo_erro = 'Limite de 12 tentativas atingido na consulta do Itaú', updated_at = NOW() WHERE id = $2 AND tenant_id = $3 AND status = 'pendente'",
+                        )
+                        .bind(novas_tentativas)
+                        .bind(aviso_id)
+                        .bind(tenant_id)
+                        .execute(&mut *tx)
+                        .await?;
+
+                        if res.rows_affected() == 0 {
+                            tx.commit().await?;
+                            continue;
+                        }
+
+                        sqlx::query(
+                            r#"
+                            INSERT INTO audit_logs (tenant_id, acao, entidade, entidade_id, detalhes_json)
+                            VALUES ($1, 'itau_aviso_descartado', 'gateway_avisos', $2, $3)
+                            "#,
+                        )
+                        .bind(tenant_id)
+                        .bind(aviso_id.to_string())
+                        .bind(serde_json::json!({
+                            "event_id": event_id,
+                            "motivo": "consulta_falhou_repetidamente"
+                        }))
+                        .execute(&mut *tx)
+                        .await?;
+
+                        tx.commit().await?;
+                    } else {
+                        let proxima = chrono::Utc::now()
+                            + chrono::Duration::minutes((novas_tentativas * 5) as i64);
+                        let erro_msg = "Falha ao consultar pix no Itaú".to_string();
+                        sqlx::query(
+                            "UPDATE gateway_avisos SET tentativas = $1, proxima_tentativa_em = $2, ultimo_erro = $3, updated_at = NOW() WHERE id = $4 AND tenant_id = $5",
+                        )
+                        .bind(novas_tentativas)
+                        .bind(proxima)
+                        .bind(erro_msg)
+                        .bind(aviso_id)
+                        .bind(tenant_id)
+                        .execute(&mut *db)
+                        .await?;
+                    }
+                    continue;
+                }
+            };
+
+            let status_recheck: Option<String> = sqlx::query_scalar(
+                "SELECT status FROM gateway_avisos WHERE id = $1 AND tenant_id = $2",
+            )
+            .bind(aviso_id)
+            .bind(tenant_id)
+            .fetch_optional(&mut *db)
+            .await?;
+
+            if status_recheck.as_deref() != Some("pendente") {
+                continue;
+            }
+
+            let txid_consulta = pix_detalhe.txid.as_deref().unwrap_or("");
+            let fatura_opt = if !txid_consulta.is_empty() {
+                sqlx::query_as::<_, (Uuid, f64, String)>(
+                    r#"
+                    SELECT id, valor, status
+                    FROM faturas
+                    WHERE tenant_id = $1
+                      AND gateway_txid IS NOT NULL
+                      AND gateway_txid = $2
+                    LIMIT 1
+                    "#,
+                )
+                .bind(tenant_id)
+                .bind(txid_consulta)
+                .fetch_optional(&mut *db)
+                .await?
+            } else {
+                None
+            };
+
+            let (fatura_id, fatura_valor, fatura_status) = match fatura_opt {
+                Some(f) => f,
+                None => {
+                    let mut tx = db.begin().await?;
+                    sqlx::query("SELECT set_config('app.current_tenant', $1, true)")
+                        .bind(tenant_id.to_string())
+                        .execute(&mut *tx)
+                        .await?;
+
+                    let res = sqlx::query(
+                        "UPDATE gateway_avisos SET status = 'descartado', ultimo_erro = 'Fatura não encontrada', updated_at = NOW() WHERE id = $1 AND tenant_id = $2 AND status = 'pendente'",
+                    )
+                    .bind(aviso_id)
+                    .bind(tenant_id)
+                    .execute(&mut *tx)
+                    .await?;
+
+                    if res.rows_affected() == 0 {
+                        tx.commit().await?;
+                        continue;
+                    }
+
+                    sqlx::query(
+                        r#"
+                        INSERT INTO audit_logs (tenant_id, acao, entidade, entidade_id, detalhes_json)
+                        VALUES ($1, 'itau_aviso_descartado', 'gateway_avisos', $2, $3)
+                        "#,
+                    )
+                    .bind(tenant_id)
+                    .bind(aviso_id.to_string())
+                    .bind(serde_json::json!({
+                        "event_id": event_id,
+                        "motivo": "fatura_nao_encontrada",
+                        "txid": txid_consulta
+                    }))
+                    .execute(&mut *tx)
+                    .await?;
+
+                    tx.commit().await?;
+                    continue;
+                }
+            };
+
+            if fatura_status == "pago" {
+                let payload_hash = hex::encode(sha2::Sha256::digest(
+                    serde_json::to_string(&payload)
+                        .unwrap_or_default()
+                        .as_bytes(),
+                ));
+                let mut tx = db.begin().await?;
+                sqlx::query("SELECT set_config('app.current_tenant', $1, true)")
+                    .bind(tenant_id.to_string())
+                    .execute(&mut *tx)
+                    .await?;
+
+                sqlx::query(
+                    "INSERT INTO webhook_events (tenant_id, gateway_name, event_id, payload_hash) VALUES ($1, 'itau', $2, $3) ON CONFLICT (tenant_id, gateway_name, event_id) DO NOTHING",
+                )
+                .bind(tenant_id)
+                .bind(&event_id)
+                .bind(&payload_hash)
+                .execute(&mut *tx)
+                .await?;
+
+                sqlx::query(
+                    "UPDATE gateway_avisos SET status = 'confirmado', updated_at = NOW() WHERE id = $1 AND tenant_id = $2",
+                )
+                .bind(aviso_id)
+                .bind(tenant_id)
+                .execute(&mut *tx)
+                .await?;
+
+                tx.commit().await?;
+                continue;
+            }
+
+            let valor_pago = pix_detalhe.valor;
+            if valor_pago < fatura_valor - 0.01 {
+                let mut tx = db.begin().await?;
+                sqlx::query("SELECT set_config('app.current_tenant', $1, true)")
+                    .bind(tenant_id.to_string())
+                    .execute(&mut *tx)
+                    .await?;
+
+                let res = sqlx::query(
+                    "UPDATE gateway_avisos SET status = 'descartado', ultimo_erro = 'Valor pago menor que o valor da fatura', updated_at = NOW() WHERE id = $1 AND tenant_id = $2 AND status = 'pendente'",
+                )
+                .bind(aviso_id)
+                .bind(tenant_id)
+                .execute(&mut *tx)
+                .await?;
+
+                if res.rows_affected() == 0 {
+                    tx.commit().await?;
+                    continue;
+                }
+
+                sqlx::query(
+                    r#"
+                    INSERT INTO audit_logs (tenant_id, acao, entidade, entidade_id, detalhes_json)
+                    VALUES ($1, 'webhook_valor_divergente', 'faturas', $2, $3)
+                    "#,
+                )
+                .bind(tenant_id)
+                .bind(fatura_id.to_string())
+                .bind(serde_json::json!({
+                    "fatura_id": fatura_id,
+                    "fatura_valor": fatura_valor,
+                    "valor_pago": valor_pago,
+                    "event_id": event_id,
+                    "gateway_name": "itau"
+                }))
+                .execute(&mut *tx)
+                .await?;
+
+                tx.commit().await?;
+                continue;
+            }
+
+            let payload_hash = hex::encode(sha2::Sha256::digest(
+                serde_json::to_string(&payload)
+                    .unwrap_or_default()
+                    .as_bytes(),
+            ));
+            let mut tx = db.begin().await?;
+            sqlx::query("SELECT set_config('app.current_tenant', $1, true)")
+                .bind(tenant_id.to_string())
+                .execute(&mut *tx)
+                .await?;
+
+            let insert_res = sqlx::query(
+                "INSERT INTO webhook_events (tenant_id, gateway_name, event_id, payload_hash) VALUES ($1, 'itau', $2, $3) ON CONFLICT (tenant_id, gateway_name, event_id) DO NOTHING",
+            )
+            .bind(tenant_id)
+            .bind(&event_id)
+            .bind(&payload_hash)
+            .execute(&mut *tx)
+            .await?;
+
+            if insert_res.rows_affected() == 0 {
+                sqlx::query(
+                    "UPDATE gateway_avisos SET status = 'confirmado', updated_at = NOW() WHERE id = $1 AND tenant_id = $2",
+                )
+                .bind(aviso_id)
+                .bind(tenant_id)
+                .execute(&mut *tx)
+                .await?;
+                tx.commit().await?;
+                continue;
+            }
+
+            sqlx::query(
+                "UPDATE faturas SET status = 'pago', updated_at = NOW() WHERE id = $1 AND tenant_id = $2 AND status != 'pago'",
+            )
+            .bind(fatura_id)
+            .bind(tenant_id)
+            .execute(&mut *tx)
+            .await?;
+
+            sqlx::query(
+                r#"
+                INSERT INTO audit_logs (tenant_id, acao, entidade, entidade_id, detalhes_json)
+                VALUES ($1, 'itau_baixa_pix', 'faturas', $2, $3)
+                "#,
+            )
+            .bind(tenant_id)
+            .bind(fatura_id.to_string())
+            .bind(serde_json::json!({
+                "fatura_id": fatura_id,
+                "fatura_valor": fatura_valor,
+                "valor_pago": valor_pago,
+                "event_id": event_id,
+                "gateway_name": "itau"
+            }))
+            .execute(&mut *tx)
+            .await?;
+
+            sqlx::query(
+                "UPDATE gateway_avisos SET status = 'confirmado', updated_at = NOW() WHERE id = $1 AND tenant_id = $2",
+            )
+            .bind(aviso_id)
+            .bind(tenant_id)
+            .execute(&mut *tx)
+            .await?;
+
+            tx.commit().await?;
             continue;
         }
 

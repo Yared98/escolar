@@ -383,3 +383,105 @@ pub async fn itau_boletos_webhook_handler(
 
     Ok((StatusCode::OK, Json(json!({ "status": "received" }))).into_response())
 }
+
+pub async fn itau_pix_webhook_handler(
+    State(state): State<AppState>,
+    Path(tenant_id): Path<Uuid>,
+    body_bytes: Bytes,
+) -> Result<Response, AppError> {
+    // 1. Limite de tamanho de corpo (256 KB)
+    if body_bytes.len() > 256 * 1024 {
+        return Ok((
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "payload_too_large" })),
+        )
+            .into_response());
+    }
+
+    // 2. Parse do JSON
+    let body_val: Value = match serde_json::from_slice(&body_bytes) {
+        Ok(v) => v,
+        Err(_) => {
+            return Ok((
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": "JSON inválido" })),
+            )
+                .into_response())
+        }
+    };
+
+    // 3. Conexão tenant e verificação se o tenant existe e integração está ativa
+    let mut db = match crate::db::acquire_tenant(&state.pool, tenant_id).await {
+        Ok(conn) => conn,
+        Err(e) => {
+            tracing::warn!(tenant_id = %tenant_id, error = %e, "webhook pix recebido mas falha ao conectar ao tenant");
+            return Ok((StatusCode::OK, Json(json!({ "status": "received" }))).into_response());
+        }
+    };
+
+    let config_row: Option<(bool,)> =
+        sqlx::query_as("SELECT ativo FROM tenant_itau_config WHERE tenant_id = $1")
+            .bind(tenant_id)
+            .fetch_optional(&mut *db)
+            .await?;
+
+    let ativo = config_row.map(|r| r.0).unwrap_or(false);
+    if !ativo {
+        tracing::warn!(tenant_id = %tenant_id, "webhook pix recebido para tenant inexistente ou integracao inativa; ignorado");
+        return Ok((StatusCode::OK, Json(json!({ "status": "received" }))).into_response());
+    }
+
+    // 4. Extrair lista de pix
+    let pix_list: Vec<Value> = if let Some(arr) = body_val.get("pix").and_then(|b| b.as_array()) {
+        arr.clone()
+    } else if body_val.is_object() && body_val.get("endToEndId").is_some() {
+        vec![body_val.clone()]
+    } else {
+        vec![]
+    };
+
+    if pix_list.len() > 100 {
+        return Ok((
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "limite de itens excedido" })),
+        )
+            .into_response());
+    }
+
+    // 5. Para cada item: validar endToEndId [a-zA-Z0-9]{32} e gravar em gateway_avisos
+    for item in &pix_list {
+        let e2eid = item
+            .get("endToEndId")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default();
+
+        if e2eid.len() != 32 || !e2eid.chars().all(|c| c.is_ascii_alphanumeric()) {
+            continue;
+        }
+
+        sqlx::query(
+            r#"
+            INSERT INTO gateway_avisos (tenant_id, gateway_name, tipo, event_id, payload, status, tentativas, proxima_tentativa_em)
+            VALUES ($1, 'itau', 'pix', $2, $3, 'pendente', 0, NOW())
+            ON CONFLICT (tenant_id, gateway_name, event_id) DO NOTHING
+            "#
+        )
+        .bind(tenant_id)
+        .bind(e2eid)
+        .bind(item)
+        .execute(&mut *db)
+        .await?;
+    }
+
+    // 6. Disparar processamento assíncrono em tokio::spawn
+    let state_clone = state.clone();
+    tokio::spawn(async move {
+        if let Err(e) =
+            crate::services::itau_avisos::processar_pendentes(&state_clone, tenant_id).await
+        {
+            tracing::warn!(tenant_id = %tenant_id, error = %e, "erro no processamento assíncrono de avisos do Itaú");
+        }
+    });
+
+    Ok((StatusCode::OK, Json(json!({ "status": "received" }))).into_response())
+}
