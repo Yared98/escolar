@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useBranding } from '@/context/BrandingContext';
-import { PRESETS } from '@/lib/tema';
+import { PRESETS, normalizarHex } from '@/lib/tema';
 import { Building2, ShieldCheck, CheckCircle2, Plus } from 'lucide-react';
 import {
   UsuariosPanel,
@@ -206,9 +206,10 @@ export function AdministrativoSection() {
     try {
       const resp = await apiFetch<TenantBrandingResponse>('/tenant/branding', {
         method: 'PUT',
+        // O painel aceita '#abc'; o servidor só aceita '#rrggbb'.
         body: JSON.stringify({
-          cor_primaria: brandingForm.corPrimaria,
-          cor_destaque: brandingForm.corDestaque,
+          cor_primaria: normalizarHex(brandingForm.corPrimaria) ?? brandingForm.corPrimaria,
+          cor_destaque: normalizarHex(brandingForm.corDestaque) ?? brandingForm.corDestaque,
           nome_exibicao: brandingForm.nomeExibicao.trim(),
         }),
       });

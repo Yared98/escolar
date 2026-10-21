@@ -153,6 +153,17 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
     void recarregarBranding();
   }, [recarregarBranding]);
 
+  // Na navegação o Next reaplica o `metadata.title` do layout; mantém o nome da escola.
+  useEffect(() => {
+    if (!branding || typeof document === 'undefined' || typeof MutationObserver === 'undefined') return;
+    const titulo = `${branding.nomeExibicao} - Gestão escolar`;
+    const observer = new MutationObserver(() => {
+      if (document.title !== titulo) document.title = titulo;
+    });
+    observer.observe(document.head, { subtree: true, childList: true, characterData: true });
+    return () => observer.disconnect();
+  }, [branding]);
+
   return (
     <BrandingContext.Provider value={{ branding, aplicarBranding, recarregarBranding }}>
       {children}
