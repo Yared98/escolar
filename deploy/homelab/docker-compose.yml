@@ -84,6 +84,8 @@ services:
         NEXT_PUBLIC_PERMITIR_CADASTRO_ESCOLA: ${PERMITIR_CADASTRO_ESCOLA:-false}
         # true só na instalação de demonstração: o login mostra atalhos das contas da escola-modelo
         NEXT_PUBLIC_MODO_DEMO: ${MODO_DEMO:-false}
+        # slug da escola para instalação dedicada (uma escola por instalação)
+        NEXT_PUBLIC_ESCOLA_SLUG: ${ESCOLA_SLUG:-}
     restart: always
     environment:
       PORT: 3000

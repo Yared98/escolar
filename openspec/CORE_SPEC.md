@@ -127,6 +127,7 @@ Todas as respostas HTTP do gateway injetam compulsoriamente os 6 cabeçalhos de 
 ### Variáveis de ambiente do frontend
 
 - `NEXT_PUBLIC_PERMITIR_CADASTRO_ESCOLA`: quando igual a `'true'`, exibe a aba "Cadastrar Escola" na tela de login. Padrão: oculta.
+- `NEXT_PUBLIC_ESCOLA_SLUG`: slug/código da escola para instalações dedicadas a uma única instituição. Quando definido, pré-preenche o código da escola no formulário de login e carrega sua identidade visual pública antes da autenticação. Deixe vazio para permitir acesso livre a qualquer escola.
 
 ### Variáveis de ambiente do backend (autenticação e e-mail)
 
@@ -259,7 +260,18 @@ Todas as alterações de identidade visual registram eventos de auditoria:
 - `tenant_branding.logo_atualizar`: registro do mime e tamanho em bytes do novo logotipo.
 - `tenant_branding.logo_remover`: registro da exclusão do logotipo.
 
-### 10.4 Limitações MVP
-- O arquivo `manifest.json` e os ícones do aplicativo PWA continuam estáticos e genéricos no MVP, sendo a personalização visual aplicada dinamicamente via tokens/CSS e imagens em runtime.
+### 10.4 Aplicação do Tema no Frontend (`BrandingContext`)
+- **Geração e Injeção de Variáveis CSS**: o tema é calculado dinamicamente em runtime pela função `temaParaVariaveis` (`frontend/src/lib/tema.ts`), aplicando as variáveis CSS com canais RGB (`--brand-50..950`, `--accent-50..950`, `--canvas`, `--surface-dark`, etc.) via `document.documentElement.style.setProperty`. O `<meta name="theme-color">` é atualizado com o tom 700 da marca gerada, e o título do documento passa a exibir `${nomeExibicao} - Gestão escolar`.
+- **Fontes da API e Resolução de URLs**:
+  - Usuário autenticado: consome `GET /api/v1/tenant/branding`. Se `tem_logo` for verdadeiro, o logo é servido através da rota pública `/public/branding/<slug>/logo?v=...` (usando o `tenant.slug` do `AuthContext`), permitindo exibição em tags `<img>` sem cabeçalho Bearer. URLs relativas ou absolutas são resolvidas com `API_BASE + caminho.replace(/^\/api\/v1/, '')`.
+  - Usuário pré-login: se a variável `NEXT_PUBLIC_ESCOLA_SLUG` estiver preenchida, consome `GET /api/v1/public/branding/:slug` sem credenciais.
+- **Cache Local e Prevenção de F.O.U.C. (Anti-Flash)**:
+  - Ao carregar a identidade visual pela primeira vez, as preferências e o mapa de variáveis são persistidos em `localStorage` sob as chaves `escolar_branding` e `escolar_branding_vars`.
+  - Um script inline leve no `<head>` de `frontend/src/app/layout.tsx` é executado antes da primeira pintura pelo navegador, lendo `escolar_branding_vars` e injetando as variáveis no `document.documentElement.style`, além de aplicar a classe `dark`/`light` de `escolar_theme`. Isso previne o flash de cor verde padrão (Sálvia) e modo claro durante o carregamento.
+- **Resiliência e Fallback Fail-Safe**:
+  - Se a API falhar (rede indisponível ou 404/500) ou se a resposta contiver cores hexadecimais inválidas (onde `temaParaVariaveis` lançaria exceção), o erro é capturado e registrado em `console.warn`, preservando o tema em cache ou a paleta padrão Sálvia em CSS sem quebrar a interface nem exibir dados fictícios.
+
+### 10.5 Limitações MVP
+- O arquivo `manifest.json` e os ícones do aplicativo PWA continuam estáticos e genéricos no MVP (ícone e cor do app instalado na tela inicial), sendo a personalização visual da escola aplicada dinamicamente via tokens/CSS, título e elementos de runtime na aplicação web.
 
 
