@@ -78,6 +78,16 @@ describe('tema', () => {
   });
 
   describe('gerarEscala', () => {
+    it('não satura os tons extremos (fundos do modo escuro) com cor muito viva', () => {
+      const amplitude = (hex: string) => {
+        const canais = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+        return Math.max(...canais) - Math.min(...canais);
+      };
+      const escala = gerarEscala(PRESETS.azulLaranja.corPrimaria, ESCALA_SALVIA);
+      expect(amplitude(escala[950])).toBeLessThan(80);
+      expect(amplitude(escala[900])).toBeLessThan(amplitude(escala[600]));
+    });
+
     it('gera escala monotônica com diferença de luminância <= 0.002 para azulLaranja e #808080', () => {
       const cores = [
         { hex: PRESETS.azulLaranja.corPrimaria, ref: ESCALA_SALVIA },

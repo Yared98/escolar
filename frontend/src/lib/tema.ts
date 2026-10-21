@@ -305,12 +305,22 @@ export function gerarEscala(hex: string, referencia: Escala): Escala {
   const C_orig = Math.sqrt(a_orig * a_orig + b_orig * b_orig);
   const H_orig = Math.atan2(b_orig, a_orig);
 
+  // O croma de cada tom segue o perfil da referência (pico = croma da cor dada):
+  // sem isso os tons extremos (fundos do modo escuro, 900/950) ficam saturados demais.
+  const cromaRef = {} as Record<Tom, number>;
+  for (const tom of TONS) {
+    const [, ra, rb] = rgbParaOklab(...hexParaRgb(referencia[tom]));
+    cromaRef[tom] = Math.sqrt(ra * ra + rb * rb);
+  }
+  const picoRef = Math.max(...TONS.map((tom) => cromaRef[tom]));
+
   const res = {} as Escala;
   let prevLum: number | undefined;
 
   for (const tom of TONS) {
     const targetLum = luminancia(referencia[tom]);
-    const cor = buscarCorPorLuminancia(targetLum, C_orig, H_orig, prevLum);
+    const maxC = picoRef > 1e-6 ? C_orig * (cromaRef[tom] / picoRef) : C_orig;
+    const cor = buscarCorPorLuminancia(targetLum, maxC, H_orig, prevLum);
     res[tom] = cor;
     prevLum = luminancia(cor);
   }
