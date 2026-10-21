@@ -171,6 +171,18 @@ pub fn create_router(state: AppState) -> Router {
             "/secretaria/turmas/transferir",
             post(transferir_aluno_turma),
         )
+        // Identidade visual da escola (tenant_branding)
+        .route(
+            "/tenant/branding",
+            get(crate::handlers::tenant_branding::obter_branding)
+                .put(crate::handlers::tenant_branding::salvar_branding),
+        )
+        .route(
+            "/tenant/branding/logo",
+            get(crate::handlers::tenant_branding::obter_logo)
+                .put(crate::handlers::tenant_branding::salvar_logo)
+                .delete(crate::handlers::tenant_branding::remover_logo),
+        )
         // Settings
         .route(
             "/tenant/integrations/banking",
@@ -648,6 +660,14 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/regulatorio/diploma-digital/validar/:codigo",
             get(validar_diploma_digital_publico),
+        )
+        .route(
+            "/public/branding/:slug",
+            get(crate::handlers::tenant_branding::obter_branding_publico),
+        )
+        .route(
+            "/public/branding/:slug/logo",
+            get(crate::handlers::tenant_branding::obter_logo_publico),
         )
         .layer(middleware::from_fn_with_state(
             state.clone(),

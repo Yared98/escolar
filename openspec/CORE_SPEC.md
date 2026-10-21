@@ -223,3 +223,43 @@ A stack de produção para servidor próprio (homelab) está em [`deploy/homelab
 
 Em produção (`APP_ENV=production`) as migrations de seed demo são filtradas no boot. O primeiro tenant deve ser criado pela tela "Cadastrar Escola". Veja o README do diretório para instruções passo a passo.
 
+---
+
+## 10. Identidade visual da escola (tenant_branding)
+
+Cada tenant (escola) pode personalizar sua identidade visual com cores institucionais, nome de exibição e logotipo, mantendo a consistência do design system Sálvia.
+
+### 10.1 Estrutura de Dados (`tenant_branding`)
+- `tenant_id`: UUID PK referenciando `tenants(id)` ON DELETE CASCADE.
+- `cor_primaria`: `CHAR(7) NOT NULL DEFAULT '#2d5338'` com validação regex `^#[0-9a-f]{6}$`.
+- `cor_destaque`: `CHAR(7) NOT NULL DEFAULT '#f59e0b'` com validação regex `^#[0-9a-f]{6}$`.
+- `nome_exibicao`: `VARCHAR(120)` opcional (quando nulo, adota-se o nome institucional cadastrado em `tenants.name`).
+- `logo`: `BYTEA` binário de até 256 KB (262.144 bytes).
+- `logo_mime`: `VARCHAR(20)` restrito a `image/png`, `image/jpeg` ou `image/webp`.
+- `updated_at`: `TIMESTAMPTZ NOT NULL DEFAULT NOW()`.
+- `updated_by`: `UUID REFERENCES users(id) ON DELETE SET NULL`.
+- **Isolamento RLS**: Tabela protegida com Row Level Security obrigatório (`ENABLE` + `FORCE`) e política restrita a `tenant_id = get_current_tenant()`.
+
+### 10.2 Rotas e Perfis de Acesso
+
+#### Rotas Protegidas (Sessão Ativa com `TenantDb`)
+- `GET /api/v1/tenant/branding`: Disponível a qualquer usuário autenticado. Retorna `{ cor_primaria, cor_destaque, nome_exibicao, tem_logo, logo_url, atualizado_em }`. Quando a escola não possui personalização gravada, retorna os padrões Sálvia (`#2d5338` e `#f59e0b`), o nome oficial do tenant, `tem_logo: false`, `logo_url: null` e `atualizado_em: null`. O campo `logo_url` aponta para `/api/v1/tenant/branding/logo?v=<timestamp>` para bust de cache HTTP.
+- `PUT /api/v1/tenant/branding`: Exclusivo da gestão escolar (`rbac::eh_gestao`, admin/gestor; outros perfis recebem 403 Forbidden). Aceita `{ cor_primaria, cor_destaque, nome_exibicao? }`. Converte cores para minúsculas e valida formato hexadecimal `#rrggbb`. Faz upsert no banco e registra evento em `audit_logs`.
+- `PUT /api/v1/tenant/branding/logo`: Exclusivo da gestão escolar. Aceita corpo binário cru (`Bytes`). Detecta formato por bytes mágicos (PNG, JPEG, WEBP; rejeita SVG e outros formatos com 400). Valida limite máximo de 256 KB e corpo não vazio. Registra evento em `audit_logs` (sem expor o binário). Retorna a visão atualizada de branding.
+- `DELETE /api/v1/tenant/branding/logo`: Exclusivo da gestão escolar. Remove o logotipo e mime da escola. Registra auditoria e retorna a visão atualizada.
+- `GET /api/v1/tenant/branding/logo`: Aberto a qualquer usuário autenticado do tenant. Serve os bytes do logo com `Content-Type` do mime correspondente, cabeçalhos `X-Content-Type-Options: nosniff` e `Cache-Control: private, max-age=300`. Retorna 404 Not Found se não houver logo cadastrado.
+
+#### Rotas Públicas (Pré-Login)
+- `GET /api/v1/public/branding/:slug`: Resolução do tenant ativo via slug na tabela global `tenants`, conectando via `crate::db::acquire_tenant(&state.pool, tenant_id)`. Retorna `{ cor_primaria, cor_destaque, nome_exibicao, logo_url }` (`logo_url` apontando para `/api/v1/public/branding/:slug/logo?v=<timestamp>`). Retorna 404 Not Found se o slug não existir ou estiver inativo. Não expõe identificadores internos, CNPJ ou credenciais.
+- `GET /api/v1/public/branding/:slug/logo`: Serve o logotipo público com `Cache-Control: public, max-age=300`.
+
+### 10.3 Auditoria (`audit_logs`)
+Todas as alterações de identidade visual registram eventos de auditoria:
+- `tenant_branding.atualizar`: registro da alteração de cores e nome de exibição nos detalhes.
+- `tenant_branding.logo_atualizar`: registro do mime e tamanho em bytes do novo logotipo.
+- `tenant_branding.logo_remover`: registro da exclusão do logotipo.
+
+### 10.4 Limitações MVP
+- O arquivo `manifest.json` e os ícones do aplicativo PWA continuam estáticos e genéricos no MVP, sendo a personalização visual aplicada dinamicamente via tokens/CSS e imagens em runtime.
+
+
