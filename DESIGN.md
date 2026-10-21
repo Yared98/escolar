@@ -149,3 +149,8 @@ As cores de marca não ficam mais fixas no Tailwind: cada token lê uma variáve
 | `ink` / `ink-dark` | `--ink` / `--ink-dark` | Texto base (claro / escuro). |
 
 Regras: não usar hex arbitrário (`bg-[#...]`) em componentes; usar os tokens acima. Opacidade funciona normalmente (`dark:bg-canvas-dark/80`). Cores de status (verde sucesso, âmbar aviso, vermelho erro) usam a paleta padrão do Tailwind e **não** seguem o tema da escola.
+
+
+### Gerador de tema e validador de contraste (`src/lib/tema.ts`)
+
+A função `gerarTema(tema)` calcula as escalas `--brand-*` e `--accent-*` a partir de uma cor primária e de destaque usando o espaço perceptual OKLCH, preservando as mesmas luminâncias relativas (WCAG 2.x) da paleta Sálvia de referência. Isso garante que qualquer par de contraste aprovado na paleta padrão permaneça conforme as diretrizes de acessibilidade (WCAG AA ≥ 4,5:1), o que é auditado por `validarTema(tema)`.
