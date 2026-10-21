@@ -162,7 +162,24 @@ pub struct Config {
     pub itau_sts_base_url: Option<String>,
 }
 
+static ITAU_RENOVACAO_AUTOMATICA_FLAG: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
 impl Config {
+    pub fn itau_renovacao_automatica(&self) -> bool {
+        ITAU_RENOVACAO_AUTOMATICA_FLAG.load(std::sync::atomic::Ordering::Relaxed)
+            || std::env::var("ITAU_RENOVACAO_AUTOMATICA")
+                .map(|v| {
+                    let s = v.trim().to_lowercase();
+                    s == "true" || s == "1" || s == "yes"
+                })
+                .unwrap_or(false)
+    }
+
+    pub fn set_itau_renovacao_automatica(&self, val: bool) {
+        ITAU_RENOVACAO_AUTOMATICA_FLAG.store(val, std::sync::atomic::Ordering::Relaxed);
+    }
+
     /// Indica se as credenciais de servidor da Cora estão presentes.
     /// Em modo de teste (CORA_BASE_URL explícito com http://) o certificado não é exigido.
     pub fn cora_configured_for(&self, mode: CoraMode) -> bool {
@@ -369,6 +386,16 @@ impl Config {
         let itau_sts_base_url = env::var("ITAU_STS_BASE_URL")
             .ok()
             .filter(|s| !s.trim().is_empty());
+        let itau_renovacao_automatica = env::var("ITAU_RENOVACAO_AUTOMATICA")
+            .map(|v| {
+                let s = v.trim().to_lowercase();
+                s == "true" || s == "1" || s == "yes"
+            })
+            .unwrap_or(false);
+        ITAU_RENOVACAO_AUTOMATICA_FLAG.store(
+            itau_renovacao_automatica,
+            std::sync::atomic::Ordering::Relaxed,
+        );
         Ok(Config {
             database_url,
             jwt_private_pem,
@@ -419,6 +446,10 @@ impl std::fmt::Debug for Config {
             .field("app_secrets_key", &self.app_secrets_key)
             .field("itau_mode", &self.itau_mode)
             .field("itau_sts_base_url", &self.itau_sts_base_url)
+            .field(
+                "itau_renovacao_automatica",
+                &self.itau_renovacao_automatica(),
+            )
             .finish()
     }
 }

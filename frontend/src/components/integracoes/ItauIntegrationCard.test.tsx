@@ -148,4 +148,22 @@ describe('ItauIntegrationCard', () => {
       expect(screen.getByText('Renovar certificado')).toBeInTheDocument();
     });
   });
+
+  it('exibe alerta de falha quando há renovacao_ultimo_erro e status da renovação automática', async () => {
+    vi.spyOn(apiModule, 'apiFetch').mockResolvedValue({
+      ...mockEstadoOk,
+      renovacao_automatica_ligada: true,
+      renovacao_ultimo_erro: 'STS recusou a requisição (status 502)',
+    });
+
+    render(<ItauIntegrationCard userRole="admin" />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/A renovação automática falhou: STS recusou a requisição \(status 502\)\. Renove pelo botão abaixo antes do vencimento\./i)
+      ).toBeInTheDocument();
+      expect(screen.getByText(/Renovação automática:/i)).toBeInTheDocument();
+      expect(screen.getByText('ligada')).toBeInTheDocument();
+    });
+  });
 });
