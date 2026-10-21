@@ -34,12 +34,14 @@ mod conciliacao_regua;
 mod despesas;
 mod dre;
 mod faturas;
+mod integracoes_status;
 mod itau;
 
 pub use conciliacao_regua::*;
 pub use despesas::*;
 pub use dre::*;
 pub use faturas::*;
+pub use integracoes_status::*;
 pub use itau::*;
 
 #[cfg(test)]
