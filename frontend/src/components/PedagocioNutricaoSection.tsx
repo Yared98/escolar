@@ -662,7 +662,7 @@ export function PedagocioNutricaoSection() {
   const selectedTurmaObj = turmas.find((t) => t.id === selectedTurmaId);
 
   return (
-    <section id="pedagogico-nutricao" className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+    <section id="pedagogico-nutricao" className="bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
         <div>

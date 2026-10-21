@@ -154,7 +154,7 @@ export function MatriculaModal({
 }: MatriculaModalProps) {
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6 max-w-2xl sm:max-w-3xl w-full shadow-2xl my-6">
+      <div className="bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6 max-w-2xl sm:max-w-3xl w-full shadow-2xl my-6">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
           <div>
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center space-x-2">

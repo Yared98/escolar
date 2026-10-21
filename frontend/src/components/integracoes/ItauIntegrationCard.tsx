@@ -341,7 +341,7 @@ export function ItauIntegrationCard({ userRole }: ItauIntegrationCardProps) {
   const passosDesabilitados = !estado.chave_cifragem_configurada;
 
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#141d17] p-4 space-y-5">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-surface-dark p-4 space-y-5">
       {/* Header do Cartão Itaú */}
       <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
         <div className="flex items-center gap-3">
@@ -369,7 +369,7 @@ export function ItauIntegrationCard({ userRole }: ItauIntegrationCardProps) {
       {/* Grid de Estado da Conexão */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Modo de operação */}
-        <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#0c120e] border border-slate-100 dark:border-slate-800">
+        <div className="p-3 rounded-xl bg-slate-50 dark:bg-canvas-dark border border-slate-100 dark:border-slate-800">
           <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500 block">
             Modo de operação
           </span>
@@ -394,7 +394,7 @@ export function ItauIntegrationCard({ userRole }: ItauIntegrationCardProps) {
         </div>
 
         {/* Situação da Integração */}
-        <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#0c120e] border border-slate-100 dark:border-slate-800">
+        <div className="p-3 rounded-xl bg-slate-50 dark:bg-canvas-dark border border-slate-100 dark:border-slate-800">
           <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500 block">
             Situação da integração
           </span>
@@ -414,7 +414,7 @@ export function ItauIntegrationCard({ userRole }: ItauIntegrationCardProps) {
         </div>
 
         {/* Client ID mascarado */}
-        <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#0c120e] border border-slate-100 dark:border-slate-800">
+        <div className="p-3 rounded-xl bg-slate-50 dark:bg-canvas-dark border border-slate-100 dark:border-slate-800">
           <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500 block">
             Client ID
           </span>
@@ -426,7 +426,7 @@ export function ItauIntegrationCard({ userRole }: ItauIntegrationCardProps) {
         </div>
 
         {/* Certificado Válido Até */}
-        <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#0c120e] border border-slate-100 dark:border-slate-800">
+        <div className="p-3 rounded-xl bg-slate-50 dark:bg-canvas-dark border border-slate-100 dark:border-slate-800">
           <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500 block">
             Certificado digital mTLS
           </span>
@@ -566,7 +566,7 @@ export function ItauIntegrationCard({ userRole }: ItauIntegrationCardProps) {
           </div>
 
           {/* Passo 1: Dados da cobrança */}
-          <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0c120e] space-y-3">
+          <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-canvas-dark space-y-3">
             <div className="flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-salvia-700 text-white text-[11px] font-bold flex items-center justify-center shrink-0">
                 1
@@ -709,7 +709,7 @@ export function ItauIntegrationCard({ userRole }: ItauIntegrationCardProps) {
 
           {/* Passo 2: Produção - Chave de transporte */}
           {isProduction && (
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0c120e] space-y-3">
+            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-canvas-dark space-y-3">
               <div className="flex items-center gap-2">
                 <span className="w-5 h-5 rounded-full bg-salvia-700 text-white text-[11px] font-bold flex items-center justify-center shrink-0">
                   2
@@ -802,7 +802,7 @@ export function ItauIntegrationCard({ userRole }: ItauIntegrationCardProps) {
           )}
 
           {/* Passo 3: Configurar Credenciais */}
-          <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0c120e] space-y-3">
+          <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-canvas-dark space-y-3">
             <div className="flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-salvia-700 text-white text-[11px] font-bold flex items-center justify-center shrink-0">
                 3
@@ -948,7 +948,7 @@ export function ItauIntegrationCard({ userRole }: ItauIntegrationCardProps) {
           </div>
 
           {/* Passo 4: Testar Conexão */}
-          <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0c120e] space-y-3">
+          <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-canvas-dark space-y-3">
             <div className="flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-salvia-700 text-white text-[11px] font-bold flex items-center justify-center shrink-0">
                 4
@@ -990,7 +990,7 @@ export function ItauIntegrationCard({ userRole }: ItauIntegrationCardProps) {
           </div>
 
           {/* Passo 5: Ativar Integração */}
-          <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0c120e] space-y-3">
+          <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-canvas-dark space-y-3">
             <div className="flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-salvia-700 text-white text-[11px] font-bold flex items-center justify-center shrink-0">
                 5

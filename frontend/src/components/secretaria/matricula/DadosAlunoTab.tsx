@@ -36,7 +36,7 @@ export function DadosAlunoTab({
           value={nome}
           onChange={(e) => setNome(e.target.value)}
           placeholder="Ex: Gabriel Souza Silva"
-          className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-salvia-600 font-medium"
+          className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-salvia-600 font-medium"
         />
       </div>
 
@@ -52,7 +52,7 @@ export function DadosAlunoTab({
             value={cpf}
             onChange={(e) => setCpf(formatCpf(e.target.value))}
             placeholder="000.000.000-00"
-            className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-salvia-600 font-mono"
+            className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-salvia-600 font-mono"
           />
         </div>
         <div>
@@ -64,7 +64,7 @@ export function DadosAlunoTab({
             required
             value={dataNascimento}
             onChange={(e) => setDataNascimento(e.target.value)}
-            className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-salvia-600 font-medium"
+            className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-salvia-600 font-medium"
           />
         </div>
       </div>

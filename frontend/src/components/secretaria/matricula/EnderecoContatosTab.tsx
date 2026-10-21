@@ -56,7 +56,7 @@ export function EnderecoContatosTab({
   return (
     <div className="space-y-4">
       {/* Endereço Residencial */}
-      <div className="p-3 bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl space-y-3">
+      <div className="p-3 bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl space-y-3">
         <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center space-x-1.5">
           <MapPin className="w-3.5 h-3.5 text-salvia-700 dark:text-salvia-400" />
           <span>Endereço Residencial</span>
@@ -73,7 +73,7 @@ export function EnderecoContatosTab({
               value={cep}
               onChange={(e) => setCep(formatCep(e.target.value))}
               placeholder="00000-000"
-              className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-mono"
+              className="w-full bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-mono"
             />
           </div>
           <div className="sm:col-span-2">
@@ -85,7 +85,7 @@ export function EnderecoContatosTab({
               value={logradouro}
               onChange={(e) => setLogradouro(e.target.value)}
               placeholder="Ex: Av. Paulista"
-              className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+              className="w-full bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
             />
           </div>
           <div>
@@ -97,7 +97,7 @@ export function EnderecoContatosTab({
               value={numero}
               onChange={(e) => setNumero(e.target.value)}
               placeholder="Ex: 1000"
-              className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+              className="w-full bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
             />
           </div>
         </div>
@@ -112,7 +112,7 @@ export function EnderecoContatosTab({
               value={complemento}
               onChange={(e) => setComplemento(e.target.value)}
               placeholder="Apto, Bloco..."
-              className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+              className="w-full bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
             />
           </div>
           <div>
@@ -124,7 +124,7 @@ export function EnderecoContatosTab({
               value={bairro}
               onChange={(e) => setBairro(e.target.value)}
               placeholder="Bairro"
-              className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+              className="w-full bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
             />
           </div>
           <div>
@@ -136,7 +136,7 @@ export function EnderecoContatosTab({
               value={cidade}
               onChange={(e) => setCidade(e.target.value)}
               placeholder="Cidade"
-              className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+              className="w-full bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
             />
           </div>
           <div>
@@ -149,14 +149,14 @@ export function EnderecoContatosTab({
               value={estado}
               onChange={(e) => setEstado(e.target.value.toUpperCase())}
               placeholder="SP"
-              className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-mono uppercase"
+              className="w-full bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-mono uppercase"
             />
           </div>
         </div>
       </div>
 
       {/* Telefones de Contato & Emergência */}
-      <div className="p-3 bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl space-y-3">
+      <div className="p-3 bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl space-y-3">
         <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center space-x-1.5">
           <Phone className="w-3.5 h-3.5 text-salvia-700 dark:text-salvia-400" />
           <span>Telefones Adicionais & Contato de Emergência</span>
@@ -172,7 +172,7 @@ export function EnderecoContatosTab({
               value={telefoneSecundario}
               onChange={(e) => setTelefoneSecundario(formatPhone(e.target.value))}
               placeholder="(11) 3333-4444"
-              className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-mono"
+              className="w-full bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-mono"
             />
           </div>
           <div>
@@ -184,7 +184,7 @@ export function EnderecoContatosTab({
               value={contatoEmergenciaNome}
               onChange={(e) => setContatoEmergenciaNome(e.target.value)}
               placeholder="Ex: Vovó Helena"
-              className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+              className="w-full bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
             />
           </div>
           <div>
@@ -196,7 +196,7 @@ export function EnderecoContatosTab({
               value={contatoEmergenciaTelefone}
               onChange={(e) => setContatoEmergenciaTelefone(formatPhone(e.target.value))}
               placeholder="(11) 91111-2222"
-              className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-mono"
+              className="w-full bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-mono"
             />
           </div>
           <div>
@@ -208,7 +208,7 @@ export function EnderecoContatosTab({
               value={contatoEmergenciaParentesco}
               onChange={(e) => setContatoEmergenciaParentesco(e.target.value)}
               placeholder="Ex: Avó"
-              className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+              className="w-full bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
             />
           </div>
         </div>

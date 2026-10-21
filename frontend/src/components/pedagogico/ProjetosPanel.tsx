@@ -21,7 +21,7 @@ export function ProjetosPanel({
         {projetos.map((p) => (
           <div
             key={p.id}
-            className="bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 p-4 rounded-xl space-y-2"
+            className="bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 p-4 rounded-xl space-y-2"
           >
             <div className="flex justify-between items-start">
               <h4 className="font-bold text-xs text-slate-900 dark:text-slate-100">{p.titulo}</h4>

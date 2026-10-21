@@ -43,7 +43,7 @@ export function NovoHorarioModal({
 }: NovoHorarioModalProps) {
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3">
-      <div className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 max-w-md w-full shadow-2xl space-y-4">
+      <div className="bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-2xl p-5 max-w-md w-full shadow-2xl space-y-4">
         <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800">
           <div>
             <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center space-x-2">
@@ -64,7 +64,7 @@ export function NovoHorarioModal({
               <select
                 value={horarioDiaSemana}
                 onChange={(e) => setHorarioDiaSemana(Number(e.target.value))}
-                className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 font-bold"
+                className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 font-bold"
               >
                 <option value={1}>Segunda-feira</option>
                 <option value={2}>Terça-feira</option>
@@ -83,7 +83,7 @@ export function NovoHorarioModal({
                   required
                   value={horarioInicio}
                   onChange={(e) => setHorarioInicio(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-2 py-1.5 font-mono"
+                  className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-2 py-1.5 font-mono"
                 />
               </div>
               <div>
@@ -93,7 +93,7 @@ export function NovoHorarioModal({
                   required
                   value={horarioFim}
                   onChange={(e) => setHorarioFim(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-2 py-1.5 font-mono"
+                  className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-2 py-1.5 font-mono"
                 />
               </div>
             </div>
@@ -111,7 +111,7 @@ export function NovoHorarioModal({
                   setHorarioProfId(td.professor_id);
                 }
               }}
-              className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 font-bold"
+              className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 font-bold"
             >
               <option value="">Selecione a disciplina...</option>
               {turmaDisciplinas.map((td) => (
@@ -128,7 +128,7 @@ export function NovoHorarioModal({
               <select
                 value={horarioProfId}
                 onChange={(e) => setHorarioProfId(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5"
+                className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5"
               >
                 <option value="">Mesmo da lotação / Nenhum</option>
                 {professores.map((p) => (
@@ -144,7 +144,7 @@ export function NovoHorarioModal({
               <select
                 value={horarioSalaId}
                 onChange={(e) => setHorarioSalaId(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5"
+                className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5"
               >
                 <option value="">Sala padrão da turma</option>
                 {salas.map((s) => (

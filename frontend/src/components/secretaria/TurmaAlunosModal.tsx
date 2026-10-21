@@ -44,7 +44,7 @@ export function TurmaAlunosModal({
 }: TurmaAlunosModalProps) {
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6 max-w-4xl w-full shadow-2xl my-6">
+      <div className="bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6 max-w-4xl w-full shadow-2xl my-6">
         {/* Cabeçalho do Modal */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
           <div>
@@ -74,12 +74,12 @@ export function TurmaAlunosModal({
         </div>
 
         {/* Toolbar com Renumeração e Vagas */}
-        <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 dark:bg-[#0c120e] p-3 rounded-xl border border-slate-200 dark:border-slate-800 mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 dark:bg-canvas-dark p-3 rounded-xl border border-slate-200 dark:border-slate-800 mb-4">
           <div className="flex items-center space-x-2">
             <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
               Lotação da Turma:
             </span>
-            <span className="text-xs font-bold font-mono text-slate-900 dark:text-slate-100 px-2 py-0.5 bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-700 rounded-md">
+            <span className="text-xs font-bold font-mono text-slate-900 dark:text-slate-100 px-2 py-0.5 bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700 rounded-md">
               {turmaAlunos.length} / {selectedTurmaAlunosModal.capacidade_maxima} matriculados
             </span>
           </div>
@@ -141,7 +141,7 @@ export function TurmaAlunosModal({
                 required
                 value={turmaDestinoTransferenciaId}
                 onChange={(e) => setTurmaDestinoTransferenciaId(e.target.value)}
-                className="flex-1 bg-white dark:bg-[#141d17] border border-amber-300 dark:border-amber-700 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-medium"
+                className="flex-1 bg-white dark:bg-surface-dark border border-amber-300 dark:border-amber-700 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-medium"
               >
                 <option value="">Selecione a Turma de Destino...</option>
                 {turmasReferencia

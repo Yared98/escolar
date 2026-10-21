@@ -55,7 +55,7 @@ export function NovaTurmaModal({
 }: NovaTurmaModalProps) {
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-lg w-full shadow-2xl my-6">
+      <div className="bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-lg w-full shadow-2xl my-6">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
           <div>
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center space-x-2">
@@ -89,7 +89,7 @@ export function NovaTurmaModal({
                 value={nomeTurma}
                 onChange={(e) => setNomeTurma(e.target.value)}
                 placeholder="Ex: 1º Ano A - Matutino"
-                className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-salvia-600 font-semibold"
+                className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-salvia-600 font-semibold"
               />
             </div>
             <div>
@@ -101,7 +101,7 @@ export function NovaTurmaModal({
                 value={codigoTurma}
                 onChange={(e) => setCodigoTurma(e.target.value)}
                 placeholder="Ex: 1EF-A"
-                className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none font-mono uppercase"
+                className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none font-mono uppercase"
               />
             </div>
           </div>
@@ -114,7 +114,7 @@ export function NovaTurmaModal({
               <select
                 value={etapaEnsinoTurma}
                 onChange={(e) => setEtapaEnsinoTurma(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none font-medium"
+                className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none font-medium"
               >
                 <option value="Educacao Infantil">Educação Infantil</option>
                 <option value="Ensino Fundamental I">Ensino Fundamental I (1º ao 5º)</option>
@@ -133,7 +133,7 @@ export function NovaTurmaModal({
                 value={serieTurma}
                 onChange={(e) => setSerieTurma(e.target.value)}
                 placeholder="Ex: 1º Ano, Maternal II, 3ª Série..."
-                className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none"
+                className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none"
               />
             </div>
           </div>
@@ -146,7 +146,7 @@ export function NovaTurmaModal({
               <select
                 value={turnoTurma}
                 onChange={(e) => setTurnoTurma(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none font-medium"
+                className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none font-medium"
               >
                 <option value="Matutino">Matutino</option>
                 <option value="Vespertino">Vespertino</option>
@@ -163,7 +163,7 @@ export function NovaTurmaModal({
                 required
                 value={anoLetivoTurma}
                 onChange={(e) => setAnoLetivoTurma(Number(e.target.value))}
-                className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none font-mono"
+                className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none font-mono"
               />
             </div>
             <div>
@@ -177,7 +177,7 @@ export function NovaTurmaModal({
                 max={100}
                 value={capacidadeTurma}
                 onChange={(e) => setCapacidadeTurma(Number(e.target.value))}
-                className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none font-mono"
+                className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none font-mono"
               />
             </div>
           </div>
@@ -190,7 +190,7 @@ export function NovaTurmaModal({
               <select
                 value={salaIdTurma}
                 onChange={(e) => setSalaIdTurma(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none"
+                className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none"
               >
                 <option value="">Nenhuma / A definir</option>
                 {salas.map((s) => (
@@ -207,7 +207,7 @@ export function NovaTurmaModal({
               <select
                 value={professorRegenteIdTurma}
                 onChange={(e) => setProfessorRegenteIdTurma(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none"
+                className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none"
               >
                 <option value="">Nenhum / A definir</option>
                 {professores.map((p) => (

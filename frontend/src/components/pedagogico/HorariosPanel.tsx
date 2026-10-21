@@ -34,7 +34,7 @@ export function HorariosPanel({
   return (
     <div className="space-y-6">
       {/* Seletor de Turma */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 dark:bg-[#0c120e] p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 dark:bg-canvas-dark p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
         <div className="flex items-center space-x-3">
           <span className="text-xs font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
             Turma para Alocação:
@@ -42,7 +42,7 @@ export function HorariosPanel({
           <select
             value={selectedTurmaId}
             onChange={(e) => setSelectedTurmaId(e.target.value)}
-            className="bg-white dark:bg-[#141d17] border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:border-salvia-600 max-sm:w-full max-sm:min-w-0 max-sm:max-w-full max-sm:truncate"
+            className="bg-white dark:bg-surface-dark border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:border-salvia-600 max-sm:w-full max-sm:min-w-0 max-sm:max-w-full max-sm:truncate"
           >
             {turmas.map((t) => (
               <option key={t.id} value={t.id}>
@@ -103,7 +103,7 @@ export function HorariosPanel({
             return (
               <div
                 key={dia}
-                className="bg-slate-50 dark:bg-[#0c120e] rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden"
+                className="bg-slate-50 dark:bg-canvas-dark rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden"
               >
                 <div className="bg-slate-100 dark:bg-slate-800/80 px-3 py-2 border-b border-slate-200 dark:border-slate-800">
                   <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{diaSemanaLabel(dia)}</span>
@@ -118,7 +118,7 @@ export function HorariosPanel({
                     aulasDoDia.map((aula) => (
                       <div
                         key={aula.id}
-                        className="bg-white dark:bg-[#141d17] p-2.5 rounded-lg border border-slate-200 dark:border-slate-700/80 shadow-xs space-y-1 relative group"
+                        className="bg-white dark:bg-surface-dark p-2.5 rounded-lg border border-slate-200 dark:border-slate-700/80 shadow-xs space-y-1 relative group"
                       >
                         <div className="flex justify-between items-start">
                           <span className="text-[10px] font-mono font-bold text-salvia-700 dark:text-salvia-400 bg-salvia-50 dark:bg-salvia-900/60 px-1 py-0.5 rounded">

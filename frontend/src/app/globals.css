@@ -3,6 +3,42 @@
 @tailwind utilities;
 
 @layer base {
+  /* Tokens de cor (canais RGB). Valores padrão = tema Sálvia (DESIGN.md).
+     O tema da escola sobrescreve estas variáveis em document.documentElement. */
+  :root {
+    --brand-50: 242 247 244;
+    --brand-100: 225 237 229;
+    --brand-200: 195 220 203;
+    --brand-300: 154 195 166;
+    --brand-400: 110 163 125;
+    --brand-500: 78 134 93;
+    --brand-600: 58 107 71;
+    --brand-700: 45 83 56;
+    --brand-800: 37 67 47;
+    --brand-900: 30 55 39;
+    --brand-950: 15 28 19;
+
+    --accent-50: 255 251 235;
+    --accent-100: 254 243 199;
+    --accent-200: 253 230 138;
+    --accent-300: 252 211 77;
+    --accent-400: 251 191 36;
+    --accent-500: 245 158 11;
+    --accent-600: 217 119 6;
+    --accent-700: 180 83 9;
+    --accent-800: 146 64 14;
+    --accent-900: 120 53 15;
+    --accent-950: 69 26 3;
+
+    --canvas: 244 247 244;
+    --canvas-dark: 12 18 14;
+    --surface-dark: 20 29 23;
+    --ink: 26 38 29;
+    --ink-dark: 248 250 252;
+    --scrollbar: 163 184 168;
+    --scrollbar-dark: 40 56 47;
+  }
+
   html {
     color-scheme: light dark;
   }
@@ -23,13 +59,13 @@ body {
 }
 
 html.light body {
-  background-color: #F4F7F4;
-  color: #1A261D;
+  background-color: rgb(var(--canvas));
+  color: rgb(var(--ink));
 }
 
 html.dark body {
-  background-color: #0C120E;
-  color: #F8FAFC;
+  background-color: rgb(var(--canvas-dark));
+  color: rgb(var(--ink-dark));
 }
 
 /* Custom scrollbar */
@@ -43,12 +79,12 @@ html.dark body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #A3B8A8;
+  background: rgb(var(--scrollbar));
   border-radius: 9999px;
 }
 
 html.dark ::-webkit-scrollbar-thumb {
-  background: #28382F;
+  background: rgb(var(--scrollbar-dark));
 }
 
 /* Rolagem horizontal sem barra visível (ex.: filtros em chips no celular). */

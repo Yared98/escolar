@@ -64,7 +64,7 @@ export function ConversaChat({
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/50 dark:bg-[#0c120e]/50">
+    <div className="flex flex-col h-full bg-slate-50/50 dark:bg-canvas-dark/50">
       <header className="shrink-0 px-4 py-3 border-b border-salvia-200 dark:border-salvia-800 bg-white dark:bg-salvia-900 flex items-center gap-3">
         <button
           type="button"

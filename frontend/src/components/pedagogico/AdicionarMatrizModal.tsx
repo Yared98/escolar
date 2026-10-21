@@ -27,7 +27,7 @@ export function AdicionarMatrizModal({
 }: AdicionarMatrizModalProps) {
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3">
-      <div className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 max-w-md w-full shadow-2xl space-y-4">
+      <div className="bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-2xl p-5 max-w-md w-full shadow-2xl space-y-4">
         <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800">
           <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center space-x-2">
             <Layers className="w-4 h-4 text-salvia-700 dark:text-salvia-400" />
@@ -52,7 +52,7 @@ export function AdicionarMatrizModal({
                   setMatrizChAnual(selected.carga_horaria_anual);
                 }
               }}
-              className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 font-bold"
+              className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 font-bold"
             >
               <option value="">Selecione um componente curricular...</option>
               {disciplinas.map((d) => (
@@ -73,7 +73,7 @@ export function AdicionarMatrizModal({
                 required
                 value={matrizChSemanal}
                 onChange={(e) => setMatrizChSemanal(Number(e.target.value))}
-                className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5"
+                className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5"
               />
             </div>
             <div>
@@ -85,7 +85,7 @@ export function AdicionarMatrizModal({
                 required
                 value={matrizChAnual}
                 onChange={(e) => setMatrizChAnual(Number(e.target.value))}
-                className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5"
+                className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5"
               />
             </div>
           </div>

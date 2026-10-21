@@ -50,7 +50,7 @@ export function ProntuarioInicialTab({
             <select
               value={tipoSanguineo}
               onChange={(e) => setTipoSanguineo(e.target.value)}
-              className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-semibold"
+              className="w-full bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-semibold"
             >
               <option value="A+">A+</option>
               <option value="A-">A-</option>
@@ -73,7 +73,7 @@ export function ProntuarioInicialTab({
               value={alergias}
               onChange={(e) => setAlergias(e.target.value)}
               placeholder="Ex: Dipirona, picada de abelha, pólen..."
-              className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+              className="w-full bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
             />
           </div>
         </div>
@@ -88,7 +88,7 @@ export function ProntuarioInicialTab({
               value={restricoesAlimentares}
               onChange={(e) => setRestricoesAlimentares(e.target.value)}
               placeholder="Ex: Intolerância à lactose severa"
-              className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+              className="w-full bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
             />
           </div>
           <div>
@@ -100,7 +100,7 @@ export function ProntuarioInicialTab({
               value={medicamentosContinuos}
               onChange={(e) => setMedicamentosContinuos(e.target.value)}
               placeholder="Ex: Bombinha para asma se necessário"
-              className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+              className="w-full bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
             />
           </div>
         </div>
@@ -114,7 +114,7 @@ export function ProntuarioInicialTab({
             value={cuidadosEspeciais}
             onChange={(e) => setCuidadosEspeciais(e.target.value)}
             placeholder="Ex: Usar óculos em sala de aula, evitar sol direto..."
-            className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+            className="w-full bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
           />
         </div>
 
@@ -127,7 +127,7 @@ export function ProntuarioInicialTab({
             value={historicoObservacoes}
             onChange={(e) => setHistoricoObservacoes(e.target.value)}
             placeholder="Observações comportamentais, necessidades pedagógicas adaptadas ou histórico anterior."
-            className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 resize-none"
+            className="w-full bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 resize-none"
           />
         </div>
       </div>

@@ -66,7 +66,7 @@ export function ComposerModal({
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3">
       <form
         onSubmit={handleEnviarMensagem}
-        className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 max-w-lg w-full shadow-2xl space-y-3 max-h-[90vh] overflow-y-auto"
+        className="bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-2xl p-5 max-w-lg w-full shadow-2xl space-y-3 max-h-[90vh] overflow-y-auto"
       >
         <div className="flex justify-between items-center">
           <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">

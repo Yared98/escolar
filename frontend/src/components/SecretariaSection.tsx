@@ -943,7 +943,7 @@ export function SecretariaSection() {
   });
 
   return (
-    <section id="secretaria" className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+    <section id="secretaria" className="bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
       {fetchError && (
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-300">
           <div className="flex items-center gap-3">
@@ -1250,7 +1250,7 @@ export function SecretariaSection() {
       {/* Modal de escolha de tipo de documento */}
       {documentoAluno && !documentoPrint && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl dark:bg-[#141d17]">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl dark:bg-surface-dark">
             <h3 className="mb-3 text-base font-bold text-slate-900 dark:text-slate-100">Emitir documento</h3>
             <p className="mb-3 text-sm text-slate-600 dark:text-slate-300">{documentoAluno.nome}</p>
             <label className="flex flex-col gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">

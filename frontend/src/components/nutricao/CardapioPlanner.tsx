@@ -83,7 +83,7 @@ const DIAS = [
 ];
 
 const campo =
-  'w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100';
+  'w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100';
 
 const hojeLocal = () => {
   const agora = new Date();
@@ -879,7 +879,7 @@ export function CardapioPlanner() {
                   className={`min-h-[140px] rounded-xl border p-2 space-y-2 ${
                     ehHoje
                       ? 'border-salvia-500 bg-salvia-50/60 dark:bg-salvia-950/40'
-                      : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0c120e]'
+                      : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-canvas-dark'
                   }`}
                 >
                   <div className="flex justify-between items-baseline">
@@ -928,7 +928,7 @@ export function CardapioPlanner() {
           )}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {avulsos.map((cardapio) => (
-              <article key={cardapio.id} className="bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 p-4 rounded-xl space-y-2">
+              <article key={cardapio.id} className="bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 p-4 rounded-xl space-y-2">
                 <div className="flex justify-between items-center gap-2">
                   <span className="text-[10px] font-bold text-salvia-700 font-mono bg-salvia-100 dark:bg-salvia-900/60 px-2 py-0.5 rounded-full">
                     {cardapio.tipo_refeicao}
@@ -1029,7 +1029,7 @@ export function CardapioPlanner() {
 
       {aberto && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3">
-          <div className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 max-w-lg w-full shadow-2xl space-y-3 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-2xl p-5 max-w-lg w-full shadow-2xl space-y-3 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Publicar cardápio</h3>
               <button type="button" onClick={() => setAberto(false)} aria-label="Fechar"><X className="w-4 h-4" /></button>
@@ -1151,7 +1151,7 @@ export function CardapioPlanner() {
 
       {editando && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3">
-          <form onSubmit={salvarEdicao} className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 max-w-lg w-full shadow-2xl space-y-3 max-h-[90vh] overflow-y-auto">
+          <form onSubmit={salvarEdicao} className="bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-2xl p-5 max-w-lg w-full shadow-2xl space-y-3 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                 {escopo === 'seguintes' ? 'Editar série a partir deste dia' : 'Editar cardápio'}
@@ -1243,7 +1243,7 @@ export function CardapioPlanner() {
 
       {confirmacao && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-3">
-          <div className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 max-w-md w-full shadow-2xl space-y-3">
+          <div className="bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-2xl p-5 max-w-md w-full shadow-2xl space-y-3">
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                 {confirmacao.tipo === 'serie' ? 'Encerrar vigência' : 'Excluir cardápio'}
@@ -1293,7 +1293,7 @@ export function CardapioPlanner() {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-3">
           <form
             onSubmit={salvarPrato}
-            className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            className="bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-2xl p-5 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
           >
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
@@ -1392,7 +1392,7 @@ export function CardapioPlanner() {
 
       {confirmacaoPrato && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-3">
-          <div className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 max-w-md w-full shadow-2xl space-y-3">
+          <div className="bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-2xl p-5 max-w-md w-full shadow-2xl space-y-3">
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                 Excluir prato do catálogo

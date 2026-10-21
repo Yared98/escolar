@@ -98,7 +98,7 @@ export function ProntuarioModal({ data, onClose, onSaved }: ProntuarioModalProps
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-2xl w-full shadow-2xl my-6">
+      <div className="bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-2xl w-full shadow-2xl my-6">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
           <div>
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center space-x-2">
@@ -128,7 +128,7 @@ export function ProntuarioModal({ data, onClose, onSaved }: ProntuarioModalProps
           <div className="space-y-4 text-xs">
             {/* Cartão de Identificação de Responsáveis & Contato */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 p-3 rounded-xl space-y-1.5">
+              <div className="bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 p-3 rounded-xl space-y-1.5">
                 <h5 className="font-bold text-salvia-800 dark:text-salvia-300 text-[11px] uppercase tracking-wider flex items-center space-x-1">
                   <Shield className="w-3 h-3" />
                   <span>Responsáveis Registrados</span>
@@ -150,7 +150,7 @@ export function ProntuarioModal({ data, onClose, onSaved }: ProntuarioModalProps
                 </p>
               </div>
 
-              <div className="bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 p-3 rounded-xl space-y-1.5">
+              <div className="bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 p-3 rounded-xl space-y-1.5">
                 <h5 className="font-bold text-salvia-800 dark:text-salvia-300 text-[11px] uppercase tracking-wider flex items-center space-x-1">
                   <MapPin className="w-3 h-3" />
                   <span>Endereço & Emergência</span>
@@ -190,7 +190,7 @@ export function ProntuarioModal({ data, onClose, onSaved }: ProntuarioModalProps
             )}
 
             {/* Ficha Clínica Detalhada */}
-            <div className="p-4 bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl space-y-3">
+            <div className="p-4 bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <span className="text-slate-600 dark:text-slate-400 font-semibold">Tipo Sanguíneo:</span>
@@ -208,13 +208,13 @@ export function ProntuarioModal({ data, onClose, onSaved }: ProntuarioModalProps
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                 <div>
                   <h5 className="font-semibold text-slate-800 dark:text-slate-200 text-[11px] mb-0.5">Alergias Conhecidas:</h5>
-                  <p className="p-2.5 bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-300">
+                  <p className="p-2.5 bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-300">
                     {prontuario.alergias || 'Nenhuma alergia informada.'}
                   </p>
                 </div>
                 <div>
                   <h5 className="font-semibold text-slate-800 dark:text-slate-200 text-[11px] mb-0.5">Restrições Alimentares:</h5>
-                  <p className="p-2.5 bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-300">
+                  <p className="p-2.5 bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-300">
                     {prontuario.restricoes_alimentares || 'Sem restrições alimentares.'}
                   </p>
                 </div>
@@ -223,13 +223,13 @@ export function ProntuarioModal({ data, onClose, onSaved }: ProntuarioModalProps
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <h5 className="font-semibold text-slate-800 dark:text-slate-200 text-[11px] mb-0.5">Medicamentos Contínuos:</h5>
-                  <p className="p-2.5 bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-300">
+                  <p className="p-2.5 bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-300">
                     {prontuario.medicamentos_continuos || 'Nenhum medicamento contínuo.'}
                   </p>
                 </div>
                 <div>
                   <h5 className="font-semibold text-slate-800 dark:text-slate-200 text-[11px] mb-0.5">Cuidados Especiais:</h5>
-                  <p className="p-2.5 bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-300">
+                  <p className="p-2.5 bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-300">
                     {prontuario.cuidados_especiais || 'Sem recomendações especiais cadastradas.'}
                   </p>
                 </div>
@@ -239,7 +239,7 @@ export function ProntuarioModal({ data, onClose, onSaved }: ProntuarioModalProps
                 <h5 className="font-semibold text-slate-800 dark:text-slate-200 text-[11px] mb-0.5">
                   Histórico Pedagógico & Ocorrências:
                 </h5>
-                <p className="p-2.5 bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-300 leading-relaxed">
+                <p className="p-2.5 bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-300 leading-relaxed">
                   {prontuario.historico_observacoes || 'Aluno sem ocorrências disciplinares registradas.'}
                 </p>
               </div>
@@ -274,7 +274,7 @@ export function ProntuarioModal({ data, onClose, onSaved }: ProntuarioModalProps
                 <select
                   value={editTipoSanguineo}
                   onChange={(e) => setEditTipoSanguineo(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-semibold"
+                  className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-semibold"
                 >
                   <option value="A+">A+</option>
                   <option value="A-">A-</option>
@@ -296,7 +296,7 @@ export function ProntuarioModal({ data, onClose, onSaved }: ProntuarioModalProps
                   value={editAlergias}
                   onChange={(e) => setEditAlergias(e.target.value)}
                   placeholder="Ex: Alergia a Amoxicilina, picada de abelha..."
-                  className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
+                  className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
                 />
               </div>
             </div>
@@ -311,7 +311,7 @@ export function ProntuarioModal({ data, onClose, onSaved }: ProntuarioModalProps
                   value={editRestricoes}
                   onChange={(e) => setEditRestricoes(e.target.value)}
                   placeholder="Ex: Intolerância severa a lactose, celíaco..."
-                  className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
+                  className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
                 />
               </div>
               <div>
@@ -323,7 +323,7 @@ export function ProntuarioModal({ data, onClose, onSaved }: ProntuarioModalProps
                   value={editMedicamentos}
                   onChange={(e) => setEditMedicamentos(e.target.value)}
                   placeholder="Ex: Insulina, Ritalina, Aerolin..."
-                  className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
+                  className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
                 />
               </div>
             </div>
@@ -337,7 +337,7 @@ export function ProntuarioModal({ data, onClose, onSaved }: ProntuarioModalProps
                 value={editCuidados}
                 onChange={(e) => setEditCuidados(e.target.value)}
                 placeholder="Ex: Sentar nas primeiras carteiras, cuidados na recreação..."
-                className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
+                className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
               />
             </div>
 
@@ -350,7 +350,7 @@ export function ProntuarioModal({ data, onClose, onSaved }: ProntuarioModalProps
                 value={editHistorico}
                 onChange={(e) => setEditHistorico(e.target.value)}
                 placeholder="Histórico pedagógico, laudos ou observações de desenvolvimento do aluno."
-                className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 resize-none"
+                className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 resize-none"
               />
             </div>
 

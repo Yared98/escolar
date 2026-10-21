@@ -55,7 +55,7 @@ export function BankingIntegrations({ userRole }: BankingIntegrationsProps = {})
       )}
 
       {/* Cartão Cora */}
-      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#141d17] p-4 space-y-4">
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-surface-dark p-4 space-y-4">
         <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
           <div className="p-2 bg-salvia-100 dark:bg-salvia-900 rounded-lg">
             <Shield className="w-5 h-5 text-salvia-700 dark:text-salvia-300" />
@@ -69,7 +69,7 @@ export function BankingIntegrations({ userRole }: BankingIntegrationsProps = {})
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#0c120e] border border-slate-100 dark:border-slate-800">
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-canvas-dark border border-slate-100 dark:border-slate-800">
             <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500">
               Modo de operação
             </span>
@@ -93,7 +93,7 @@ export function BankingIntegrations({ userRole }: BankingIntegrationsProps = {})
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#0c120e] border border-slate-100 dark:border-slate-800">
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-canvas-dark border border-slate-100 dark:border-slate-800">
             <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500">
               Credenciais no servidor
             </span>

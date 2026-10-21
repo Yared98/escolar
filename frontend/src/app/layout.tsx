@@ -17,7 +17,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR" className="light">
-      <body className="bg-[#F4F7F4] dark:bg-[#0C120E] text-[#1A261D] dark:text-salvia-50 min-h-screen flex flex-col font-sans selection:bg-salvia-600 selection:text-white transition-colors duration-200 antialiased">
+      <body className="bg-canvas dark:bg-canvas-dark text-ink dark:text-salvia-50 min-h-screen flex flex-col font-sans selection:bg-salvia-600 selection:text-white transition-colors duration-200 antialiased">
         <ThemeProvider>
           <AuthProvider>
             <Header />

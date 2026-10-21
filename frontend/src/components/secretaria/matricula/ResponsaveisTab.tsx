@@ -73,7 +73,7 @@ export function ResponsaveisTab({
               value={nomeResponsavel}
               onChange={(e) => setNomeResponsavel(e.target.value)}
               placeholder="Ex: Mariana Souza"
-              className="w-full bg-white dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-salvia-600 font-medium"
+              className="w-full bg-white dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-salvia-600 font-medium"
             />
           </div>
           <div>
@@ -83,7 +83,7 @@ export function ResponsaveisTab({
             <select
               value={parentescoResponsavelLegal}
               onChange={(e) => setParentescoResponsavelLegal(e.target.value)}
-              className="w-full bg-white dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-salvia-600"
+              className="w-full bg-white dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-salvia-600"
             >
               <option value="Mãe">Mãe</option>
               <option value="Pai">Pai</option>
@@ -105,7 +105,7 @@ export function ResponsaveisTab({
               value={cpfResponsavelLegal}
               onChange={(e) => setCpfResponsavelLegal(formatCpf(e.target.value))}
               placeholder="000.000.000-00"
-              className="w-full bg-white dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-mono"
+              className="w-full bg-white dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-mono"
             />
           </div>
           <div>
@@ -118,7 +118,7 @@ export function ResponsaveisTab({
               value={telefoneResponsavel}
               onChange={(e) => setTelefoneResponsavel(formatPhone(e.target.value))}
               placeholder="(11) 98765-4321"
-              className="w-full bg-white dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-mono"
+              className="w-full bg-white dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-mono"
             />
           </div>
           <div>
@@ -131,7 +131,7 @@ export function ResponsaveisTab({
               value={emailResponsavel}
               onChange={(e) => setEmailResponsavel(e.target.value)}
               placeholder="responsavel@email.com"
-              className="w-full bg-white dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+              className="w-full bg-white dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
             />
           </div>
         </div>
@@ -140,7 +140,7 @@ export function ResponsaveisTab({
       {/* Flag de Unificação de Responsável */}
       <div
         onClick={() => setResponsavelFinanceiroIgualLegal(!responsavelFinanceiroIgualLegal)}
-        className="p-3 bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl flex items-center space-x-3 cursor-pointer hover:border-salvia-500 transition-all select-none"
+        className="p-3 bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl flex items-center space-x-3 cursor-pointer hover:border-salvia-500 transition-all select-none"
       >
         <div className="text-salvia-700 dark:text-salvia-400">
           {responsavelFinanceiroIgualLegal ? (
@@ -178,7 +178,7 @@ export function ResponsaveisTab({
                 value={nomeResponsavelFinanceiro}
                 onChange={(e) => setNomeResponsavelFinanceiro(e.target.value)}
                 placeholder="Ex: Carlos Roberto Silva"
-                className="w-full bg-white dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-salvia-600 font-medium"
+                className="w-full bg-white dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-salvia-600 font-medium"
               />
             </div>
             <div>
@@ -188,7 +188,7 @@ export function ResponsaveisTab({
               <select
                 value={parentescoResponsavelFinanceiro}
                 onChange={(e) => setParentescoResponsavelFinanceiro(e.target.value)}
-                className="w-full bg-white dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+                className="w-full bg-white dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 dark:text-slate-100"
               >
                 <option value="Pai">Pai</option>
                 <option value="Mãe">Mãe</option>
@@ -210,7 +210,7 @@ export function ResponsaveisTab({
                 value={cpfResponsavelFinanceiro}
                 onChange={(e) => setCpfResponsavelFinanceiro(formatCpf(e.target.value))}
                 placeholder="000.000.000-00"
-                className="w-full bg-white dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-mono"
+                className="w-full bg-white dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-mono"
               />
             </div>
             <div>
@@ -222,7 +222,7 @@ export function ResponsaveisTab({
                 value={telefoneResponsavelFinanceiro}
                 onChange={(e) => setTelefoneResponsavelFinanceiro(formatPhone(e.target.value))}
                 placeholder="(11) 99999-8888"
-                className="w-full bg-white dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-mono"
+                className="w-full bg-white dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-mono"
               />
             </div>
             <div>
@@ -234,7 +234,7 @@ export function ResponsaveisTab({
                 value={emailResponsavelFinanceiro}
                 onChange={(e) => setEmailResponsavelFinanceiro(e.target.value)}
                 placeholder="financeiro.aluno@email.com"
-                className="w-full bg-white dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+                className="w-full bg-white dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
               />
             </div>
           </div>

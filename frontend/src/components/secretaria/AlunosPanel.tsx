@@ -92,7 +92,7 @@ export function AlunosPanel({
                   className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold transition ${
                     active
                       ? 'border-salvia-600 bg-salvia-700 text-white'
-                      : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-salvia-400 dark:border-slate-700 dark:bg-[#0c120e] dark:text-slate-300'
+                      : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-salvia-400 dark:border-slate-700 dark:bg-canvas-dark dark:text-slate-300'
                   }`}
                 >
                   {chip.label}
@@ -102,7 +102,7 @@ export function AlunosPanel({
             })}
           </div>
 
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-[#0c120e]/80 p-3 space-y-3">
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-canvas-dark/80 p-3 space-y-3">
             <div className="relative">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" />
               <input
@@ -110,7 +110,7 @@ export function AlunosPanel({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar por nome, CPF, responsável legal/financeiro ou cidade..."
-                className="w-full bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-salvia-600 font-medium placeholder-slate-400"
+                className="w-full bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-salvia-600 font-medium placeholder-slate-400"
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
@@ -123,7 +123,7 @@ export function AlunosPanel({
                     if (e.target.value) setFiltroSemTurma(false);
                     setPage(1);
                   }}
-                  className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
+                  className="bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
                 >
                   <option value="">Todas as turmas</option>
                   {turmasReferencia.map((t) => (
@@ -141,7 +141,7 @@ export function AlunosPanel({
                     setFiltroAnoLetivo(e.target.value);
                     setPage(1);
                   }}
-                  className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
+                  className="bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
                 >
                   <option value="">Qualquer ano</option>
                   {anosLetivosTurma.map((ano) => (
@@ -282,7 +282,7 @@ export function AlunosPanel({
                               <MoreVertical className="w-3.5 h-3.5" />
                             </button>
                             {menuStatusAlunoId === aluno.id && (
-                              <div className="absolute right-0 top-9 z-20 w-52 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#141d17] shadow-lg py-1 text-left">
+                              <div className="absolute right-0 top-9 z-20 w-52 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-surface-dark shadow-lg py-1 text-left">
                                 {handleEmitirDocumento && (
                                   <button
                                     type="button"

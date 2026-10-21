@@ -130,7 +130,7 @@ export function RotinaTab({
               })}
             </ul>
 
-            <div className="flex flex-col min-h-[14rem] max-h-[22rem] bg-salvia-50/30 dark:bg-[#0c120e]/30">
+            <div className="flex flex-col min-h-[14rem] max-h-[22rem] bg-salvia-50/30 dark:bg-canvas-dark/30">
               {threadPortalAtiva ? (
                 <>
                   <div className="px-3 py-2.5 border-b border-salvia-100 dark:border-salvia-800 bg-white dark:bg-salvia-900 shrink-0">

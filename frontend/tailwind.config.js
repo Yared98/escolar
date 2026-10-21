@@ -1,4 +1,14 @@
 /** @type {import('tailwindcss').Config} */
+
+// As cores de marca vêm de variáveis CSS (canais RGB, definidas em
+// src/app/globals.css) para que cada escola possa ter o próprio tema.
+// O formato `rgb(var(--x) / <alpha-value>)` mantém as opacidades (`/40`).
+const cor = (variavel) => `rgb(var(--${variavel}) / <alpha-value>)`;
+const escala = (prefixo) =>
+  Object.fromEntries(
+    [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950].map((tom) => [tom, cor(`${prefixo}-${tom}`)]),
+  );
+
 module.exports = {
   darkMode: 'class',
   content: [
@@ -9,20 +19,15 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // High-Contrast Sálvia Botanical Theme
-        salvia: {
-          50: '#f2f7f4',
-          100: '#e1ede5',
-          200: '#c3dccb',
-          300: '#9ac3a6',
-          400: '#6ea37d',
-          500: '#4e865d',
-          600: '#3a6b47',
-          700: '#2d5338', // Sálvia Primary (Light Mode)
-          800: '#25432f',
-          900: '#1e3727',
-          950: '#0f1c13', // Sálvia Dark Background
-        },
+        // Cor principal da escola (padrão: Sálvia). O nome `salvia` foi mantido
+        // para não reescrever os componentes; o valor segue o tema da escola.
+        salvia: escala('brand'),
+        // Cor de destaque da escola (padrão: âmbar, o tertiary do DESIGN.md).
+        accent: escala('accent'),
+        // Fundos e texto base (claro e escuro).
+        canvas: { DEFAULT: cor('canvas'), dark: cor('canvas-dark') },
+        'surface-dark': cor('surface-dark'),
+        ink: { DEFAULT: cor('ink'), dark: cor('ink-dark') },
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],

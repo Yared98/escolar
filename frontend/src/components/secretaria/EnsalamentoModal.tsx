@@ -57,7 +57,7 @@ export function EnsalamentoModal({
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-[#141d17] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-xl">
+      <div className="bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-xl">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
           <div>
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Colocar aluno em uma turma</h3>
@@ -86,7 +86,7 @@ export function EnsalamentoModal({
             <select
               value={selectedAlunoId || alunos[0]?.id || ''}
               onChange={(e) => setSelectedAlunoId(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-salvia-600 font-medium"
+              className="w-full bg-slate-50 dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-salvia-600 font-medium"
             >
               {alunos.map((a) => (
                 <option key={a.id} value={a.id}>
@@ -96,7 +96,7 @@ export function EnsalamentoModal({
             </select>
           </div>
 
-          <div className="bg-slate-50 dark:bg-[#0c120e] p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-xs space-y-1">
+          <div className="bg-slate-50 dark:bg-canvas-dark p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-xs space-y-1">
             <div className="flex justify-between text-slate-600 dark:text-slate-400">
               <span>Capacidade Total:</span>
               <span className="font-bold text-slate-900 dark:text-slate-100">{turma.capacidade_maxima}</span>

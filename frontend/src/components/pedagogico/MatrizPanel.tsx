@@ -38,7 +38,7 @@ export function MatrizPanel({
   return (
     <div className="space-y-6">
       {/* Seletor de Turma + Ações */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 dark:bg-[#0c120e] p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 dark:bg-canvas-dark p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
         <div className="flex items-center space-x-3">
           <span className="text-xs font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
             Turma Ativa:
@@ -46,7 +46,7 @@ export function MatrizPanel({
           <select
             value={selectedTurmaId}
             onChange={(e) => setSelectedTurmaId(e.target.value)}
-            className="bg-white dark:bg-[#141d17] border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:border-salvia-600 max-sm:w-full max-sm:min-w-0 max-sm:max-w-full max-sm:truncate"
+            className="bg-white dark:bg-surface-dark border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:border-salvia-600 max-sm:w-full max-sm:min-w-0 max-sm:max-w-full max-sm:truncate"
           >
             {turmas.map((t) => (
               <option key={t.id} value={t.id}>
@@ -77,7 +77,7 @@ export function MatrizPanel({
       </div>
 
       {/* Roster da turma — mesma API do Diário e do livro de chamada da Secretaria */}
-      <div className="bg-white dark:bg-[#0c120e] border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 space-y-2">
+      <div className="bg-white dark:bg-canvas-dark border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
             <UserCheck className="w-4 h-4 text-salvia-700 dark:text-salvia-400" />
@@ -213,7 +213,7 @@ export function MatrizPanel({
           {disciplinas.map((d) => (
             <div
               key={d.id}
-              className="bg-slate-50 dark:bg-[#0c120e] p-3 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5"
+              className="bg-slate-50 dark:bg-canvas-dark p-3 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5"
             >
               <div className="flex justify-between items-start">
                 <span className="font-mono text-[10px] font-bold text-salvia-700 dark:text-salvia-400 bg-salvia-100 dark:bg-salvia-900/60 px-1.5 py-0.5 rounded">

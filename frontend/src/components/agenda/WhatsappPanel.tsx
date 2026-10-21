@@ -74,7 +74,7 @@ export function WhatsappPanel({
                 </div>
               </div>
 
-              <div className="rounded-xl bg-slate-50 dark:bg-[#0c120e] border border-slate-100 dark:border-slate-800 px-3 py-2">
+              <div className="rounded-xl bg-slate-50 dark:bg-canvas-dark border border-slate-100 dark:border-slate-800 px-3 py-2">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Última mensagem</p>
                 <p className="text-xs text-slate-800 dark:text-slate-200">{p.ultima_mensagem || p.assunto}</p>
               </div>

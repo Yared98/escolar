@@ -135,3 +135,17 @@ spacing:
 
 - **Componentação Acolhedora**:
   - Cards acolhedores com cantos arredondados (`rounded-2xl` / 16px), bordas de 1px suavemente contrastadas e chips em formato de pílula (`rounded-full`).
+
+## 🎨 Tokens e variáveis CSS (tema por escola)
+
+As cores de marca não ficam mais fixas no Tailwind: cada token lê uma variável CSS com os canais RGB (ex.: `--brand-700: 45 83 56`), definida em `frontend/src/app/globals.css` com os valores Sálvia como padrão. O tema da escola (cards TEMA-T2..T5) sobrescreve essas variáveis em `document.documentElement`.
+
+| Classe Tailwind | Variável | Uso |
+|---|---|---|
+| `salvia-50..950` | `--brand-50..950` | Cor principal da escola (o nome `salvia` foi mantido para não reescrever os componentes). |
+| `accent-50..950` | `--accent-50..950` | Cor de destaque (padrão: âmbar). Ainda sem uso nos componentes. |
+| `canvas` / `canvas-dark` | `--canvas` / `--canvas-dark` | Fundo da página (claro / escuro). |
+| `surface-dark` | `--surface-dark` | Superfície de cards no modo escuro. |
+| `ink` / `ink-dark` | `--ink` / `--ink-dark` | Texto base (claro / escuro). |
+
+Regras: não usar hex arbitrário (`bg-[#...]`) em componentes; usar os tokens acima. Opacidade funciona normalmente (`dark:bg-canvas-dark/80`). Cores de status (verde sucesso, âmbar aviso, vermelho erro) usam a paleta padrão do Tailwind e **não** seguem o tema da escola.
