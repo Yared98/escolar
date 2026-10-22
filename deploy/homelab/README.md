@@ -16,7 +16,9 @@ Este diretório contém a stack de **produção** para rodar o Escolar ERP num s
 
 ---
 
-## 2. Configurar a integração com a Cora (opcional)
+## 2. Configurar a integração com a Cora (opcional) — DESLIGADA e NÃO TESTADA
+
+> **Status (2026-10-22):** a Cora não está em uso e a integração **nunca foi testada contra a Cora real** (só contra um simulador local). Deixe `CORA_MODE=mock`. Os passos abaixo são o roteiro para quando alguém for ligar: comece pelo Stage e valide emissão, consulta e baixa antes de usar em produção.
 
 A emissão de boletos e QR Code Pix oficiais é feita pela integração direta com a Cora. Se a escola não usar essa funcionalidade, deixe `CORA_MODE=mock`.
 
